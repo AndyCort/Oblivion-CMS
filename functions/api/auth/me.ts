@@ -24,7 +24,11 @@ export const onRequestGet = async (context: {
     JSON.stringify({
       authenticated: true,
       user: auth.user,
-      configured: Boolean(env.GITHUB_TOKEN && env.GITHUB_OWNER && env.GITHUB_REPO),
+      configured: Boolean(
+        env.GITHUB_TOKEN &&
+        (env.GITHUB_OWNER || "AndyCort") &&
+        (env.GITHUB_REPO || "oblivion-dashboard")
+      ),
     }),
     {
       status: 200,

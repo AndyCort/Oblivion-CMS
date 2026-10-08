@@ -118,8 +118,8 @@ export const onRequestGet = async (context: {
   }
 
   // 2. Read configuration
-  const owner = env.GITHUB_OWNER;
-  const repo = env.GITHUB_REPO;
+  const owner = env.GITHUB_OWNER || "AndyCort";
+  const repo = env.GITHUB_REPO || "oblivion-dashboard";
   const branch = env.GITHUB_BRANCH || "main";
   const path = env.GITHUB_DATA_PATH || "src/components/data/moments.ts";
   const token = env.GITHUB_TOKEN;

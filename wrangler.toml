@@ -3,11 +3,7 @@ compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 pages_build_output_dir = "dist"
 
-[vars]
-GITHUB_OWNER = "AndyCort"
-GITHUB_REPO = "oblivion-dashboard"
-GITHUB_BRANCH = "main"
-GITHUB_DATA_PATH = "src/components/data/moments.ts"
-# Cloudflare Access 零信任配置（可选填：配置后将启用官方 JWKS 证书实时验签）
-# CF_ACCESS_TEAM_DOMAIN = "your-team.cloudflareaccess.com"
-# CF_ACCESS_AUD = "your-application-aud"
+# 注意：请勿在 wrangler.toml 中重复定义已在 Cloudflare Pages 控制台设置的环境变量，
+# 否则 Cloudflare Pages Functions 发布时会报错："Binding name '...' already in use"。
+# 所有环境变量（如 GITHUB_TOKEN、GITHUB_OWNER、CF_ACCESS_TEAM_DOMAIN 等）
+# 请直接在 Cloudflare Dashboard -> Pages -> Settings -> Environment variables 中配置。
