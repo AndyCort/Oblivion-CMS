@@ -90,7 +90,7 @@ export const MusicEditor: React.FC<MusicEditorProps> = ({ music, onChange }) => 
           onSubmit={handleSave}
           className="p-3.5 rounded-xl border border-indigo-200 dark:border-indigo-900/60 bg-indigo-50/20 dark:bg-indigo-950/20 space-y-3"
         >
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             <div>
               <label className="block text-[11px] text-stone-500 dark:text-stone-400 mb-1">
                 歌曲名称
@@ -100,7 +100,7 @@ export const MusicEditor: React.FC<MusicEditorProps> = ({ music, onChange }) => 
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="例如: Sorrow Love"
-                className="w-full text-xs p-2 rounded-lg border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="w-full text-sm sm:text-xs p-2.5 sm:p-2 rounded-lg border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-1 focus:ring-indigo-500"
               />
             </div>
             <div>
@@ -112,7 +112,7 @@ export const MusicEditor: React.FC<MusicEditorProps> = ({ music, onChange }) => 
                 value={artist}
                 onChange={(e) => setArtist(e.target.value)}
                 placeholder="例如: Someone"
-                className="w-full text-xs p-2 rounded-lg border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="w-full text-sm sm:text-xs p-2.5 sm:p-2 rounded-lg border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-1 focus:ring-indigo-500"
               />
             </div>
           </div>
@@ -125,20 +125,20 @@ export const MusicEditor: React.FC<MusicEditorProps> = ({ music, onChange }) => 
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               placeholder="https://example.com/music"
-              className="w-full text-xs p-2 rounded-lg border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="w-full text-sm sm:text-xs p-2.5 sm:p-2 rounded-lg border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-1 focus:ring-indigo-500 font-mono"
             />
           </div>
           <div className="flex justify-end gap-2 pt-1">
             <button
               type="button"
               onClick={() => setIsEditing(false)}
-              className="px-3 py-1 text-xs text-stone-600 dark:text-stone-400 hover:bg-stone-200/50 rounded-lg"
+              className="px-3.5 py-1.5 text-xs text-stone-600 dark:text-stone-400 hover:bg-stone-200/50 rounded-lg"
             >
               取消
             </button>
             <button
               type="submit"
-              className="px-3 py-1 text-xs bg-indigo-600 hover:bg-indigo-500 text-white font-medium rounded-lg"
+              className="px-4 py-1.5 text-xs bg-indigo-600 hover:bg-indigo-500 text-white font-medium rounded-lg shadow-xs"
             >
               确定
             </button>

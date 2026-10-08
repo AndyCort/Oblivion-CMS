@@ -60,7 +60,7 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({ time, onChange }
           step="1"
           value={dateStr}
           onChange={handleChange}
-          className="w-full text-xs p-2.5 rounded-xl border border-stone-200 dark:border-stone-800 bg-stone-50/50 dark:bg-stone-900/50 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
+          className="w-full text-sm sm:text-xs p-2.5 rounded-xl border border-stone-200 dark:border-stone-800 bg-stone-50/50 dark:bg-stone-900/50 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
         />
       </div>
     </div>

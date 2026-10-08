@@ -32,7 +32,7 @@ export const LocationInput: React.FC<LocationInputProps> = ({
           onChange={(e) => onChange(e.target.value)}
           onFocus={() => setShowHistory(true)}
           placeholder="例如: Elysium, 东京, 杭州 · 咖啡馆..."
-          className="w-full text-xs p-2.5 pl-3 pr-8 rounded-xl border border-stone-200 dark:border-stone-800 bg-stone-50/50 dark:bg-stone-900/50 text-stone-900 dark:text-stone-100 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="w-full text-sm sm:text-xs p-2.5 pl-3 pr-8 rounded-xl border border-stone-200 dark:border-stone-800 bg-stone-50/50 dark:bg-stone-900/50 text-stone-900 dark:text-stone-100 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
         />
         {location && (
           <button

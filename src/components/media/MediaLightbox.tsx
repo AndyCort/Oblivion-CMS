@@ -53,14 +53,33 @@ export const MediaLightbox: React.FC<MediaLightboxProps> = ({
     }
   };
 
+  const touchStartXRef = useRef<number | null>(null);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartXRef.current = e.touches[0].clientX;
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartXRef.current === null) return;
+    const diff = e.changedTouches[0].clientX - touchStartXRef.current;
+    if (diff > 50 && hasPrev) {
+      onNavigate(currentIndex - 1);
+    } else if (diff < -50 && hasNext) {
+      onNavigate(currentIndex + 1);
+    }
+    touchStartXRef.current = null;
+  };
+
   return (
     <div
       onClick={handleBackdropClick}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4 animate-in fade-in duration-200 select-none"
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-2 sm:p-4 animate-in fade-in duration-200 select-none"
     >
       {/* Top action bar */}
-      <div className="absolute top-4 right-4 flex items-center gap-3 z-10">
-        <span className="text-stone-400 text-sm font-mono">
+      <div className="absolute top-4 right-4 pt-safe flex items-center gap-3 z-20">
+        <span className="text-stone-300 text-xs sm:text-sm font-mono bg-black/40 px-2 py-0.5 rounded-full backdrop-blur-xs">
           {currentIndex + 1} / {media.length}
         </span>
         <button
@@ -68,7 +87,7 @@ export const MediaLightbox: React.FC<MediaLightboxProps> = ({
             if (videoRef.current) videoRef.current.pause();
             onClose();
           }}
-          className="p-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+          className="p-2 sm:p-2.5 rounded-full bg-white/15 hover:bg-white/25 active:bg-white/35 text-white transition-colors"
           title="关闭 (Esc)"
         >
           <X className="w-5 h-5" />
@@ -79,10 +98,10 @@ export const MediaLightbox: React.FC<MediaLightboxProps> = ({
       {hasPrev && (
         <button
           onClick={() => onNavigate(currentIndex - 1)}
-          className="absolute left-4 p-3 rounded-full bg-white/10 hover:bg-white/25 text-white transition-colors z-10"
+          className="absolute left-2 sm:left-4 p-2 sm:p-3 rounded-full bg-white/10 hover:bg-white/25 active:bg-white/35 text-white transition-colors z-20 backdrop-blur-xs"
           title="上一张 (←)"
         >
-          <ChevronLeft className="w-6 h-6" />
+          <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
         </button>
       )}
 
@@ -90,10 +109,10 @@ export const MediaLightbox: React.FC<MediaLightboxProps> = ({
       {hasNext && (
         <button
           onClick={() => onNavigate(currentIndex + 1)}
-          className="absolute right-4 p-3 rounded-full bg-white/10 hover:bg-white/25 text-white transition-colors z-10"
+          className="absolute right-2 sm:right-4 p-2 sm:p-3 rounded-full bg-white/10 hover:bg-white/25 active:bg-white/35 text-white transition-colors z-20 backdrop-blur-xs"
           title="下一张 (→)"
         >
-          <ChevronRight className="w-6 h-6" />
+          <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6" />
         </button>
       )}
 

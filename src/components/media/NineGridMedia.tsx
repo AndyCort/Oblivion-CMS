@@ -247,43 +247,44 @@ export const NineGridMedia: React.FC<NineGridMediaProps> = ({ media, onChange })
                 {index + 1}
               </div>
 
-              {/* Hover/Focus Actions overlay */}
-              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-1.5 pointer-events-none group-hover:pointer-events-auto">
-                <div className="flex justify-between items-center">
+              {/* Actions group: always visible & easy to tap on mobile, hover on desktop */}
+              <div className="absolute top-1.5 right-1.5 flex items-center gap-1 z-10 opacity-90 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                <button
+                  type="button"
+                  onClick={(e) => handleToggleType(index, e)}
+                  className="w-6 h-6 rounded-md bg-black/60 hover:bg-black/90 text-white flex items-center justify-center backdrop-blur-xs active:scale-90 transition-transform"
+                  title={item.type === "img" ? "切换为视频" : "切换为图片"}
+                >
+                  <ArrowLeftRight className="w-3 h-3" />
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => handleStartEdit(index, e)}
+                  className="w-6 h-6 rounded-md bg-black/60 hover:bg-black/90 text-white flex items-center justify-center backdrop-blur-xs active:scale-90 transition-transform"
+                  title="编辑 URL"
+                >
+                  <Edit2 className="w-3 h-3" />
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => handleDelete(index, e)}
+                  className="w-6 h-6 rounded-md bg-rose-600/90 hover:bg-rose-600 text-white flex items-center justify-center backdrop-blur-xs shadow-xs active:scale-90 transition-transform"
+                  title="删除"
+                >
+                  <Trash2 className="w-3 h-3" />
+                </button>
+              </div>
+
+              {/* Drag handle & Preview hint */}
+              <div className="absolute inset-0 bg-black/30 opacity-0 sm:group-hover:opacity-100 transition-opacity flex flex-col justify-between p-1.5 pointer-events-none">
+                <div className="flex items-center">
                   <div
-                    className="cursor-grab active:cursor-grabbing p-1 rounded-md bg-black/50 text-white"
+                    className="cursor-grab active:cursor-grabbing p-1 rounded-md bg-black/50 text-white pointer-events-auto"
                     title="拖拽排序"
                   >
                     <GripVertical className="w-3.5 h-3.5" />
                   </div>
-                  <div className="flex gap-1">
-                    <button
-                      type="button"
-                      onClick={(e) => handleToggleType(index, e)}
-                      className="p-1 rounded-md bg-black/60 hover:bg-black/90 text-white"
-                      title={item.type === "img" ? "切换为视频" : "切换为图片"}
-                    >
-                      <ArrowLeftRight className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={(e) => handleStartEdit(index, e)}
-                      className="p-1 rounded-md bg-black/60 hover:bg-black/90 text-white"
-                      title="编辑 URL"
-                    >
-                      <Edit2 className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={(e) => handleDelete(index, e)}
-                      className="p-1 rounded-md bg-rose-600/90 hover:bg-rose-600 text-white"
-                      title="删除"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
                 </div>
-
                 <div className="text-center text-[11px] text-white/90 font-medium pb-1 drop-shadow">
                   点击查看大图
                 </div>
@@ -293,74 +294,85 @@ export const NineGridMedia: React.FC<NineGridMediaProps> = ({ media, onChange })
         })}
 
         {/* Add Card (Always at the end) */}
-        {!isAddingSingle ? (
-          <button
-            type="button"
-            onClick={() => setIsAddingSingle(true)}
-            className="aspect-square rounded-xl border-2 border-dashed border-stone-300 dark:border-stone-700 hover:border-indigo-500 dark:hover:border-indigo-400 bg-stone-50/50 dark:bg-stone-900/50 hover:bg-indigo-50/30 dark:hover:bg-indigo-950/20 flex flex-col items-center justify-center gap-1 text-stone-500 dark:text-stone-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
-          >
-            <div className="w-9 h-9 rounded-full bg-stone-200/70 dark:bg-stone-800 flex items-center justify-center">
-              <Plus className="w-5 h-5" />
-            </div>
-            <span className="text-xs font-medium">添加媒体</span>
-          </button>
-        ) : (
-          <div className="aspect-square rounded-xl border border-indigo-400 dark:border-indigo-600 bg-white dark:bg-stone-900 p-2.5 flex flex-col justify-between shadow-lg">
-            <form onSubmit={handleAddSingle} className="h-full flex flex-col justify-between">
+        <button
+          type="button"
+          onClick={() => setIsAddingSingle(true)}
+          className="aspect-square rounded-xl border-2 border-dashed border-stone-300 dark:border-stone-700 hover:border-indigo-500 dark:hover:border-indigo-400 bg-stone-50/50 dark:bg-stone-900/50 hover:bg-indigo-50/30 dark:hover:bg-indigo-950/20 flex flex-col items-center justify-center gap-1 text-stone-500 dark:text-stone-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors active:scale-95"
+        >
+          <div className="w-8 sm:w-9 h-8 sm:h-9 rounded-full bg-stone-200/70 dark:bg-stone-800 flex items-center justify-center">
+            <Plus className="w-4 sm:w-5 h-4 sm:h-5" />
+          </div>
+          <span className="text-[11px] sm:text-xs font-medium">添加媒体</span>
+        </button>
+      </div>
+
+      {/* Single Add Media Modal */}
+      {isAddingSingle && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-2xl max-w-sm w-full p-5 shadow-2xl space-y-4">
+            <h4 className="font-semibold text-stone-900 dark:text-stone-100 text-sm">
+              添加单项媒体
+            </h4>
+            <form onSubmit={handleAddSingle} className="space-y-3.5">
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setNewTypeInput("img")}
+                  className={`flex-1 text-xs py-2 rounded-xl flex items-center justify-center gap-1.5 transition-colors ${
+                    newTypeInput === "img"
+                      ? "bg-indigo-600 text-white font-medium shadow-xs"
+                      : "bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-400"
+                  }`}
+                >
+                  <ImageIcon className="w-3.5 h-3.5" /> 图片
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setNewTypeInput("vid")}
+                  className={`flex-1 text-xs py-2 rounded-xl flex items-center justify-center gap-1.5 transition-colors ${
+                    newTypeInput === "vid"
+                      ? "bg-indigo-600 text-white font-medium shadow-xs"
+                      : "bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-400"
+                  }`}
+                >
+                  <VideoIcon className="w-3.5 h-3.5" /> 视频
+                </button>
+              </div>
+
               <div>
-                <div className="flex gap-1 mb-1.5">
-                  <button
-                    type="button"
-                    onClick={() => setNewTypeInput("img")}
-                    className={`flex-1 text-[11px] py-0.5 rounded flex items-center justify-center gap-1 ${
-                      newTypeInput === "img"
-                        ? "bg-indigo-600 text-white font-medium"
-                        : "bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-400"
-                    }`}
-                  >
-                    <ImageIcon className="w-3 h-3" /> 图片
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setNewTypeInput("vid")}
-                    className={`flex-1 text-[11px] py-0.5 rounded flex items-center justify-center gap-1 ${
-                      newTypeInput === "vid"
-                        ? "bg-indigo-600 text-white font-medium"
-                        : "bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-400"
-                    }`}
-                  >
-                    <VideoIcon className="w-3 h-3" /> 视频
-                  </button>
-                </div>
+                <label className="block text-[11px] text-stone-500 dark:text-stone-400 mb-1">
+                  媒体链接 URL (支持图片或视频直接访问地址)
+                </label>
                 <input
                   type="url"
                   value={newUrlInput}
                   onChange={(e) => setNewUrlInput(e.target.value)}
-                  placeholder="https://..."
-                  className="w-full text-xs p-1.5 rounded border border-stone-300 dark:border-stone-700 bg-stone-50 dark:bg-stone-950 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  placeholder="https://example.com/photo.jpg"
+                  className="w-full text-sm sm:text-xs p-2.5 rounded-xl border border-stone-300 dark:border-stone-700 bg-stone-50 dark:bg-stone-950 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
                   autoFocus
                 />
               </div>
-              <div className="flex gap-1">
+
+              <div className="flex justify-end gap-2 pt-1">
                 <button
                   type="button"
                   onClick={() => setIsAddingSingle(false)}
-                  className="flex-1 py-1 text-xs rounded bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-400"
+                  className="px-3.5 py-2 text-xs text-stone-600 dark:text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-800 rounded-xl"
                 >
                   取消
                 </button>
                 <button
                   type="submit"
                   disabled={!newUrlInput.trim()}
-                  className="flex-1 py-1 text-xs rounded bg-indigo-600 text-white font-medium disabled:opacity-50"
+                  className="px-4 py-2 text-xs bg-indigo-600 hover:bg-indigo-500 text-white font-medium rounded-xl disabled:opacity-50 shadow-xs"
                 >
-                  确定
+                  确定添加
                 </button>
               </div>
             </form>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Inline edit URL modal */}
       {editingIndex !== null && (

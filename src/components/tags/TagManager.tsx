@@ -69,7 +69,7 @@ export const TagManager: React.FC<TagManagerProps> = ({
             onChange={(e) => setInputVal(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={tags.length === 0 ? "输入标签按回车添加..." : "添加标签..."}
-            className="w-full text-xs bg-transparent border-none outline-none text-stone-900 dark:text-stone-100 placeholder:text-stone-400"
+            className="w-full text-sm sm:text-xs bg-transparent border-none outline-none text-stone-900 dark:text-stone-100 placeholder:text-stone-400"
           />
           {inputVal.trim() && (
             <button

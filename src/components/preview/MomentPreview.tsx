@@ -25,7 +25,7 @@ export const MomentPreview: React.FC<MomentPreviewProps> = ({ article }) => {
         </span>
       </div>
 
-      <div className="rounded-2xl border border-stone-800/80 bg-stone-950 text-white p-5 shadow-2xl relative overflow-hidden backdrop-blur-xl">
+      <div className="rounded-2xl border border-stone-800/80 bg-stone-950 text-white p-4 sm:p-5 shadow-2xl relative overflow-hidden backdrop-blur-xl">
         {/* Card Header: Avatar & Author */}
         <header className="flex items-center gap-3 mb-4">
           <div className="w-9 h-9 rounded-full overflow-hidden border border-white/20 shrink-0">
@@ -47,7 +47,7 @@ export const MomentPreview: React.FC<MomentPreviewProps> = ({ article }) => {
 
         {/* 3-Column Media Grid */}
         {article.media && article.media.length > 0 && (
-          <div className="grid grid-cols-3 gap-2.5 mb-4">
+          <div className="grid grid-cols-3 gap-2 sm:gap-2.5 mb-4">
             {article.media.map((item, idx) => (
               <div
                 key={idx}

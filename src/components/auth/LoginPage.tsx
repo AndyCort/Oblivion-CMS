@@ -80,14 +80,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({
     errorMsg?.includes("服务器错误");
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center p-4 bg-stone-950 text-stone-100 relative overflow-hidden select-none font-sans">
+    <div className="min-h-screen w-full flex items-center justify-center py-6 px-4 pt-safe pb-safe bg-stone-950 text-stone-100 relative overflow-hidden select-none font-sans">
       {/* Ambient background glows */}
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[550px] h-[550px] bg-gradient-to-tr from-indigo-600/20 via-purple-600/15 to-transparent rounded-full blur-[130px] pointer-events-none" />
       <div className="absolute bottom-1/4 right-1/4 w-[350px] h-[350px] bg-indigo-500/10 rounded-full blur-[100px] pointer-events-none" />
 
       {/* Main Login Card */}
       <div className="w-full max-w-md relative z-10 animate-in fade-in zoom-in-95 duration-300">
-        <div className="rounded-3xl border border-stone-800/80 bg-stone-900/70 backdrop-blur-2xl p-7 sm:p-9 shadow-2xl shadow-black/80 space-y-7">
+        <div className="rounded-3xl border border-stone-800/80 bg-stone-900/70 backdrop-blur-2xl p-5 sm:p-8 shadow-2xl shadow-black/80 space-y-6 sm:space-y-7">
           {/* Header */}
           <div className="text-center space-y-3">
             <div className="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-purple-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/25 ring-4 ring-indigo-500/10">

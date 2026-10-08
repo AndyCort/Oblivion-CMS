@@ -132,7 +132,7 @@ export const ArticleListSidebar: React.FC<ArticleListSidebarProps> = ({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="搜索正文、地点、标签、音乐..."
-            className="w-full text-xs pl-8.5 pr-3 py-2 rounded-xl border border-stone-200 dark:border-stone-800 bg-stone-50 dark:bg-stone-950 text-stone-900 dark:text-stone-100 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full text-sm sm:text-xs pl-8.5 pr-3 py-2 rounded-xl border border-stone-200 dark:border-stone-800 bg-stone-50 dark:bg-stone-950 text-stone-900 dark:text-stone-100 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
           />
         </div>
 
@@ -201,7 +201,7 @@ export const ArticleListSidebar: React.FC<ArticleListSidebarProps> = ({
       </div>
 
       {/* Article List Cards */}
-      <div className="flex-1 overflow-y-auto divide-y divide-stone-100 dark:divide-stone-800/80">
+      <div className="flex-1 overflow-y-auto divide-y divide-stone-100 dark:divide-stone-800/80 pb-safe">
         {filteredArticles.length === 0 ? (
           <div className="p-8 text-center text-stone-400 space-y-2">
             <Sparkles className="w-8 h-8 mx-auto stroke-1 opacity-60" />
@@ -217,7 +217,7 @@ export const ArticleListSidebar: React.FC<ArticleListSidebarProps> = ({
               <div
                 key={fp}
                 onClick={() => onSelectArticle(fp)}
-                className={`p-3.5 cursor-pointer transition-colors relative group ${
+                className={`p-3.5 cursor-pointer transition-colors relative group active:bg-stone-100/70 dark:active:bg-stone-800/60 ${
                   isSelected
                     ? "bg-indigo-50/70 dark:bg-indigo-950/40 border-l-3 border-indigo-600"
                     : "hover:bg-stone-50 dark:hover:bg-stone-800/50"
@@ -297,18 +297,18 @@ export const ArticleListSidebar: React.FC<ArticleListSidebarProps> = ({
                     )}
                   </div>
 
-                  {/* Actions visible on hover */}
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  {/* Actions visible on hover or mobile touch */}
+                  <div className="flex items-center gap-1 opacity-90 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                     <button
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
                         onCloneArticle(article);
                       }}
-                      className="p-1 rounded text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 hover:bg-stone-200/60 dark:hover:bg-stone-700/60"
+                      className="p-1.5 sm:p-1 rounded-md text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 hover:bg-stone-200/60 dark:hover:bg-stone-700/60 active:scale-95 transition-transform"
                       title="复制文章"
                     >
-                      <Copy className="w-3 h-3" />
+                      <Copy className="w-3.5 h-3.5 sm:w-3 sm:h-3" />
                     </button>
                     <button
                       type="button"
@@ -316,10 +316,10 @@ export const ArticleListSidebar: React.FC<ArticleListSidebarProps> = ({
                         e.stopPropagation();
                         onDeleteArticle(article, fp);
                       }}
-                      className="p-1 rounded text-stone-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50"
+                      className="p-1.5 sm:p-1 rounded-md text-stone-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 active:scale-95 transition-transform"
                       title="删除文章"
                     >
-                      <Trash2 className="w-3 h-3" />
+                      <Trash2 className="w-3.5 h-3.5 sm:w-3 sm:h-3" />
                     </button>
                   </div>
                 </div>

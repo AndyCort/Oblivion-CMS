@@ -511,16 +511,30 @@ export function App() {
   return (
     <div className="min-h-screen bg-stone-100 dark:bg-stone-950 text-stone-900 dark:text-stone-100 flex flex-col antialiased">
       {/* Top Navbar */}
-      <header className="h-14 border-b border-stone-200 dark:border-stone-800 bg-white/80 dark:bg-stone-900/80 backdrop-blur-md sticky top-0 z-30 px-4 flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-3">
+      <header className="h-14 border-b border-stone-200 dark:border-stone-800 bg-white/80 dark:bg-stone-900/80 backdrop-blur-md sticky top-0 z-30 px-3 sm:px-4 flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-2.5 sm:gap-3">
           {/* Mobile view toggle */}
-          <button
-            type="button"
-            onClick={() => setMobileView(mobileView === "sidebar" ? "editor" : "sidebar")}
-            className="md:hidden p-2 rounded-xl text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800"
-          >
-            {mobileView === "editor" ? <ChevronLeft className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-          </button>
+          {mobileView === "editor" ? (
+            <button
+              type="button"
+              onClick={() => setMobileView("sidebar")}
+              className="md:hidden flex items-center gap-1 px-2.5 py-1.5 -ml-1 text-xs font-semibold text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 rounded-xl active:scale-95 transition-all"
+              title="返回文章列表"
+            >
+              <ChevronLeft className="w-4 h-4 text-indigo-500 stroke-[2.5]" />
+              <span>列表</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setMobileView("editor")}
+              className="md:hidden flex items-center gap-1 px-2.5 py-1.5 -ml-1 text-xs font-medium text-stone-600 dark:text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-800 rounded-xl active:scale-95 transition-all"
+              title="前往编辑器"
+            >
+              <PenTool className="w-3.5 h-3.5 text-indigo-500" />
+              <span>编辑</span>
+            </button>
+          )}
 
           {/* Logo & Brand */}
           <div className="flex items-center gap-2">
@@ -532,7 +546,7 @@ export function App() {
                 <span className="font-bold text-sm tracking-tight text-stone-900 dark:text-stone-100">
                   Oblivion-CMS
                 </span>
-                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-stone-100 dark:bg-stone-800 text-stone-500 dark:text-stone-400">
+                <span className="hidden sm:inline-block text-[10px] font-mono px-1.5 py-0.5 rounded bg-stone-100 dark:bg-stone-800 text-stone-500 dark:text-stone-400">
                   v1.0
                 </span>
               </div>
@@ -558,9 +572,9 @@ export function App() {
         </div>
 
         {/* Right action controls */}
-        <div className="flex items-center gap-2">
-          {/* Theme Switcher */}
-          <div className="flex items-center p-1 rounded-xl bg-stone-100 dark:bg-stone-800/80 border border-stone-200 dark:border-stone-700/60 text-xs">
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          {/* Desktop 3-option theme switcher */}
+          <div className="hidden sm:flex items-center p-1 rounded-xl bg-stone-100 dark:bg-stone-800/80 border border-stone-200 dark:border-stone-700/60 text-xs">
             <button
               type="button"
               onClick={() => setTheme("light")}
@@ -599,11 +613,31 @@ export function App() {
             </button>
           </div>
 
+          {/* Mobile compact single theme cycle button */}
+          <button
+            type="button"
+            onClick={() => {
+              if (theme === "light") setTheme("dark");
+              else if (theme === "dark") setTheme("system");
+              else setTheme("light");
+            }}
+            className="sm:hidden p-2 rounded-xl text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 active:scale-95 transition-all"
+            title="切换主题"
+          >
+            {theme === "light" ? (
+              <Sun className="w-4 h-4 text-amber-500" />
+            ) : theme === "dark" ? (
+              <Moon className="w-4 h-4 text-indigo-400" />
+            ) : (
+              <Laptop className="w-4 h-4 text-stone-500" />
+            )}
+          </button>
+
           {/* System status / config modal button */}
           <button
             type="button"
             onClick={() => setIsConfigModalOpen(true)}
-            className="p-2 rounded-xl text-stone-500 hover:text-stone-800 dark:hover:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-800"
+            className="p-2 rounded-xl text-stone-500 hover:text-stone-800 dark:hover:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-800 active:scale-95"
             title="查看连接与鉴权配置"
           >
             <Settings className="w-4 h-4" />
@@ -613,7 +647,7 @@ export function App() {
           <button
             type="button"
             onClick={handleLogout}
-            className="p-2 rounded-xl text-stone-500 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+            className="p-2 rounded-xl text-stone-500 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors active:scale-95"
             title="退出登录"
           >
             <LogOut className="w-4 h-4" />
@@ -624,7 +658,7 @@ export function App() {
       {/* Toast Alert Banner */}
       {toastMsg && (
         <div
-          className={`fixed bottom-6 right-6 z-50 px-4 py-2.5 rounded-2xl shadow-xl border text-xs font-medium flex items-center gap-2 animate-in slide-in-from-bottom-5 duration-200 ${
+          className={`fixed bottom-4 sm:bottom-6 left-3 right-3 sm:left-auto sm:right-6 z-50 px-4 py-2.5 rounded-2xl shadow-xl border text-xs font-medium flex items-center justify-between sm:justify-start gap-2 animate-in slide-in-from-bottom-5 duration-200 ${
             toastMsg.type === "success"
               ? "bg-emerald-50 dark:bg-emerald-950/90 text-emerald-800 dark:text-emerald-200 border-emerald-300 dark:border-emerald-800"
               : toastMsg.type === "error"
@@ -632,14 +666,16 @@ export function App() {
               : "bg-indigo-50 dark:bg-indigo-950/90 text-indigo-800 dark:text-indigo-200 border-indigo-300 dark:border-indigo-800"
           }`}
         >
-          {toastMsg.type === "success" ? (
-            <CheckCircle className="w-4 h-4 text-emerald-500" />
-          ) : toastMsg.type === "error" ? (
-            <AlertTriangle className="w-4 h-4 text-rose-500" />
-          ) : (
-            <Sparkles className="w-4 h-4 text-indigo-500" />
-          )}
-          <span>{toastMsg.text}</span>
+          <div className="flex items-center gap-2 truncate">
+            {toastMsg.type === "success" ? (
+              <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />
+            ) : toastMsg.type === "error" ? (
+              <AlertTriangle className="w-4 h-4 text-rose-500 shrink-0" />
+            ) : (
+              <Sparkles className="w-4 h-4 text-indigo-500 shrink-0" />
+            )}
+            <span className="truncate">{toastMsg.text}</span>
+          </div>
         </div>
       )}
 
@@ -647,7 +683,7 @@ export function App() {
       <div className="flex-1 flex overflow-hidden">
         {/* Left Sidebar: Article List */}
         <aside
-          className={`w-full md:w-80 lg:w-96 shrink-0 h-[calc(100vh-3.5rem)] ${
+          className={`w-full md:w-80 lg:w-96 shrink-0 h-[calc(100dvh-3.5rem)] ${
             mobileView === "sidebar" ? "block" : "hidden md:block"
           }`}
         >
@@ -665,11 +701,11 @@ export function App() {
 
         {/* Right Content: Editor & Preview */}
         <main
-          className={`flex-1 h-[calc(100vh-3.5rem)] overflow-y-auto bg-stone-50/50 dark:bg-stone-950/50 p-4 md:p-6 lg:p-8 ${
+          className={`flex-1 h-[calc(100dvh-3.5rem)] overflow-y-auto bg-stone-50/50 dark:bg-stone-950/50 p-3 sm:p-5 md:p-6 lg:p-8 pb-safe ${
             mobileView === "editor" ? "block" : "hidden md:block"
           }`}
         >
-          <div className="max-w-3xl mx-auto space-y-6">
+          <div className="max-w-3xl mx-auto space-y-4 sm:space-y-6">
             {/* Editor Action Bar / Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-stone-200 dark:border-stone-800">
               <div className="flex items-center gap-2">
@@ -713,9 +749,9 @@ export function App() {
 
             {/* Editor Mode */}
             {activeTab === "edit" ? (
-              <div className="space-y-6 bg-white dark:bg-stone-900 p-5 md:p-7 rounded-2xl border border-stone-200 dark:border-stone-800 shadow-sm">
+              <div className="space-y-5 sm:space-y-6 bg-white dark:bg-stone-900 p-4 sm:p-6 md:p-7 rounded-2xl border border-stone-200 dark:border-stone-800 shadow-sm relative">
                 {/* Meta details row: Time & Location */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <DateTimePicker
                     time={currentArticle.time}
                     onChange={(newTime) =>
@@ -743,7 +779,7 @@ export function App() {
                           type="button"
                           onClick={handleUndo}
                           disabled={historyIndex <= 0}
-                          className="p-1 rounded hover:bg-stone-100 dark:hover:bg-stone-800 disabled:opacity-30"
+                          className="p-1.5 sm:p-1 rounded hover:bg-stone-100 dark:hover:bg-stone-800 disabled:opacity-30 active:scale-95"
                           title="撤回 (Undo)"
                         >
                           <Undo2 className="w-3.5 h-3.5" />
@@ -752,7 +788,7 @@ export function App() {
                           type="button"
                           onClick={handleRedo}
                           disabled={historyIndex >= historyStack.length - 1}
-                          className="p-1 rounded hover:bg-stone-100 dark:hover:bg-stone-800 disabled:opacity-30"
+                          className="p-1.5 sm:p-1 rounded hover:bg-stone-100 dark:hover:bg-stone-800 disabled:opacity-30 active:scale-95"
                           title="重做 (Redo)"
                         >
                           <Redo2 className="w-3.5 h-3.5" />
@@ -769,12 +805,12 @@ export function App() {
                     onChange={(e) => handleContentChange(e.target.value)}
                     placeholder="分享此刻的所思所想..."
                     rows={6}
-                    className="w-full text-sm leading-relaxed p-4 rounded-xl border border-stone-200 dark:border-stone-800 bg-stone-50/50 dark:bg-stone-950/50 text-stone-900 dark:text-stone-100 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-sans resize-y"
+                    className="w-full text-sm leading-relaxed p-3.5 sm:p-4 rounded-xl border border-stone-200 dark:border-stone-800 bg-stone-50/50 dark:bg-stone-950/50 text-stone-900 dark:text-stone-100 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-sans resize-y min-h-[140px]"
                   />
                 </div>
 
                 {/* 9-Grid Media Manager */}
-                <div className="pt-2">
+                <div className="pt-1 sm:pt-2">
                   <NineGridMedia
                     media={currentArticle.media}
                     onChange={(newMedia) =>
@@ -784,7 +820,7 @@ export function App() {
                 </div>
 
                 {/* Tags Manager */}
-                <div className="pt-2">
+                <div className="pt-1 sm:pt-2">
                   <TagManager
                     tags={currentArticle.tags}
                     onChange={(newTags) =>
@@ -795,7 +831,7 @@ export function App() {
                 </div>
 
                 {/* Music Editor */}
-                <div className="pt-2">
+                <div className="pt-1 sm:pt-2">
                   <MusicEditor
                     music={currentArticle.music}
                     onChange={(newMusic) =>
@@ -818,32 +854,32 @@ export function App() {
                         ? "发表新说说"
                         : "更新说说内容"
                     }
-                    className="w-full text-xs p-2.5 rounded-xl border border-stone-200 dark:border-stone-800 bg-stone-50 dark:bg-stone-950 font-mono text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full text-sm sm:text-xs p-2.5 rounded-xl border border-stone-200 dark:border-stone-800 bg-stone-50 dark:bg-stone-950 font-mono text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>
 
-                {/* Action Buttons Bar */}
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-stone-100 dark:border-stone-800">
+                {/* Action Buttons Bar - sticky at bottom on mobile */}
+                <div className="sticky bottom-0 z-20 -mx-4 -mb-4 sm:mx-0 sm:mb-0 p-3 sm:p-0 bg-white/95 dark:bg-stone-900/95 sm:bg-transparent backdrop-blur-md sm:backdrop-blur-none border-t border-stone-200 dark:border-stone-800 flex items-center justify-between gap-2.5 sm:gap-3 rounded-b-2xl shadow-lg sm:shadow-none pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:pb-0">
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
                       onClick={handleRevertChanges}
-                      className="px-3.5 py-2 text-xs font-medium text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100 hover:bg-stone-100 dark:hover:bg-stone-800 rounded-xl transition-colors flex items-center gap-1.5"
+                      className="px-3 sm:px-3.5 py-2.5 sm:py-2 text-xs font-medium text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100 hover:bg-stone-100 dark:hover:bg-stone-800 rounded-xl transition-colors flex items-center gap-1.5 active:scale-95"
                     >
                       <RotateCcw className="w-3.5 h-3.5" />
-                      放弃草稿更改
+                      <span>放弃草稿更改</span>
                     </button>
                   </div>
 
-                  <div className="flex items-center gap-2.5 w-full sm:w-auto">
+                  <div className="flex items-center gap-2.5 w-auto">
                     <button
                       type="button"
                       onClick={handlePublish}
                       disabled={isPublishing}
-                      className="flex-1 sm:flex-initial px-5 py-2.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl shadow-md shadow-indigo-600/20 flex items-center justify-center gap-2 transition-transform active:scale-95"
+                      className="px-4 sm:px-5 py-2.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl shadow-md shadow-indigo-600/20 flex items-center justify-center gap-2 transition-transform active:scale-95"
                     >
                       <UploadCloud className="w-4 h-4" />
-                      {isPublishing ? "正在发布..." : "发布到数据库"}
+                      <span>{isPublishing ? "正在发布..." : "发布到数据库"}</span>
                     </button>
                   </div>
                 </div>
@@ -854,11 +890,11 @@ export function App() {
                 <MomentPreview article={currentArticle} />
 
                 {/* Quick publish bar under preview */}
-                <div className="flex justify-end gap-3 p-4 bg-white dark:bg-stone-900 rounded-2xl border border-stone-200 dark:border-stone-800 shadow-sm">
+                <div className="sticky bottom-0 z-20 flex justify-end gap-2.5 sm:gap-3 p-3 sm:p-4 bg-white/95 dark:bg-stone-900/95 backdrop-blur-md rounded-2xl border border-stone-200 dark:border-stone-800 shadow-md pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:pb-4">
                   <button
                     type="button"
                     onClick={() => setActiveTab("edit")}
-                    className="px-4 py-2 text-xs font-medium text-stone-600 dark:text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-800 rounded-xl"
+                    className="px-3.5 sm:px-4 py-2.5 sm:py-2 text-xs font-medium text-stone-600 dark:text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-800 rounded-xl active:scale-95 transition-all"
                   >
                     返回编辑
                   </button>
@@ -866,10 +902,10 @@ export function App() {
                     type="button"
                     onClick={handlePublish}
                     disabled={isPublishing}
-                    className="px-5 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 rounded-xl shadow-md flex items-center gap-2"
+                    className="px-4 sm:px-5 py-2.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 rounded-xl shadow-md flex items-center gap-2 active:scale-95 transition-all"
                   >
                     <UploadCloud className="w-4 h-4" />
-                    {isPublishing ? "正在发布..." : "直接发布此版本"}
+                    <span>{isPublishing ? "正在发布..." : "直接发布此版本"}</span>
                   </button>
                 </div>
               </div>
