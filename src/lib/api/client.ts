@@ -134,9 +134,21 @@ export async function loginWithCloudflareAccess(): Promise<UserSession> {
     };
   }
 
-  // In production, navigate to Cloudflare Access login endpoint
-  window.location.href = "/cdn-cgi/access/login";
-  return new Promise(() => {});
+  // In production, first verify if session is already active
+  const status = await checkAuthStatus();
+  if (status.user) {
+    return status.user;
+  }
+
+  // If there is a backend 500 configuration issue, throw to display to user
+  if (status.error && status.error.includes("服务器错误")) {
+    throw new Error(status.error);
+  }
+
+  // Navigate to Cloudflare Access login endpoint
+  window.location.assign("/cdn-cgi/access/login");
+  await new Promise((resolve) => setTimeout(resolve, 2500));
+  throw new Error("正在跳转至 Cloudflare Access 验证页面，若未自动跳转请刷新页面重试。");
 }
 
 export async function logoutUser(): Promise<void> {
@@ -151,7 +163,7 @@ export async function logoutUser(): Promise<void> {
   } catch {}
 }
 
-export async function checkAuthStatus(): Promise<UserSession | null> {
+export async function checkAuthStatus(): Promise<{ user: UserSession | null; error?: string }> {
   const isLocalHost =
     window.location.hostname === "localhost" ||
     window.location.hostname === "127.0.0.1";
@@ -164,7 +176,7 @@ export async function checkAuthStatus(): Promise<UserSession | null> {
     if (res.ok) {
       const data = await res.json();
       if (data.authenticated && data.user) {
-        return data.user;
+        return { user: data.user };
       }
     }
 
@@ -172,26 +184,34 @@ export async function checkAuthStatus(): Promise<UserSession | null> {
       const mockToken = getDevMockToken();
       if (mockToken) {
         return {
+          user: {
+            email: "developer@oblivion.local",
+            sub: "dev-local-user",
+            name: "本地开发模拟 (CF Access)",
+            isMock: true,
+          },
+        };
+      }
+      return { user: null };
+    }
+
+    const errData = await res.json().catch(() => ({}));
+    return {
+      user: null,
+      error: errData.error || `身份验证未通过 (${res.status})`,
+    };
+  } catch (err: any) {
+    if (isLocalHost && getDevMockToken()) {
+      return {
+        user: {
           email: "developer@oblivion.local",
           sub: "dev-local-user",
           name: "本地开发模拟 (CF Access)",
           isMock: true,
-        };
-      }
-      return null;
-    }
-
-    return null;
-  } catch {
-    if (isLocalHost && getDevMockToken()) {
-      return {
-        email: "developer@oblivion.local",
-        sub: "dev-local-user",
-        name: "本地开发模拟 (CF Access)",
-        isMock: true,
+        },
       };
     }
-    return null;
+    return { user: null, error: err?.message || "网络请求失败" };
   }
 }
 

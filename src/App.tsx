@@ -67,6 +67,7 @@ export function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUser, setCurrentUser] = useState<UserSession | null>(null);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   // Local drafts state (mapped by draft ID)
   const [draftsMap, setDraftsMap] = useState<Map<string, ArticleDraft>>(new Map());
@@ -131,30 +132,39 @@ export function App() {
   };
 
   // Check auth status on app start
-  useEffect(() => {
-    async function initAuth() {
-      setIsCheckingAuth(true);
-      try {
-        const user = await checkAuthStatus();
-        if (user) {
-          setIsAuthenticated(true);
-          setCurrentUser(user);
-          await loadInitialData();
-        } else {
-          setIsAuthenticated(false);
-        }
-      } catch {
+  const initAuth = async () => {
+    setIsCheckingAuth(true);
+    setAuthError(null);
+    try {
+      const res = await checkAuthStatus();
+      if (res.user) {
+        setIsAuthenticated(true);
+        setCurrentUser(res.user);
+        await loadInitialData();
+      } else {
         setIsAuthenticated(false);
-      } finally {
-        setIsCheckingAuth(false);
+        setCurrentUser(null);
+        if (res.error) {
+          setAuthError(res.error);
+        }
       }
+    } catch (err: any) {
+      setIsAuthenticated(false);
+      setCurrentUser(null);
+      setAuthError(err?.message || "网络请求失败");
+    } finally {
+      setIsCheckingAuth(false);
     }
+  };
+
+  useEffect(() => {
     initAuth();
   }, []);
 
   const handleLoginSuccess = async (user: UserSession) => {
     setIsAuthenticated(true);
     setCurrentUser(user);
+    setAuthError(null);
     showToast("success", `欢迎回来，${user.name || user.email}`);
     await loadInitialData();
   };
@@ -164,6 +174,7 @@ export function App() {
     setIsAuthenticated(false);
     setCurrentUser(null);
     setServerData(null);
+    setAuthError(null);
     showToast("info", "已安全退出登录");
   };
 
@@ -493,7 +504,13 @@ export function App() {
   }
 
   if (!isAuthenticated) {
-    return <LoginPage onLoginSuccess={handleLoginSuccess} />;
+    return (
+      <LoginPage
+        onLoginSuccess={handleLoginSuccess}
+        initialError={authError}
+        onRetry={initAuth}
+      />
+    );
   }
 
   return (

@@ -1,24 +1,37 @@
-import React, { useState } from "react";
-import { loginWithCloudflareAccess } from "../../lib/api/client";
+import React, { useState, useEffect } from "react";
+import { loginWithCloudflareAccess, checkAuthStatus } from "../../lib/api/client";
 import {
   ShieldCheck,
   Lock,
   ArrowRight,
-  ExternalLink,
+  RotateCcw,
   PenTool,
   AlertCircle,
   Terminal,
   Cloud,
+  KeyRound,
 } from "lucide-react";
 
 interface LoginPageProps {
   onLoginSuccess: (user: any) => void;
   onLoginError?: (error: string) => void;
+  initialError?: string | null;
+  onRetry?: () => void;
 }
 
-export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
+export const LoginPage: React.FC<LoginPageProps> = ({
+  onLoginSuccess,
+  initialError,
+  onRetry,
+}) => {
   const [isLoading, setIsLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(initialError || null);
+
+  useEffect(() => {
+    if (initialError) {
+      setErrorMsg(initialError);
+    }
+  }, [initialError]);
 
   const isLocalHost =
     typeof window !== "undefined" &&
@@ -39,6 +52,32 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
       setIsLoading(false);
     }
   };
+
+  const handleRetryCheck = async () => {
+    setIsLoading(true);
+    setErrorMsg(null);
+    try {
+      if (onRetry) {
+        onRetry();
+        return;
+      }
+      const res = await checkAuthStatus();
+      if (res.user) {
+        onLoginSuccess(res.user);
+      } else if (res.error) {
+        setErrorMsg(res.error);
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message || "检查会话失败");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const isConfigError =
+    errorMsg?.includes("CF_ACCESS_TEAM_DOMAIN") ||
+    errorMsg?.includes("生产配置缺失") ||
+    errorMsg?.includes("服务器错误");
 
   return (
     <div className="min-h-screen w-full flex items-center justify-center p-4 bg-stone-950 text-stone-100 relative overflow-hidden select-none font-sans">
@@ -71,23 +110,36 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
           {/* Status info box */}
           <div className="p-4 rounded-2xl bg-stone-950/70 border border-stone-800/80 space-y-2.5 text-xs text-stone-400">
             <div className="flex items-center gap-2 text-stone-200 font-medium">
-              <ShieldCheck className="w-4 h-4 text-emerald-400" />
+              <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
               <span>当前状态：等待身份凭证验证</span>
             </div>
             <p className="text-[11px] leading-relaxed text-stone-400">
-              系统未检测到有效的 Cloudflare Access 会话凭证（JWT Assertion）。需先通过 Cloudflare Zero Trust 认证（邮箱验证码或 GitHub 登录）方可进入编辑器。
+              需通过 Cloudflare Access（邮箱验证码或 GitHub 登录）验证身份后方可进入 CMS 编辑器。
             </p>
           </div>
 
           {/* Error Banner */}
           {errorMsg && (
-            <div className="p-3 rounded-xl bg-rose-950/60 border border-rose-800/60 text-xs text-rose-300 flex items-center gap-2 animate-in shake duration-200">
-              <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
-              <span>{errorMsg}</span>
+            <div className="p-3.5 rounded-xl bg-rose-950/60 border border-rose-800/60 text-xs text-rose-300 space-y-2 animate-in shake duration-200">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 text-rose-400 mt-0.5" />
+                <span className="font-medium">{errorMsg}</span>
+              </div>
+              {isConfigError && (
+                <div className="text-[11px] text-rose-300/80 bg-rose-950/40 p-2.5 rounded-lg border border-rose-900/50 space-y-1 font-mono">
+                  <p className="font-semibold text-rose-200 flex items-center gap-1.5">
+                    <KeyRound className="w-3.5 h-3.5" /> 环境变量排查建议：
+                  </p>
+                  <p>1. 检查 Cloudflare Pages 控制台设置中的环境变量</p>
+                  <p>2. 确保在 Settings &rarr; Environment variables 或 wrangler.toml 的 [vars] 下配置了：</p>
+                  <p className="text-rose-100">&bull; CF_ACCESS_TEAM_DOMAIN</p>
+                  <p className="text-rose-100">&bull; CF_ACCESS_AUD</p>
+                </div>
+              )}
             </div>
           )}
 
-          {/* Action Button */}
+          {/* Action Buttons */}
           <div className="space-y-3">
             <button
               type="button"
@@ -95,7 +147,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
               disabled={isLoading}
               className="w-full py-3.5 px-4 rounded-xl font-semibold text-xs text-white bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98] disabled:opacity-50 shadow-lg shadow-indigo-600/25 transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
-              <Cloud className="w-4 h-4" />
+              {isLoading ? (
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <Cloud className="w-4 h-4" />
+              )}
               <span>
                 {isLocalHost
                   ? "一键进入本地模拟模式 (Local Mock)"
@@ -103,6 +159,18 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
               </span>
               <ArrowRight className="w-4 h-4" />
             </button>
+
+            {!isLocalHost && (
+              <button
+                type="button"
+                onClick={handleRetryCheck}
+                disabled={isLoading}
+                className="w-full py-2.5 px-4 rounded-xl font-medium text-xs text-stone-400 hover:text-stone-200 bg-stone-900/60 hover:bg-stone-800/80 border border-stone-800 transition-all flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>重新检测当前会话 (Retry)</span>
+              </button>
+            )}
 
             {isLocalHost && (
               <div className="text-center pt-1">
