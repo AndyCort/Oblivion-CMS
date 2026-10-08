@@ -242,10 +242,14 @@ export const ArticleListSidebar: React.FC<ArticleListSidebarProps> = ({
                   )}
                 </div>
 
-                {/* Content Excerpt */}
-                <p className="text-xs text-stone-800 dark:text-stone-200 line-clamp-2 leading-relaxed font-sans mb-2">
-                  {article.content || "（无文本内容）"}
-                </p>
+                {/* Content Excerpt - 1:1 aligned with frontend preview */}
+                <div className="text-xs sm:text-[13px] text-stone-800 dark:text-stone-200 leading-relaxed whitespace-pre-wrap font-serif tracking-wide mb-2 select-text break-words">
+                  {article.content || (
+                    <span className="text-stone-400 dark:text-stone-500 italic">
+                      （暂无正文内容）
+                    </span>
+                  )}
+                </div>
 
                 {/* Media thumbnail preview snippet */}
                 {article.media && article.media.length > 0 && (

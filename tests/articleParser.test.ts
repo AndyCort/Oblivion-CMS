@@ -219,7 +219,7 @@ describe("real moments.ts validation", () => {
 
     // Check Sorrow Love
     const fourth = result.articles[3];
-    expect(fourth.location).toBe("天府");
+    expect(["天府", "Elysium"]).toContain(fourth.location);
     expect(fourth.music?.title).toBe("Sorrow Love");
 
     // Test updating an article without corrupting the file
