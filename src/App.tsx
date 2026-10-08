@@ -48,6 +48,7 @@ import {
   Layers,
   Settings,
   LogOut,
+  Database,
 } from "lucide-react";
 
 const GithubIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
@@ -422,7 +423,7 @@ export function App() {
         return next;
       });
 
-      showToast("success", `发布成功！Commit: ${res.commitMessage}`);
+      showToast("success", `发布成功！${res.commitMessage}`);
       setCommitMessageInput("");
 
       // Refresh articles from server
@@ -463,7 +464,7 @@ export function App() {
         return next;
       });
 
-      showToast("success", "文章已成功删除并同步至 GitHub");
+      showToast("success", "文章已成功从数据库中删除");
       setDeleteModalArticle(null);
 
       // Reload
@@ -544,15 +545,18 @@ export function App() {
             </div>
           </div>
 
-          {/* GitHub Data status badge */}
+          {/* D1 Storage status badge */}
           {serverData && (
             <div className="hidden lg:flex items-center gap-1.5 pl-3 border-l border-stone-200 dark:border-stone-800 text-xs font-mono text-stone-500">
-              <GithubIcon className="w-3.5 h-3.5" />
-              <span>{serverData.owner}/{serverData.repo}</span>
-              <span className="text-stone-400">({serverData.branch})</span>
-              {serverData.isMock && (
-                <span className="px-1.5 py-0.2 rounded text-[10px] bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-400 font-sans">
-                  模拟模式
+              <Database className="w-3.5 h-3.5 text-indigo-500" />
+              <span>Cloudflare D1</span>
+              {serverData.isMock ? (
+                <span className="px-1.5 py-0.5 rounded text-[10px] bg-amber-100 dark:bg-amber-950/80 text-amber-700 dark:text-amber-400 font-sans">
+                  模拟存储
+                </span>
+              ) : (
+                <span className="px-1.5 py-0.5 rounded text-[10px] bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-400 font-sans">
+                  已联机
                 </span>
               )}
             </div>

@@ -15,6 +15,7 @@ export interface FetchArticlesResponse {
   owner: string;
   repo: string;
   isMock: boolean;
+  isD1?: boolean;
   total: number;
   user?: UserSession;
 }

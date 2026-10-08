@@ -1,17 +1,16 @@
 import { verifyCloudflareAccess } from "../lib/access";
-import { getFileFromGitHub, putFileToGitHub } from "../lib/github";
+import type { PublishRequest, PublishResponse } from "../../src/types/article";
 import {
-  parseArticlesFromSource,
-  insertArticleIntoSource,
-  updateArticleInSource,
-  deleteArticleFromSource,
-} from "../../src/lib/ast/articleParser";
-import { PublishRequest, PublishResponse, Article } from "../../src/types/article";
-import { getMockState, setMockState } from "./articles";
+  saveD1Article,
+  updateD1Article,
+  deleteD1Article,
+  extractTimeFromFingerprint,
+  getD1Articles,
+} from "../lib/d1";
 
 export const onRequestPost = async (context: {
   request: Request;
-  env: Record<string, string | undefined>;
+  env: Record<string, any>;
 }) => {
   const { request, env } = context;
 
@@ -19,7 +18,7 @@ export const onRequestPost = async (context: {
   const auth = await verifyCloudflareAccess(request, env);
   if (auth.error || !auth.user) {
     return new Response(
-      JSON.stringify({ error: auth.error || "Unauthorized" }),
+      JSON.stringify({ error: auth.error || "未授权访问" }),
       {
         status: auth.status,
         headers: { "Content-Type": "application/json" },
@@ -27,24 +26,44 @@ export const onRequestPost = async (context: {
     );
   }
 
-  // 2. Parse and validate request body
-  let body: PublishRequest;
+  // 2. Parse request payload
+  let payload: PublishRequest;
   try {
-    body = (await request.json()) as PublishRequest;
+    payload = await request.json();
   } catch {
-    return new Response(JSON.stringify({ error: "请求格式无效，应为 JSON" }), {
+    return new Response(JSON.stringify({ error: "无效的 JSON 请求体" }), {
       status: 400,
       headers: { "Content-Type": "application/json" },
     });
   }
 
-  const { action, article, targetFingerprint, baseSha, commitMessage } = body;
+  const { action, article, targetFingerprint, baseSha, commitMessage } = payload;
 
   if (!action || !["create", "update", "delete"].includes(action)) {
-    return new Response(JSON.stringify({ error: "无效的 action 操作" }), {
-      status: 400,
-      headers: { "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ error: "action 必须为 create, update 或 delete" }),
+      {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
+  }
+
+  // Check optimistic locking version if baseSha provided
+  const { sha: currentSha } = await getD1Articles(env);
+  if (baseSha && baseSha !== currentSha) {
+    return new Response(
+      JSON.stringify({
+        error: "CONFLICT",
+        message: "检测到版本冲突：数据在此期间已被更新。请刷新数据并合并您的改动后再发布。",
+        remoteSha: currentSha,
+        clientBaseSha: baseSha,
+      }),
+      {
+        status: 409,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
   }
 
   if ((action === "create" || action === "update") && !article) {
@@ -64,154 +83,48 @@ export const onRequestPost = async (context: {
     );
   }
 
-  // 3. Configuration
-  const owner = env.GITHUB_OWNER || "AndyCort";
-  const repo = env.GITHUB_REPO || "oblivion-dashboard";
-  const branch = env.GITHUB_BRANCH || "main";
-  const path = env.GITHUB_DATA_PATH || "src/components/data/moments.ts";
-  const token = env.GITHUB_TOKEN;
-
-  let currentSource = "";
-  let currentSha = "";
-  const isMock = !(token && owner && repo);
-
-  // 4. Fetch latest file & detect conflicts
-  if (!isMock) {
-    try {
-      const remote = await getFileFromGitHub({
-        owner: owner!,
-        repo: repo!,
-        branch,
-        path,
-        token: token!,
-      });
-      currentSource = remote.content;
-      currentSha = remote.sha;
-    } catch (err: any) {
-      return new Response(
-        JSON.stringify({ error: `读取远程文件失败: ${err.message}` }),
-        {
-          status: 502,
-          headers: { "Content-Type": "application/json" },
-        }
-      );
-    }
-  } else {
-    const mock = getMockState();
-    currentSource = mock.code;
-    currentSha = mock.sha;
-  }
-
-  // Conflict detection: if baseSha is provided and doesn't match currentSha
-  if (baseSha && baseSha !== currentSha) {
-    return new Response(
-      JSON.stringify({
-        error: "CONFLICT",
-        message: "检测到版本冲突：远程文件在此期间已被更新。请刷新数据并合并您的改动后再发布。",
-        remoteSha: currentSha,
-        clientBaseSha: baseSha,
-      }),
-      {
-        status: 409,
-        headers: { "Content-Type": "application/json" },
-      }
-    );
-  }
-
-  // 5. Apply AST transformation
-  let updatedCode = "";
-  let defaultMsg = "";
-
+  // 3. Execute database operation in Cloudflare D1
   try {
+    let newSha = "";
+    let summaryMsg = "";
+
     if (action === "create") {
-      const res = insertArticleIntoSource(currentSource, article!);
-      updatedCode = res.newCode;
-      defaultMsg = `content: add article (${new Date(article!.time).toISOString().slice(0, 10)})`;
+      newSha = await saveD1Article(env, article!, true);
+      summaryMsg =
+        commitMessage?.trim() ||
+        `D1: 发表文章 (${new Date(article!.time).toISOString().slice(0, 10)})`;
     } else if (action === "update") {
-      const res = updateArticleInSource(currentSource, targetFingerprint!, article!);
-      updatedCode = res.newCode;
-      defaultMsg = `content: update article (${new Date(article!.time).toISOString().slice(0, 10)})`;
+      const targetTime = extractTimeFromFingerprint(targetFingerprint!);
+      newSha = await updateD1Article(env, targetTime, article!);
+      summaryMsg = commitMessage?.trim() || `D1: 更新文章 (${targetTime})`;
     } else if (action === "delete") {
-      const res = deleteArticleFromSource(currentSource, targetFingerprint!);
-      updatedCode = res.newCode;
-      defaultMsg = `content: delete article`;
+      const targetTime = extractTimeFromFingerprint(targetFingerprint!);
+      newSha = await deleteD1Article(env, targetTime);
+      summaryMsg = commitMessage?.trim() || `D1: 删除文章 (${targetTime})`;
     }
+
+    const { articles } = await getD1Articles(env);
+
+    const responseData: PublishResponse = {
+      success: true,
+      newSha,
+      commitMessage: summaryMsg,
+      articleCount: articles.length,
+    };
+
+    return new Response(JSON.stringify(responseData), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
   } catch (err: any) {
     return new Response(
       JSON.stringify({
-        error: `AST 修改失败: ${err.message}`,
+        error: `保存到 Cloudflare D1 失败: ${err.message}`,
       }),
       {
-        status: 422,
+        status: 500,
         headers: { "Content-Type": "application/json" },
       }
     );
   }
-
-  const finalCommitMessage = commitMessage?.trim() || defaultMsg;
-
-  // 6. Commit to GitHub or update Mock State
-  let newSha = "";
-  let commitUrl: string | undefined;
-
-  if (!isMock) {
-    try {
-      const commitRes = await putFileToGitHub(
-        {
-          owner: owner!,
-          repo: repo!,
-          branch,
-          path,
-          token: token!,
-        },
-        {
-          content: updatedCode,
-          sha: currentSha,
-          message: finalCommitMessage,
-        }
-      );
-      newSha = commitRes.newSha;
-      commitUrl = commitRes.commitUrl;
-    } catch (err: any) {
-      if (err.message.includes("409 CONFLICT")) {
-        return new Response(
-          JSON.stringify({
-            error: "CONFLICT",
-            message: "提交时发生远程并发冲突，请刷新后重试。",
-            remoteSha: currentSha,
-          }),
-          {
-            status: 409,
-            headers: { "Content-Type": "application/json" },
-          }
-        );
-      }
-      return new Response(
-        JSON.stringify({ error: `提交到 GitHub 失败: ${err.message}` }),
-        {
-          status: 502,
-          headers: { "Content-Type": "application/json" },
-        }
-      );
-    }
-  } else {
-    newSha = setMockState(updatedCode);
-    commitUrl = `https://github.com/mock/commit/${newSha}`;
-  }
-
-  // Count articles in new code
-  const recheck = parseArticlesFromSource(updatedCode);
-
-  const responsePayload: PublishResponse = {
-    success: true,
-    newSha,
-    commitUrl,
-    commitMessage: finalCommitMessage,
-    articleCount: recheck.articles.length,
-  };
-
-  return new Response(JSON.stringify(responsePayload), {
-    status: 200,
-    headers: { "Content-Type": "application/json" },
-  });
 };

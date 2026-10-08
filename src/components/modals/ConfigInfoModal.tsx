@@ -1,10 +1,15 @@
-import { Settings, Shield, GitBranch, Database, X, ExternalLink } from "lucide-react";
-
-const GithubIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-    <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" />
-  </svg>
-);
+import React, { useState } from "react";
+import {
+  Settings,
+  Shield,
+  Database,
+  X,
+  Copy,
+  Check,
+  Code2,
+  ExternalLink,
+  Sparkles,
+} from "lucide-react";
 
 interface ConfigInfoModalProps {
   isOpen: boolean;
@@ -21,42 +26,112 @@ interface ConfigInfoModalProps {
 export const ConfigInfoModal: React.FC<ConfigInfoModalProps> = ({
   isOpen,
   onClose,
-  owner,
-  repo,
-  branch,
-  path,
   sha,
   isMock,
   userEmail,
 }) => {
+  const [copied, setCopied] = useState(false);
+
   if (!isOpen) return null;
 
+  const publicApiUrl =
+    typeof window !== "undefined"
+      ? `${window.location.origin}/api/public/moments`
+      : "/api/public/moments";
+
+  const handleCopyApi = () => {
+    navigator.clipboard.writeText(publicApiUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2500);
+  };
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
-      <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-5">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in select-none">
+      <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-3xl max-w-lg w-full p-6 sm:p-7 shadow-2xl space-y-5">
+        {/* Header */}
         <div className="flex items-center justify-between pb-3 border-b border-stone-100 dark:border-stone-800">
           <div className="flex items-center gap-2">
-            <Settings className="w-5 h-5 text-indigo-500" />
-            <h3 className="font-semibold text-stone-900 dark:text-stone-100 text-base">
-              Oblivion-CMS 系统与配置状态
-            </h3>
+            <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center border border-indigo-200 dark:border-indigo-800/60">
+              <Settings className="w-4 h-4" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-stone-900 dark:text-stone-100 text-base">
+                数据库与前台集成
+              </h3>
+              <p className="text-[11px] text-stone-400">
+                Cloudflare D1 驱动与博客开放数据接口
+              </p>
+            </div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="p-1 rounded-lg text-stone-400 hover:text-stone-600 dark:hover:text-stone-300"
+            className="p-1.5 rounded-xl text-stone-400 hover:text-stone-600 dark:hover:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-800 cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         <div className="space-y-3.5 text-xs">
-          {/* GitHub Data Source */}
-          <div className="p-3.5 rounded-xl bg-stone-50 dark:bg-stone-950 border border-stone-200 dark:border-stone-800 space-y-2">
+          {/* Public API for Frontend Blog (Highlight Card) */}
+          <div className="p-4 rounded-2xl bg-gradient-to-br from-indigo-500/10 via-purple-500/5 to-transparent border border-indigo-500/30 space-y-2.5">
+            <div className="font-medium text-stone-900 dark:text-stone-100 flex items-center justify-between">
+              <span className="flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400 font-semibold">
+                <Sparkles className="w-4 h-4" />
+                前台博客实时读取接口 (Public Moments API)
+              </span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 font-mono">
+                CORS 跨域开放
+              </span>
+            </div>
+            <p className="text-[11px] text-stone-600 dark:text-stone-400 leading-relaxed">
+              你的前台博客（如 oblivion-dashboard）无需再等待 GitHub 编译重构，直接调用此接口即可获取最新发布的说说：
+            </p>
+
+            {/* API URL Copy row */}
+            <div className="flex items-center gap-2 p-2 rounded-xl bg-white dark:bg-stone-950 border border-stone-200 dark:border-stone-800">
+              <input
+                type="text"
+                readOnly
+                value={publicApiUrl}
+                className="flex-1 bg-transparent font-mono text-[11px] text-indigo-600 dark:text-indigo-400 outline-none select-all"
+              />
+              <button
+                type="button"
+                onClick={handleCopyApi}
+                className="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-[11px] flex items-center gap-1 shrink-0 cursor-pointer transition-all active:scale-95"
+              >
+                {copied ? (
+                  <>
+                    <Check className="w-3.5 h-3.5" />
+                    <span>已复制</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-3.5 h-3.5" />
+                    <span>复制</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* Quick JS code snippet */}
+            <div className="text-[10px] font-mono p-2.5 rounded-xl bg-stone-900 text-stone-300 space-y-1">
+              <div className="text-stone-400 flex items-center gap-1 font-sans">
+                <Code2 className="w-3 h-3 text-indigo-400" /> 前台代码调用示例：
+              </div>
+              <p className="text-indigo-300">
+                const moments = await fetch(&quot;{publicApiUrl}&quot;).then(r =&gt; r.json());
+              </p>
+            </div>
+          </div>
+
+          {/* Cloudflare D1 Database Status */}
+          <div className="p-3.5 rounded-2xl bg-stone-50 dark:bg-stone-950 border border-stone-200 dark:border-stone-800 space-y-2">
             <div className="font-medium text-stone-900 dark:text-stone-100 flex items-center justify-between">
               <span className="flex items-center gap-1.5">
-                <GithubIcon className="w-4 h-4 text-stone-700 dark:text-stone-300" />
-                数据源 (GitHub 仓库)
+                <Database className="w-4 h-4 text-emerald-500" />
+                数据储存引擎 (Cloudflare D1)
               </span>
               <span
                 className={`px-2 py-0.5 rounded text-[10px] font-medium ${
@@ -65,50 +140,39 @@ export const ConfigInfoModal: React.FC<ConfigInfoModalProps> = ({
                     : "bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-300/60"
                 }`}
               >
-                {isMock ? "本地/模拟数据源" : "GitHub API 联机"}
+                {isMock ? "本地内存模拟" : "D1 生产数据库"}
               </span>
             </div>
             <div className="space-y-1 font-mono text-stone-600 dark:text-stone-400 text-[11px]">
-              <div>仓库: {owner}/{repo}</div>
-              <div>分支: {branch || "main"}</div>
-              <div>文件: {path || "src/components/data/moments.ts"}</div>
-              <div>最新 SHA: {sha?.slice(0, 12)}...</div>
+              <div>数据表: articles (SQLite)</div>
+              <div>当前修订: {sha || "初始版本"}</div>
+              <div>绑定名称: env.DB</div>
             </div>
           </div>
 
           {/* Cloudflare Access */}
-          <div className="p-3.5 rounded-xl bg-stone-50 dark:bg-stone-950 border border-stone-200 dark:border-stone-800 space-y-2">
+          <div className="p-3.5 rounded-2xl bg-stone-50 dark:bg-stone-950 border border-stone-200 dark:border-stone-800 space-y-1.5">
             <div className="font-medium text-stone-900 dark:text-stone-100 flex items-center gap-1.5">
               <Shield className="w-4 h-4 text-indigo-500" />
-              身份验证 (Cloudflare Access)
+              后台安全策略 (Zero Trust Access)
             </div>
             <div className="text-stone-600 dark:text-stone-400 text-[11px] leading-relaxed">
-              当前用户: <span className="font-mono text-indigo-600 dark:text-indigo-400">{userEmail || "未登录"}</span>
+              当前操作会话: <span className="font-mono text-indigo-600 dark:text-indigo-400">{userEmail || "已验证"}</span>
               <p className="mt-1">
-                生产环境通过 Cloudflare Access JWT 服务端验签保障安全。GitHub Token 仅保存在 Cloudflare Secrets 中。
+                写权限受 Cloudflare Access 强鉴权保护；前台读取接口已开放公开只读。
               </p>
-            </div>
-          </div>
-
-          {/* Local Drafts info */}
-          <div className="p-3.5 rounded-xl bg-stone-50 dark:bg-stone-950 border border-stone-200 dark:border-stone-800 space-y-1.5">
-            <div className="font-medium text-stone-900 dark:text-stone-100 flex items-center gap-1.5">
-              <Database className="w-4 h-4 text-emerald-500" />
-              本地草稿存储 (IndexedDB)
-            </div>
-            <div className="text-stone-600 dark:text-stone-400 text-[11px] leading-relaxed">
-              未发布草稿实时保存在本机的浏览器 IndexedDB 中（防抖自动保存）。仅在点击“发布文章”时才会向 GitHub 发起 Commit。
             </div>
           </div>
         </div>
 
+        {/* Footer action */}
         <div className="flex justify-end pt-2">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl"
+            className="px-5 py-2.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl cursor-pointer transition-all active:scale-95 shadow-md shadow-indigo-600/20"
           >
-            了解并关闭
+            完成并关闭
           </button>
         </div>
       </div>

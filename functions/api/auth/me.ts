@@ -2,7 +2,7 @@ import { verifyCloudflareAccess } from "../../lib/access";
 
 export const onRequestGet = async (context: {
   request: Request;
-  env: Record<string, string | undefined>;
+  env: Record<string, any>;
 }) => {
   const { request, env } = context;
   const auth = await verifyCloudflareAccess(request, env);
@@ -24,11 +24,9 @@ export const onRequestGet = async (context: {
     JSON.stringify({
       authenticated: true,
       user: auth.user,
-      configured: Boolean(
-        env.GITHUB_TOKEN &&
-        (env.GITHUB_OWNER || "AndyCort") &&
-        (env.GITHUB_REPO || "oblivion-dashboard")
-      ),
+      configured: true,
+      d1Bound: Boolean(env.DB),
+      storage: env.DB ? "Cloudflare D1" : "Local Mock Store",
     }),
     {
       status: 200,

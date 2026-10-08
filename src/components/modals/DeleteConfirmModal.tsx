@@ -31,7 +31,7 @@ export const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({
               确认删除该文章？
             </h3>
             <p className="text-xs text-stone-500 dark:text-stone-400 mt-1">
-              此操作将直接更新 GitHub 仓库数据并提交 Commit。删除后需通过 Git 历史记录找回。
+              此操作将直接从 Cloudflare D1 数据库中删除该文章记录。
             </p>
           </div>
           <button

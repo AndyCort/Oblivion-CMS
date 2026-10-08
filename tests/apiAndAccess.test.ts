@@ -4,6 +4,10 @@ import { encodeBase64Utf8, decodeBase64Utf8 } from "../functions/lib/github";
 import { onRequestGet as getArticles } from "../functions/api/articles";
 import { onRequestPost as publishArticle } from "../functions/api/publish";
 import { onRequestPost as logoutPost } from "../functions/api/auth/logout";
+import {
+  onRequestGet as getPublicMoments,
+  onRequestOptions as optionsPublicMoments,
+} from "../functions/api/public/moments";
 
 describe("Base64 UTF-8 encoding & decoding", () => {
   it("correctly encodes and decodes Chinese characters and emojis without data loss", () => {
@@ -166,5 +170,24 @@ describe("API Endpoints & Conflict Detection", () => {
     const verifyRes = await getArticles({ request: verifyReq, env: localEnv });
     const verifyData: any = await verifyRes.json();
     expect(verifyData.articles[0].content).toBe("API created article! 🚀");
+  });
+
+  it("GET /api/public/moments returns moments array with open CORS headers", async () => {
+    const req = new Request("http://localhost:5173/api/public/moments");
+    const res = await getPublicMoments({ request: req, env: localEnv });
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Access-Control-Allow-Origin")).toBe("*");
+    const data: any = await res.json();
+    expect(Array.isArray(data)).toBe(true);
+    expect(data.length).toBeGreaterThan(0);
+    expect(data[0].time).toBeDefined();
+  });
+
+  it("OPTIONS /api/public/moments returns 204 preflight with CORS headers", async () => {
+    const res = await optionsPublicMoments();
+    expect(res.status).toBe(204);
+    expect(res.headers.get("Access-Control-Allow-Origin")).toBe("*");
+    expect(res.headers.get("Access-Control-Allow-Methods")).toContain("GET");
   });
 });
