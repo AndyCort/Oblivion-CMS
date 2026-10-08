@@ -1,5 +1,12 @@
 import type { Article, PublishRequest, PublishResponse, ConflictErrorResponse } from "../../types/article";
 
+export interface UserSession {
+  email: string;
+  sub: string;
+  name?: string;
+  isMock?: boolean;
+}
+
 export interface FetchArticlesResponse {
   articles: Article[];
   sha: string;
@@ -9,12 +16,40 @@ export interface FetchArticlesResponse {
   repo: string;
   isMock: boolean;
   total: number;
-  user?: {
-    email: string;
-    sub: string;
-    name?: string;
-    isMock?: boolean;
+  user?: UserSession;
+}
+
+const AUTH_TOKEN_KEY = "oblivion_auth_token";
+
+export function getAuthToken(): string | null {
+  try {
+    return localStorage.getItem(AUTH_TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function setAuthToken(token: string): void {
+  try {
+    localStorage.setItem(AUTH_TOKEN_KEY, token);
+  } catch {}
+}
+
+export function clearAuthToken(): void {
+  try {
+    localStorage.removeItem(AUTH_TOKEN_KEY);
+  } catch {}
+}
+
+function getAuthHeaders(): Record<string, string> {
+  const token = getAuthToken();
+  const headers: Record<string, string> = {
+    Accept: "application/json",
   };
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+  return headers;
 }
 
 // Fallback in-memory state for purely client-only dev mode if functions dev server is not running
@@ -80,13 +115,113 @@ const FALLBACK_MOCK_ARTICLES: Article[] = [
 
 let localFallbackSha = "local-sha-" + Date.now().toString(16);
 let localFallbackArticles: Article[] = [...FALLBACK_MOCK_ARTICLES];
+let isMockLoggedIn = false;
+
+export async function loginWithPassword(password: string): Promise<{ success: boolean; user: UserSession }> {
+  try {
+    const res = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password }),
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      if (data.token) {
+        setAuthToken(data.token);
+      }
+      return { success: true, user: data.user };
+    }
+
+    if (res.status === 404 && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")) {
+      // Local dev offline fallback
+      if (password === "admin" || password === "admin123" || password.length > 0) {
+        isMockLoggedIn = true;
+        setAuthToken("mock-dev-token");
+        return {
+          success: true,
+          user: {
+            email: "admin@oblivion.local",
+            sub: "admin",
+            name: "本地管理员",
+            isMock: true,
+          },
+        };
+      }
+      throw new Error("本地开发密码错误（默认密码为 admin）");
+    }
+
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "登录失败，密码错误");
+  } catch (err: any) {
+    if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
+      if (password === "admin" || password === "admin123" || password.length > 0) {
+        isMockLoggedIn = true;
+        setAuthToken("mock-dev-token");
+        return {
+          success: true,
+          user: {
+            email: "admin@oblivion.local",
+            sub: "admin",
+            name: "本地管理员",
+            isMock: true,
+          },
+        };
+      }
+    }
+    throw err;
+  }
+}
+
+export async function logoutUser(): Promise<void> {
+  clearAuthToken();
+  isMockLoggedIn = false;
+  try {
+    await fetch("/api/auth/logout", { method: "POST" });
+  } catch {}
+}
+
+export async function checkAuthStatus(): Promise<UserSession | null> {
+  const token = getAuthToken();
+  try {
+    const res = await fetch("/api/auth/me", {
+      headers: getAuthHeaders(),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.authenticated && data.user) {
+        return data.user;
+      }
+    }
+    if (res.status === 404 && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")) {
+      if (token || isMockLoggedIn) {
+        return {
+          email: "admin@oblivion.local",
+          sub: "admin",
+          name: "本地管理员",
+          isMock: true,
+        };
+      }
+      return null;
+    }
+    return null;
+  } catch {
+    if ((window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") && (token || isMockLoggedIn)) {
+      return {
+        email: "admin@oblivion.local",
+        sub: "admin",
+        name: "本地管理员",
+        isMock: true,
+      };
+    }
+    return null;
+  }
+}
 
 export async function fetchArticles(): Promise<FetchArticlesResponse> {
   try {
     const res = await fetch("/api/articles", {
-      headers: {
-        Accept: "application/json",
-      },
+      headers: getAuthHeaders(),
     });
 
     if (res.ok) {
@@ -95,7 +230,9 @@ export async function fetchArticles(): Promise<FetchArticlesResponse> {
 
     if (res.status === 401 || res.status === 403) {
       const data = await res.json().catch(() => ({}));
-      throw new Error(data.error || "Cloudflare Access 权限验证失败，未授权访问");
+      const err = new Error(data.error || "未登录或登录已过期");
+      (err as any).isAuthError = true;
+      throw err;
     }
 
     // If 404 in local dev (e.g. standard Vite dev server without wrangler), fallback gracefully
@@ -110,9 +247,9 @@ export async function fetchArticles(): Promise<FetchArticlesResponse> {
         isMock: true,
         total: localFallbackArticles.length,
         user: {
-          email: "developer@oblivion.local",
+          email: "admin@oblivion.local",
           sub: "dev-local",
-          name: "本地开发模式",
+          name: "本地管理员",
           isMock: true,
         },
       };
@@ -121,8 +258,8 @@ export async function fetchArticles(): Promise<FetchArticlesResponse> {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error || `请求失败 (${res.status})`);
   } catch (err: any) {
+    if (err.isAuthError) throw err;
     if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
-      // Local dev offline fallback
       return {
         articles: [...localFallbackArticles],
         sha: localFallbackSha,
@@ -133,9 +270,9 @@ export async function fetchArticles(): Promise<FetchArticlesResponse> {
         isMock: true,
         total: localFallbackArticles.length,
         user: {
-          email: "developer@oblivion.local",
+          email: "admin@oblivion.local",
           sub: "dev-local",
-          name: "本地开发模式",
+          name: "本地管理员",
           isMock: true,
         },
       };
@@ -148,13 +285,21 @@ export async function publishArticleToServer(
   request: PublishRequest
 ): Promise<PublishResponse> {
   try {
+    const headers = getAuthHeaders();
+    headers["Content-Type"] = "application/json";
+
     const res = await fetch("/api/publish", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers,
       body: JSON.stringify(request),
     });
+
+    if (res.status === 401 || res.status === 403) {
+      const data = await res.json().catch(() => ({}));
+      const err = new Error(data.error || "未登录或登录已过期");
+      (err as any).isAuthError = true;
+      throw err;
+    }
 
     if (res.status === 409) {
       const conflict: ConflictErrorResponse = await res.json();
@@ -165,7 +310,6 @@ export async function publishArticleToServer(
     }
 
     if (!res.ok) {
-      // If 404 in local dev mode, handle local state
       if (res.status === 404 && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")) {
         return handleLocalFallbackPublish(request);
       }
@@ -175,7 +319,7 @@ export async function publishArticleToServer(
 
     return await res.json();
   } catch (err: any) {
-    if (err.isConflict) throw err;
+    if (err.isAuthError || err.isConflict) throw err;
     if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
       return handleLocalFallbackPublish(request);
     }
@@ -199,7 +343,6 @@ function handleLocalFallbackPublish(req: PublishRequest): PublishResponse {
   if (req.action === "create" && req.article) {
     localFallbackArticles = [req.article, ...localFallbackArticles];
   } else if (req.action === "update" && req.article && req.targetFingerprint) {
-    // update
     localFallbackArticles = localFallbackArticles.map((a) => {
       const fp = `${a.time}`;
       return req.targetFingerprint?.startsWith(fp) ? req.article! : a;

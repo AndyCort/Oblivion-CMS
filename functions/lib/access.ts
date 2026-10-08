@@ -1,4 +1,4 @@
-import { jwtVerify, createRemoteJWKSet } from "jose";
+import { jwtVerify, createRemoteJWKSet, SignJWT } from "jose";
 
 export interface AccessUser {
   email: string;
@@ -8,7 +8,7 @@ export interface AccessUser {
 }
 
 export interface AccessConfig {
-  teamDomain?: string; // e.g. "my-team.cloudflareaccess.com" or "my-team"
+  teamDomain?: string;
   aud?: string;
   allowLocalMock?: boolean;
   environment?: string;
@@ -18,7 +18,6 @@ export interface AccessConfig {
 const jwksCache = new Map<string, ReturnType<typeof createRemoteJWKSet>>();
 
 function getJWKS(teamDomain: string) {
-  // Normalize team domain
   const normalized = teamDomain.includes(".")
     ? teamDomain
     : `${teamDomain}.cloudflareaccess.com`;
@@ -31,6 +30,30 @@ function getJWKS(teamDomain: string) {
     jwks: jwksCache.get(normalized)!,
     issuer: `https://${normalized}`,
   };
+}
+
+function getJwtSecretKey(env: Record<string, string | undefined>): Uint8Array {
+  const secret = env.JWT_SECRET || env.ADMIN_PASSWORD || "oblivion-default-secret-key-change-me";
+  return new TextEncoder().encode(secret);
+}
+
+/**
+ * Sign a session JWT for password-based admin login
+ */
+export async function createAdminSessionToken(
+  user: { email: string; name: string },
+  env: Record<string, string | undefined>
+): Promise<string> {
+  const secretKey = getJwtSecretKey(env);
+  return await new SignJWT({
+    email: user.email,
+    name: user.name,
+    sub: "admin",
+  })
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setExpirationTime("7d")
+    .sign(secretKey);
 }
 
 export async function verifyCloudflareAccess(
@@ -47,84 +70,113 @@ export async function verifyCloudflareAccess(
     (env.ALLOW_LOCAL_MOCK_AUTH === "true" || env.DEV_MODE === "true") &&
     isLocalHost;
 
-  // Retrieve Access token from header or cookie
-  let token = request.headers.get("Cf-Access-Jwt-Assertion");
-  if (!token) {
+  // 1. Check custom admin session token from Authorization header or cookie
+  let sessionToken: string | null = null;
+  const authHeader = request.headers.get("Authorization");
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    sessionToken = authHeader.slice(7).trim();
+  } else {
+    const cookieHeader = request.headers.get("Cookie") || "";
+    const match = cookieHeader.match(/oblivion_token=([^;]+)/);
+    if (match) {
+      sessionToken = match[1];
+    }
+  }
+
+  if (sessionToken) {
+    try {
+      const secretKey = getJwtSecretKey(env);
+      const { payload } = await jwtVerify(sessionToken, secretKey);
+      return {
+        user: {
+          email: (payload.email as string) || "admin@oblivion",
+          sub: (payload.sub as string) || "admin",
+          name: (payload.name as string) || "管理员",
+          isMock: false,
+        },
+        status: 200,
+      };
+    } catch {
+      // Session token invalid or expired, continue to check Cloudflare Access
+    }
+  }
+
+  // 2. Check Cloudflare Access JWT Assertion header or cookie
+  let cfToken = request.headers.get("Cf-Access-Jwt-Assertion");
+  if (!cfToken) {
     const cookieHeader = request.headers.get("Cookie") || "";
     const match = cookieHeader.match(/CF_Authorization=([^;]+)/);
     if (match) {
-      token = match[1];
+      cfToken = match[1];
     }
   }
 
-  // Local development bypass only when explicitly allowed on localhost
-  if (!token) {
-    if (allowLocalMock) {
+  if (cfToken) {
+    const teamDomain = env.CF_ACCESS_TEAM_DOMAIN;
+    const expectedAud = env.CF_ACCESS_AUD;
+
+    if (!teamDomain || !expectedAud) {
+      if (allowLocalMock) {
+        return {
+          user: {
+            email: "developer@oblivion.local",
+            sub: "dev-user-local",
+            name: "本地开发者",
+            isMock: true,
+          },
+          status: 200,
+        };
+      }
       return {
-        user: {
-          email: "developer@oblivion.local",
-          sub: "dev-user-local",
-          name: "Local Developer",
-          isMock: true,
-        },
-        status: 200,
+        error: "服务器错误：Cloudflare Access 生产配置缺失 (CF_ACCESS_TEAM_DOMAIN / CF_ACCESS_AUD)",
+        status: 500,
       };
     }
 
-    return {
-      error: "未授权：未提供 Cloudflare Access 身份凭证 (Cf-Access-Jwt-Assertion)",
-      status: 401,
-    };
-  }
+    try {
+      const { jwks, issuer } = getJWKS(teamDomain);
+      const { payload } = await jwtVerify(cfToken, jwks, {
+        issuer,
+        audience: expectedAud,
+      });
 
-  const teamDomain = env.CF_ACCESS_TEAM_DOMAIN;
-  const expectedAud = env.CF_ACCESS_AUD;
+      const email = (payload.email as string) || (payload.sub as string) || "authenticated-user";
+      const sub = (payload.sub as string) || "";
+      const name = (payload.name as string) || undefined;
 
-  // If Access credentials are not configured in production
-  if (!teamDomain || !expectedAud) {
-    if (allowLocalMock) {
-      // In dev mode without CF secrets, allow local mock if token is dev-token
       return {
         user: {
-          email: "developer@oblivion.local",
-          sub: "dev-user-local",
-          name: "Local Developer",
-          isMock: true,
+          email,
+          sub,
+          name,
+          isMock: false,
         },
         status: 200,
       };
+    } catch (err: any) {
+      return {
+        error: `Cloudflare Access 凭证无效或已过期: ${err?.message || "Invalid JWT"}`,
+        status: 403,
+      };
     }
-
-    return {
-      error: "服务器错误：Cloudflare Access 生产配置缺失 (CF_ACCESS_TEAM_DOMAIN / CF_ACCESS_AUD)",
-      status: 500,
-    };
   }
 
-  try {
-    const { jwks, issuer } = getJWKS(teamDomain);
-    const { payload } = await jwtVerify(token, jwks, {
-      issuer,
-      audience: expectedAud,
-    });
-
-    const email = (payload.email as string) || (payload.sub as string) || "authenticated-user";
-    const sub = (payload.sub as string) || "";
-    const name = (payload.name as string) || undefined;
-
+  // 3. Local development fallback if allowed
+  if (allowLocalMock) {
     return {
       user: {
-        email,
-        sub,
-        name,
-        isMock: false,
+        email: "developer@oblivion.local",
+        sub: "dev-user-local",
+        name: "本地开发者",
+        isMock: true,
       },
       status: 200,
     };
-  } catch (err: any) {
-    return {
-      error: `Access 凭证校验失败: ${err?.message || "Invalid or expired JWT"}`,
-      status: 403,
-    };
   }
+
+  // 4. Default: Unauthorized
+  return {
+    error: "未授权：请先登录管理员账户",
+    status: 401,
+  };
 }

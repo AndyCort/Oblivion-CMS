@@ -7,8 +7,11 @@ import { generateArticleFingerprint } from "./types/article";
 import {
   fetchArticles,
   publishArticleToServer,
+  checkAuthStatus,
+  logoutUser,
 } from "./lib/api/client";
-import type { FetchArticlesResponse } from "./lib/api/client";
+import type { FetchArticlesResponse, UserSession } from "./lib/api/client";
+import { LoginPage } from "./components/auth/LoginPage";
 import {
   saveDraft,
   getDraft,
@@ -44,6 +47,7 @@ import {
   Sparkles,
   Layers,
   Settings,
+  LogOut,
 } from "lucide-react";
 
 const GithubIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
@@ -58,6 +62,11 @@ export function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [toastMsg, setToastMsg] = useState<{ type: "success" | "error" | "info"; text: string } | null>(null);
+
+  // Authentication state
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [currentUser, setCurrentUser] = useState<UserSession | null>(null);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
   // Local drafts state (mapped by draft ID)
   const [draftsMap, setDraftsMap] = useState<Map<string, ArticleDraft>>(new Map());
@@ -121,6 +130,43 @@ export function App() {
     }, 4000);
   };
 
+  // Check auth status on app start
+  useEffect(() => {
+    async function initAuth() {
+      setIsCheckingAuth(true);
+      try {
+        const user = await checkAuthStatus();
+        if (user) {
+          setIsAuthenticated(true);
+          setCurrentUser(user);
+          await loadInitialData();
+        } else {
+          setIsAuthenticated(false);
+        }
+      } catch {
+        setIsAuthenticated(false);
+      } finally {
+        setIsCheckingAuth(false);
+      }
+    }
+    initAuth();
+  }, []);
+
+  const handleLoginSuccess = async (user: UserSession) => {
+    setIsAuthenticated(true);
+    setCurrentUser(user);
+    showToast("success", `欢迎回来，${user.name || user.email}`);
+    await loadInitialData();
+  };
+
+  const handleLogout = async () => {
+    await logoutUser();
+    setIsAuthenticated(false);
+    setCurrentUser(null);
+    setServerData(null);
+    showToast("info", "已安全退出登录");
+  };
+
   // Load server data and local drafts
   const loadInitialData = async () => {
     setIsLoading(true);
@@ -157,15 +203,16 @@ export function App() {
         setHistoryIndex(0);
       }
     } catch (err: any) {
-      setErrorMsg(err.message || "加载数据失败");
+      if (err.isAuthError) {
+        setIsAuthenticated(false);
+        setCurrentUser(null);
+      } else {
+        setErrorMsg(err.message || "加载数据失败");
+      }
     } finally {
       setIsLoading(false);
     }
   };
-
-  useEffect(() => {
-    loadInitialData();
-  }, []);
 
   // Debounced auto-save draft to IndexedDB
   const triggerAutoSave = (updated: Article) => {
@@ -436,6 +483,19 @@ export function App() {
     return Array.from(set);
   }, [serverData]);
 
+  if (isCheckingAuth) {
+    return (
+      <div className="min-h-screen bg-stone-950 flex flex-col items-center justify-center text-stone-400 gap-3 select-none font-sans">
+        <div className="w-9 h-9 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+        <span className="text-xs font-mono text-stone-400 tracking-wider">正在验证安全会话...</span>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <LoginPage onLoginSuccess={handleLoginSuccess} />;
+  }
+
   return (
     <div className="min-h-screen bg-stone-100 dark:bg-stone-950 text-stone-900 dark:text-stone-100 flex flex-col antialiased">
       {/* Top Navbar */}
@@ -532,6 +592,16 @@ export function App() {
             title="查看连接与鉴权配置"
           >
             <Settings className="w-4 h-4" />
+          </button>
+
+          {/* Logout button */}
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="p-2 rounded-xl text-stone-500 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+            title="退出登录"
+          >
+            <LogOut className="w-4 h-4" />
           </button>
         </div>
       </header>
