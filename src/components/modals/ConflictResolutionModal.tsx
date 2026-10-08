@@ -41,7 +41,7 @@ export const ConflictResolutionModal: React.FC<ConflictResolutionModalProps> = (
               检测到远程发布冲突 (409 Conflict)
             </h3>
             <p className="text-xs text-stone-500 dark:text-stone-400 mt-1">
-              在您编辑期间，GitHub 仓库中的文章文件已被其他提交修改。为了防止覆盖他人提交，系统已阻止此次更新。您的本地草稿已妥善保存在当前浏览器中。
+              在您编辑期间，数据库中的文章数据已被其他操作修改。为了防止覆盖他人提交，系统已阻止此次更新。您的本地草稿已妥善保存在当前浏览器中。
             </p>
           </div>
           <button

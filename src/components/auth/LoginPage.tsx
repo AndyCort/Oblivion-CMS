@@ -114,7 +114,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
               <span>当前状态：等待身份凭证验证</span>
             </div>
             <p className="text-[11px] leading-relaxed text-stone-400">
-              需通过 Cloudflare Access（邮箱验证码或 GitHub 登录）验证身份后方可进入 CMS 编辑器。
+              需通过 Cloudflare Access（邮箱验证码或 SSO 登录）验证身份后方可进入 CMS 编辑器。
             </p>
           </div>
 
