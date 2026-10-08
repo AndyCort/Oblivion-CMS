@@ -19,40 +19,40 @@ export interface FetchArticlesResponse {
   user?: UserSession;
 }
 
-const AUTH_TOKEN_KEY = "oblivion_auth_token";
+const DEV_MOCK_TOKEN_KEY = "oblivion_cf_mock_token";
 
-export function getAuthToken(): string | null {
+export function getDevMockToken(): string | null {
   try {
-    return localStorage.getItem(AUTH_TOKEN_KEY);
+    return localStorage.getItem(DEV_MOCK_TOKEN_KEY);
   } catch {
     return null;
   }
 }
 
-export function setAuthToken(token: string): void {
+export function setDevMockToken(token: string): void {
   try {
-    localStorage.setItem(AUTH_TOKEN_KEY, token);
+    localStorage.setItem(DEV_MOCK_TOKEN_KEY, token);
   } catch {}
 }
 
-export function clearAuthToken(): void {
+export function clearDevMockToken(): void {
   try {
-    localStorage.removeItem(AUTH_TOKEN_KEY);
+    localStorage.removeItem(DEV_MOCK_TOKEN_KEY);
   } catch {}
 }
 
 function getAuthHeaders(): Record<string, string> {
-  const token = getAuthToken();
   const headers: Record<string, string> = {
     Accept: "application/json",
   };
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
+  const mockToken = getDevMockToken();
+  if (mockToken) {
+    headers["Authorization"] = `Bearer ${mockToken}`;
   }
   return headers;
 }
 
-// Fallback in-memory state for purely client-only dev mode if functions dev server is not running
+// Fallback in-memory state for client-only dev mode
 const FALLBACK_MOCK_ARTICLES: Article[] = [
   {
     time: 1789122720000,
@@ -115,102 +115,79 @@ const FALLBACK_MOCK_ARTICLES: Article[] = [
 
 let localFallbackSha = "local-sha-" + Date.now().toString(16);
 let localFallbackArticles: Article[] = [...FALLBACK_MOCK_ARTICLES];
-let isMockLoggedIn = false;
 
-export async function loginWithPassword(password: string): Promise<{ success: boolean; user: UserSession }> {
-  try {
-    const res = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password }),
-    });
+/**
+ * Trigger Cloudflare Access login flow or local dev mock login
+ */
+export async function loginWithCloudflareAccess(): Promise<UserSession> {
+  const isLocalHost =
+    window.location.hostname === "localhost" ||
+    window.location.hostname === "127.0.0.1";
 
-    if (res.ok) {
-      const data = await res.json();
-      if (data.token) {
-        setAuthToken(data.token);
-      }
-      return { success: true, user: data.user };
-    }
-
-    if (res.status === 404 && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")) {
-      // Local dev offline fallback
-      if (password === "admin" || password === "admin123" || password.length > 0) {
-        isMockLoggedIn = true;
-        setAuthToken("mock-dev-token");
-        return {
-          success: true,
-          user: {
-            email: "admin@oblivion.local",
-            sub: "admin",
-            name: "本地管理员",
-            isMock: true,
-          },
-        };
-      }
-      throw new Error("本地开发密码错误（默认密码为 admin）");
-    }
-
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error || "登录失败，密码错误");
-  } catch (err: any) {
-    if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
-      if (password === "admin" || password === "admin123" || password.length > 0) {
-        isMockLoggedIn = true;
-        setAuthToken("mock-dev-token");
-        return {
-          success: true,
-          user: {
-            email: "admin@oblivion.local",
-            sub: "admin",
-            name: "本地管理员",
-            isMock: true,
-          },
-        };
-      }
-    }
-    throw err;
+  if (isLocalHost) {
+    setDevMockToken("mock-dev-token");
+    return {
+      email: "developer@oblivion.local",
+      sub: "dev-local-user",
+      name: "本地模拟认证 (CF Access)",
+      isMock: true,
+    };
   }
+
+  // In production, navigate to Cloudflare Access login endpoint
+  window.location.href = "/cdn-cgi/access/login";
+  return new Promise(() => {});
 }
 
 export async function logoutUser(): Promise<void> {
-  clearAuthToken();
-  isMockLoggedIn = false;
+  clearDevMockToken();
   try {
-    await fetch("/api/auth/logout", { method: "POST" });
+    const res = await fetch("/api/auth/logout", { method: "POST" });
+    const data = await res.json().catch(() => ({}));
+    if (data.logoutUrl && !data.logoutUrl.includes("localhost")) {
+      window.location.href = data.logoutUrl;
+      return;
+    }
   } catch {}
 }
 
 export async function checkAuthStatus(): Promise<UserSession | null> {
-  const token = getAuthToken();
+  const isLocalHost =
+    window.location.hostname === "localhost" ||
+    window.location.hostname === "127.0.0.1";
+
   try {
     const res = await fetch("/api/auth/me", {
       headers: getAuthHeaders(),
     });
+
     if (res.ok) {
       const data = await res.json();
       if (data.authenticated && data.user) {
         return data.user;
       }
     }
-    if (res.status === 404 && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")) {
-      if (token || isMockLoggedIn) {
+
+    if (res.status === 404 && isLocalHost) {
+      const mockToken = getDevMockToken();
+      if (mockToken) {
         return {
-          email: "admin@oblivion.local",
-          sub: "admin",
-          name: "本地管理员",
+          email: "developer@oblivion.local",
+          sub: "dev-local-user",
+          name: "本地开发模拟 (CF Access)",
           isMock: true,
         };
       }
       return null;
     }
+
     return null;
   } catch {
-    if ((window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") && (token || isMockLoggedIn)) {
+    if (isLocalHost && getDevMockToken()) {
       return {
-        email: "admin@oblivion.local",
-        sub: "admin",
-        name: "本地管理员",
+        email: "developer@oblivion.local",
+        sub: "dev-local-user",
+        name: "本地开发模拟 (CF Access)",
         isMock: true,
       };
     }
@@ -230,12 +207,11 @@ export async function fetchArticles(): Promise<FetchArticlesResponse> {
 
     if (res.status === 401 || res.status === 403) {
       const data = await res.json().catch(() => ({}));
-      const err = new Error(data.error || "未登录或登录已过期");
+      const err = new Error(data.error || "Cloudflare Access 权限验证失败，未授权访问");
       (err as any).isAuthError = true;
       throw err;
     }
 
-    // If 404 in local dev (e.g. standard Vite dev server without wrangler), fallback gracefully
     if (res.status === 404 && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")) {
       return {
         articles: [...localFallbackArticles],
@@ -247,9 +223,9 @@ export async function fetchArticles(): Promise<FetchArticlesResponse> {
         isMock: true,
         total: localFallbackArticles.length,
         user: {
-          email: "admin@oblivion.local",
+          email: "developer@oblivion.local",
           sub: "dev-local",
-          name: "本地管理员",
+          name: "本地开发模式",
           isMock: true,
         },
       };
@@ -270,9 +246,9 @@ export async function fetchArticles(): Promise<FetchArticlesResponse> {
         isMock: true,
         total: localFallbackArticles.length,
         user: {
-          email: "admin@oblivion.local",
+          email: "developer@oblivion.local",
           sub: "dev-local",
-          name: "本地管理员",
+          name: "本地开发模式",
           isMock: true,
         },
       };
@@ -296,7 +272,7 @@ export async function publishArticleToServer(
 
     if (res.status === 401 || res.status === 403) {
       const data = await res.json().catch(() => ({}));
-      const err = new Error(data.error || "未登录或登录已过期");
+      const err = new Error(data.error || "未通过 Cloudflare Access 验证");
       (err as any).isAuthError = true;
       throw err;
     }

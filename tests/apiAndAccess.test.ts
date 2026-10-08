@@ -1,9 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { verifyCloudflareAccess, createAdminSessionToken } from "../functions/lib/access";
+import { verifyCloudflareAccess } from "../functions/lib/access";
 import { encodeBase64Utf8, decodeBase64Utf8 } from "../functions/lib/github";
 import { onRequestGet as getArticles } from "../functions/api/articles";
 import { onRequestPost as publishArticle } from "../functions/api/publish";
-import { onRequestPost as loginPost } from "../functions/api/auth/login";
+import { onRequestPost as logoutPost } from "../functions/api/auth/logout";
 
 describe("Base64 UTF-8 encoding & decoding", () => {
   it("correctly encodes and decodes Chinese characters and emojis without data loss", () => {
@@ -60,6 +60,18 @@ describe("Cloudflare Access Verification", () => {
     const result = await verifyCloudflareAccess(req, env);
     expect(result.status).toBe(500);
     expect(result.error).toContain("生产配置缺失");
+  });
+
+  it("POST /api/auth/logout clears session and returns logout URL", async () => {
+    const res = await logoutPost({
+      env: {
+        CF_ACCESS_TEAM_DOMAIN: "my-team.cloudflareaccess.com",
+      },
+    });
+    expect(res.status).toBe(200);
+    const data: any = await res.json();
+    expect(data.success).toBe(true);
+    expect(data.logoutUrl).toContain("my-team.cloudflareaccess.com/cdn-cgi/access/logout");
   });
 });
 
@@ -154,51 +166,5 @@ describe("API Endpoints & Conflict Detection", () => {
     const verifyRes = await getArticles({ request: verifyReq, env: localEnv });
     const verifyData: any = await verifyRes.json();
     expect(verifyData.articles[0].content).toBe("API created article! 🚀");
-  });
-});
-
-describe("Admin Password Authentication & Session Tokens", () => {
-  const envWithPassword = {
-    ADMIN_PASSWORD: "secret-super-password-123",
-    DEV_MODE: "false",
-    ALLOW_LOCAL_MOCK_AUTH: "false",
-  };
-
-  it("POST /api/auth/login rejects incorrect passwords with 401", async () => {
-    const req = new Request("https://cms.oblivion.com/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password: "wrong-password" }),
-    });
-
-    const res = await loginPost({ request: req, env: envWithPassword });
-    expect(res.status).toBe(401);
-    const data: any = await res.json();
-    expect(data.error).toContain("密码错误");
-  });
-
-  it("POST /api/auth/login successfully logs in with correct password and sets session token", async () => {
-    const req = new Request("https://cms.oblivion.com/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password: "secret-super-password-123" }),
-    });
-
-    const res = await loginPost({ request: req, env: envWithPassword });
-    expect(res.status).toBe(200);
-    const data: any = await res.json();
-    expect(data.success).toBe(true);
-    expect(data.token).toBeDefined();
-
-    // Verify session token enables access in verifyCloudflareAccess
-    const authenticatedReq = new Request("https://cms.oblivion.com/api/articles", {
-      headers: {
-        Authorization: `Bearer ${data.token}`,
-      },
-    });
-
-    const authCheck = await verifyCloudflareAccess(authenticatedReq, envWithPassword);
-    expect(authCheck.status).toBe(200);
-    expect(authCheck.user?.email).toBe("admin@oblivion");
   });
 });
