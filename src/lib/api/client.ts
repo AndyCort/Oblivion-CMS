@@ -16,6 +16,8 @@ export interface FetchArticlesResponse {
   repo: string;
   isMock: boolean;
   isD1?: boolean;
+  d1Mode?: "native" | "http" | "mock";
+  warning?: string;
   total: number;
   user?: UserSession;
 }
@@ -250,11 +252,14 @@ export async function fetchArticles(): Promise<FetchArticlesResponse> {
       return {
         articles: [...localFallbackArticles],
         sha: computeClientFallbackSha(localFallbackArticles),
-        path: "src/components/data/moments.ts",
-        branch: "main",
-        owner: "AndyCort",
-        repo: "oblivion-dashboard",
+        path: "本地离线模拟环境 (未连接 D1)",
+        branch: "离线开发",
+        owner: "Cloudflare",
+        repo: "D1 Database",
         isMock: true,
+        isD1: false,
+        d1Mode: "mock",
+        warning: "当前运行于 Vite 本地开发模式，未连接 Cloudflare D1 数据库。",
         total: localFallbackArticles.length,
         user: {
           email: "developer@oblivion.local",
@@ -273,11 +278,14 @@ export async function fetchArticles(): Promise<FetchArticlesResponse> {
       return {
         articles: [...localFallbackArticles],
         sha: computeClientFallbackSha(localFallbackArticles),
-        path: "src/components/data/moments.ts",
-        branch: "main",
-        owner: "AndyCort",
-        repo: "oblivion-dashboard",
+        path: "本地离线模拟环境 (未连接 D1)",
+        branch: "离线开发",
+        owner: "Cloudflare",
+        repo: "D1 Database",
         isMock: true,
+        isD1: false,
+        d1Mode: "mock",
+        warning: "当前运行于 Vite 本地开发模式，未连接 Cloudflare D1 数据库。",
         total: localFallbackArticles.length,
         user: {
           email: "developer@oblivion.local",

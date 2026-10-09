@@ -21,18 +21,20 @@ export const onRequestGet = async (context: {
 
   // 2. Fetch data from Cloudflare D1 (or fallback)
   try {
-    const { articles, sha, isD1 } = await getD1Articles(env);
+    const { articles, sha, isD1, d1Mode, warning } = await getD1Articles(env);
 
     return new Response(
       JSON.stringify({
         articles,
         sha,
-        path: "Cloudflare D1: articles table",
-        branch: "d1-production",
+        path: isD1 ? "Cloudflare D1: articles 表" : "离线只读模拟环境",
+        branch: isD1 ? (d1Mode === "native" ? "D1 原生绑定 (env.DB)" : "D1 REST API 直连") : "未绑定 D1",
         owner: "Cloudflare",
         repo: "D1 Database",
         isD1,
         isMock: !isD1,
+        d1Mode,
+        warning,
         total: articles.length,
         user: auth.user,
       }),

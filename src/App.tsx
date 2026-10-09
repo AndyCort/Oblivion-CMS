@@ -574,14 +574,19 @@ export function App() {
             <div className="hidden lg:flex items-center gap-1.5 pl-3 border-l border-stone-200 dark:border-stone-800 text-xs font-mono text-stone-500">
               <Database className="w-3.5 h-3.5 text-indigo-500" />
               <span>Cloudflare D1</span>
-              {serverData.isMock ? (
-                <span className="px-1.5 py-0.5 rounded text-[10px] bg-amber-100 dark:bg-amber-950/80 text-amber-700 dark:text-amber-400 font-sans">
-                  模拟存储
+              {serverData.isD1 ? (
+                <span className="px-1.5 py-0.5 rounded text-[10px] bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-400 font-sans font-medium">
+                  {serverData.d1Mode === "http" ? "REST 直连" : "已联机 (生产)"}
                 </span>
               ) : (
-                <span className="px-1.5 py-0.5 rounded text-[10px] bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-400 font-sans">
-                  已联机
-                </span>
+                <button
+                  type="button"
+                  onClick={() => setIsConfigModalOpen(true)}
+                  className="px-1.5 py-0.5 rounded text-[10px] bg-amber-100 hover:bg-amber-200 dark:bg-amber-950/80 dark:hover:bg-amber-900/80 text-amber-700 dark:text-amber-400 font-sans font-medium cursor-pointer transition-colors"
+                  title="未检测到 Cloudflare D1 绑定，点击查看配置指引"
+                >
+                  未绑定 D1
+                </button>
               )}
             </div>
           )}
@@ -722,6 +727,28 @@ export function App() {
           }`}
         >
           <div className="max-w-3xl mx-auto space-y-4 sm:space-y-6">
+            {/* D1 Unbound Warning Banner */}
+            {serverData && !serverData.isD1 && (
+              <div className="p-3 sm:p-4 rounded-2xl bg-amber-500/10 dark:bg-amber-950/40 border border-amber-500/30 text-amber-900 dark:text-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-xs">
+                <div className="flex items-start sm:items-center gap-2.5">
+                  <AlertTriangle className="w-4 h-4 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5 sm:mt-0" />
+                  <div>
+                    <span className="font-semibold">未检测到 Cloudflare D1 数据库绑定（当前为离线模拟模式）</span>
+                    <p className="text-[11px] text-amber-700/80 dark:text-amber-400/80 mt-0.5">
+                      您所做的修改当前仅保存在临时内存中，未写入云端 D1 数据库。请在 Cloudflare Pages 绑定 D1 数据库以持久化保存文章。
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsConfigModalOpen(true)}
+                  className="px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-medium shrink-0 shadow-sm self-start sm:self-auto cursor-pointer transition-colors"
+                >
+                  如何绑定 D1
+                </button>
+              </div>
+            )}
+
             {/* Editor Action Bar / Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-stone-200 dark:border-stone-800">
               <div className="flex items-center gap-2">

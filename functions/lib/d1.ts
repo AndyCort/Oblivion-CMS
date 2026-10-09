@@ -36,6 +36,131 @@ export interface D1ArticleRow {
   updated_at: number;
 }
 
+export class D1HttpClient implements D1Database {
+  private accountId: string;
+  private databaseId: string;
+  private apiToken: string;
+
+  constructor(accountId: string, databaseId: string, apiToken: string) {
+    this.accountId = accountId;
+    this.databaseId = databaseId;
+    this.apiToken = apiToken;
+  }
+
+  private async querySql<T = unknown>(sql: string, params: unknown[] = []): Promise<D1Result<T>> {
+    const url = `https://api.cloudflare.com/client/v4/accounts/${this.accountId}/d1/database/${this.databaseId}/query`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${this.apiToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        sql,
+        params,
+      }),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      let msg = errText;
+      try {
+        const json = JSON.parse(errText);
+        msg = json.errors?.[0]?.message || errText;
+      } catch {}
+      throw new Error(`Cloudflare D1 API 错误 (${res.status}): ${msg}`);
+    }
+
+    const data: any = await res.json();
+    if (!data.success) {
+      const msg = data.errors?.[0]?.message || "D1 执行失败";
+      throw new Error(`D1 API: ${msg}`);
+    }
+
+    const firstResult = data.result?.[0] || {};
+    return {
+      results: (firstResult.results as T[]) || [],
+      success: true,
+      meta: firstResult.meta,
+    };
+  }
+
+  prepare(query: string): D1PreparedStatement {
+    const self = this;
+    let boundParams: unknown[] = [];
+
+    const stmt: D1PreparedStatement = {
+      bind(...values: unknown[]) {
+        boundParams = values;
+        return stmt;
+      },
+      async first<T = unknown>(colName?: string): Promise<T | null> {
+        const res = await self.querySql<any>(query, boundParams);
+        const first = res.results?.[0];
+        if (!first) return null;
+        if (colName) return first[colName] ?? null;
+        return first;
+      },
+      async run<T = unknown>(): Promise<D1Result<T>> {
+        return await self.querySql<T>(query, boundParams);
+      },
+      async all<T = unknown>(): Promise<D1Result<T>> {
+        return await self.querySql<T>(query, boundParams);
+      },
+    };
+    return stmt;
+  }
+
+  async batch<T = unknown>(statements: D1PreparedStatement[]): Promise<D1Result<T>[]> {
+    const results: D1Result<T>[] = [];
+    for (const stmt of statements) {
+      results.push(await stmt.run<T>());
+    }
+    return results;
+  }
+
+  async exec(query: string): Promise<D1ExecResult> {
+    const statements = query
+      .split(";")
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+    let count = 0;
+    for (const sql of statements) {
+      const res = await this.querySql(sql);
+      count += Number(res.meta?.changes || 0);
+    }
+    return { count, duration: 0 };
+  }
+}
+
+/**
+ * Resolves the active D1 database connection (native binding or HTTP REST API direct client)
+ */
+export function getD1Database(env: Record<string, any>): {
+  db: D1Database | null;
+  mode: "native" | "http" | "mock";
+} {
+  // 1. Native Cloudflare Pages Functions D1 binding (Variable name: DB)
+  if (env.DB && typeof env.DB.prepare === "function") {
+    return { db: env.DB, mode: "native" };
+  }
+
+  // 2. Cloudflare D1 REST API direct connection (for local dev or remote direct connection)
+  const accountId = env.CF_ACCOUNT_ID || env.CLOUDFLARE_ACCOUNT_ID;
+  const databaseId = env.CF_D1_DATABASE_ID || env.D1_DATABASE_ID;
+  const apiToken = env.CF_API_TOKEN || env.CLOUDFLARE_API_TOKEN;
+
+  if (accountId && databaseId && apiToken) {
+    return {
+      db: new D1HttpClient(accountId, databaseId, apiToken),
+      mode: "http",
+    };
+  }
+
+  // 3. Fallback mock only for unit testing or when explicitly enabled
+  return { db: null, mode: "mock" };
+}
+
 // In-memory fallback for local development or when D1 is not yet bound
 let inMemoryArticles: Article[] = [
   {
@@ -188,8 +313,10 @@ export async function getD1Articles(env: Record<string, any>): Promise<{
   articles: Article[];
   sha: string;
   isD1: boolean;
+  d1Mode: "native" | "http" | "mock";
+  warning?: string;
 }> {
-  const db: D1Database | undefined = env.DB;
+  const { db, mode } = getD1Database(env);
 
   if (db && typeof db.prepare === "function") {
     await ensureD1Schema(db);
@@ -210,6 +337,7 @@ export async function getD1Articles(env: Record<string, any>): Promise<{
         articles: seeded,
         sha: computeArticlesSha(seeded),
         isD1: true,
+        d1Mode: mode,
       };
     }
 
@@ -219,6 +347,7 @@ export async function getD1Articles(env: Record<string, any>): Promise<{
       articles,
       sha: computeArticlesSha(articles),
       isD1: true,
+      d1Mode: mode,
     };
   }
 
@@ -228,6 +357,8 @@ export async function getD1Articles(env: Record<string, any>): Promise<{
     articles: fallback,
     sha: computeArticlesSha(fallback),
     isD1: false,
+    d1Mode: "mock",
+    warning: "未检测到 Cloudflare D1 数据库绑定 (env.DB 缺失)。当前处于只读模拟模式，数据不会写入真实 D1。",
   };
 }
 
@@ -239,7 +370,7 @@ export async function saveD1Article(
   article: Article,
   isInsert = true
 ): Promise<string> {
-  const db: D1Database | undefined = env.DB;
+  const { db } = getD1Database(env);
   const now = Date.now();
 
   const mediaJson = JSON.stringify(article.media || []);
@@ -290,7 +421,14 @@ export async function saveD1Article(
     return sha;
   }
 
-  // In-memory fallback
+  // If in production mode and D1 is not bound, DO NOT fake success!
+  if (env.DEV_MODE !== "true") {
+    throw new Error(
+      "未检测到 Cloudflare D1 数据库绑定！请在 Cloudflare Pages 控制台（Settings -> Functions -> D1 database bindings）将 D1 数据库绑定为变量名 'DB'，或在环境变量中配置 CF_D1_DATABASE_ID，然后重新部署。"
+    );
+  }
+
+  // In-memory fallback ONLY for unit tests
   const existingIdx = inMemoryArticles.findIndex((a) => a.time === article.time);
   if (existingIdx >= 0) {
     inMemoryArticles[existingIdx] = article;
@@ -308,7 +446,7 @@ export async function updateD1Article(
   targetTime: number,
   article: Article
 ): Promise<string> {
-  const db: D1Database | undefined = env.DB;
+  const { db } = getD1Database(env);
   const now = Date.now();
 
   const mediaJson = JSON.stringify(article.media || []);
@@ -346,7 +484,14 @@ export async function updateD1Article(
     return sha;
   }
 
-  // In-memory fallback
+  // If in production mode and D1 is not bound, DO NOT fake success!
+  if (env.DEV_MODE !== "true") {
+    throw new Error(
+      "未检测到 Cloudflare D1 数据库绑定！请在 Cloudflare Pages 控制台（Settings -> Functions -> D1 database bindings）将 D1 数据库绑定为变量名 'DB'，或在环境变量中配置 CF_D1_DATABASE_ID，然后重新部署。"
+    );
+  }
+
+  // In-memory fallback ONLY for unit tests
   const existingIdx = inMemoryArticles.findIndex((a) => a.time === targetTime);
   if (existingIdx >= 0) {
     inMemoryArticles[existingIdx] = article;
@@ -363,7 +508,7 @@ export async function deleteD1Article(
   env: Record<string, any>,
   targetTime: number
 ): Promise<string> {
-  const db: D1Database | undefined = env.DB;
+  const { db } = getD1Database(env);
 
   if (db && typeof db.prepare === "function") {
     await ensureD1Schema(db);
@@ -377,7 +522,14 @@ export async function deleteD1Article(
     return sha;
   }
 
-  // In-memory fallback
+  // If in production mode and D1 is not bound, DO NOT fake success!
+  if (env.DEV_MODE !== "true") {
+    throw new Error(
+      "未检测到 Cloudflare D1 数据库绑定！请在 Cloudflare Pages 控制台（Settings -> Functions -> D1 database bindings）将 D1 数据库绑定为变量名 'DB'，或在环境变量中配置 CF_D1_DATABASE_ID，然后重新部署。"
+    );
+  }
+
+  // In-memory fallback ONLY for unit tests
   inMemoryArticles = inMemoryArticles.filter((a) => a.time !== targetTime);
   return computeArticlesSha(inMemoryArticles);
 }

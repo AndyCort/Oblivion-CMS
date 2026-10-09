@@ -131,7 +131,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                     <KeyRound className="w-3.5 h-3.5" /> 环境变量排查建议：
                   </p>
                   <p>1. 检查 Cloudflare Pages 控制台设置中的环境变量</p>
-                  <p>2. 确保在 Settings &rarr; Environment variables 或 wrangler.toml 的 [vars] 下配置了：</p>
+                  <p>2. 确保在 Settings &rarr; Environment variables 中配置了：</p>
                   <p className="text-rose-100">&bull; CF_ACCESS_TEAM_DOMAIN</p>
                   <p className="text-rose-100">&bull; CF_ACCESS_AUD</p>
                 </div>
