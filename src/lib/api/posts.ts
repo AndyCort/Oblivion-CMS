@@ -14,7 +14,7 @@ async function request(path: string, method = 'GET', body?: unknown) {
 export async function fetchPosts(page = 1, q = ''): Promise<PostList> {
   const result = await request(`?page=${page}&q=${encodeURIComponent(q)}`);
   if (result) return result;
-  const rows = [...localPosts.values()].filter(p => `${p.id} ${p.title} ${p.summary} ${p.tags.join(' ')}`.toLowerCase().includes(q.toLowerCase())).sort((a,b) => Number(b.pinned) - Number(a.pinned) || b.date.localeCompare(a.date));
+  const rows = [...localPosts.values()].filter(p => JSON.stringify([p.id, p.title, p.summary, p.tags]).toLowerCase().includes(q.toLowerCase())).sort((a,b) => Number(b.pinned) - Number(a.pinned) || b.date.localeCompare(a.date));
   return { posts: rows.slice((page-1)*20,page*20), total: rows.length, page, pageSize: 20, mode: 'mock', warning: '本地模拟：发布仅写入临时内存，刷新后丢失；草稿保存在此浏览器。' };
 }
 export async function fetchPost(id: string): Promise<BlogPost> {

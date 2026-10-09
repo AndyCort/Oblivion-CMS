@@ -47,3 +47,21 @@ it('refuses a legacy moment articles table without changing rows', async () => {
   expect(response.status).toBe(503);
   expect(sqlite.prepare('SELECT content FROM articles').get()?.content).toBe('keep');
 });
+it('round-trips bilingual JSON through D1, editing only one language and retaining source_path', async () => {
+  const { db, sqlite } = database();
+  const env = { DB: db, DEV_MODE: 'true' };
+  const post = { id: 'bilingual', title: { zh: '中文标题', en: 'English' }, summary: { zh: '中文摘要', en: '' }, content: { zh: '中文内容', en: 'English body', ja: '本文' }, date: '2026-07-24 15:07:59', tags: [] };
+  const request = (body?: unknown) => new Request('http://localhost/api/posts', body ? { method: 'POST', body: JSON.stringify(body) } : {});
+  expect((await handlePosts({ env, request: request({ post }) }, 'publish')).status).toBe(200);
+  sqlite.prepare('UPDATE articles SET source_path = ? WHERE id = ?').run('blog/bi.md', post.id);
+  const list = await handlePosts({ env, request: request() }, 'list');
+  expect((await list.json()).posts[0].title).toEqual(post.title);
+  const get = await handlePosts({ env, request: request(), params: { id: post.id } }, 'get');
+  const data = await get.json(); expect(data).toMatchObject(post);
+  data.content.en = 'Updated English';
+  expect((await handlePosts({ env, request: request({ post: data, originalId: post.id }) }, 'publish')).status).toBe(200);
+  const stored = sqlite.prepare('SELECT * FROM articles WHERE id = ?').get(post.id)!;
+  expect(JSON.parse(String(stored.content))).toEqual({ ...post.content, en: 'Updated English' });
+  expect(stored.date).toBe(post.date);
+  expect(stored.source_path).toBe('blog/bi.md');
+});

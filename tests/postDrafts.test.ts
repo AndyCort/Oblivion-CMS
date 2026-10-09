@@ -31,3 +31,9 @@ it('reads legacy moments and prefers namespaced drafts over legacy duplicates', 
   await deleteDraft('legacy');
   expect(await getDraft('legacy')).toBeNull();
 });
+it('restores all localized fields and baseline without flattening', async () => {
+  const baseline = { ...emptyPost(), title: { zh: '中文', en: 'English' }, summary: '', content: { zh: '原文', en: 'Original' }, date: '2026-07-24 15:07:59' };
+  const post = { ...baseline, content: { ...baseline.content, en: 'Edited' } };
+  await savePostDraft({ id: 'localized', post, baseline, originalId: 'bilingual', updatedAt: 0 });
+  expect((await getPostDrafts())[0]).toMatchObject({ id: 'localized', post, baseline, originalId: 'bilingual' });
+});

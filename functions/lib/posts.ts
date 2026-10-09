@@ -1,6 +1,6 @@
 import { verifyBlogAccess } from './access';
 import { getD1Database, type D1Database } from './d1';
-import { validatePost, type BlogPost } from '../../src/types/post';
+import { validatePost, decodePostText, postTextFields, type PostText, type BlogPost } from '../../src/types/post';
 
 type Env = Record<string, any>;
 type Context = { request: Request; env: Env; params?: Record<string, string | string[]> };
@@ -16,9 +16,11 @@ export const postSchema = `CREATE TABLE IF NOT EXISTS articles (
  cover TEXT NOT NULL DEFAULT '', author TEXT NOT NULL DEFAULT '', pinned INTEGER NOT NULL DEFAULT 0,
  chars INTEGER NOT NULL DEFAULT 0, updated_at TEXT NOT NULL DEFAULT (datetime('now')))`;
 function normalize(row: any): BlogPost {
-  // Do not silently flatten localized content: it cannot be safely round-tripped by this editor.
-  for (const key of ['title', 'summary', 'content']) {
-    if (row[key] !== undefined && (typeof row[key] !== 'string' || /^\s*\{\s*"(?:zh|en)"\s*:/.test(row[key]))) throw new HttpError(422, '此文章包含多语言字段，请使用博客原有发布工具编辑');
+  row = { ...row };
+  try {
+    for (const field of postTextFields) row[field] = decodePostText(row[field] ?? '');
+  } catch {
+    throw new HttpError(422, '文章标题、摘要或正文格式无效：需要文本或语言到文本的映射');
   }
   let tags: unknown = row.tags || [];
   if (typeof tags === 'string') {
@@ -68,6 +70,7 @@ async function worker(env: Env, path: string, body?: unknown): Promise<any> {
   if (body && data.ok !== true && data.success !== true) throw new HttpError(502, '博客 Worker 未确认发布成功');
   return data;
 }
+const storeText = (value: PostText) => typeof value === 'string' ? value : JSON.stringify(value);
 async function database(env: Env): Promise<D1Database | null> {
   const { db } = getD1Database(env);
   if (db) {
@@ -106,7 +109,7 @@ export async function handlePosts(context: Context, action: 'list' | 'get' | 'pu
       const rawSize = Number(url.searchParams.get('pageSize'));
       const pageSize = Number.isFinite(rawSize) ? Math.min(50, Math.max(1, Math.floor(rawSize) || 20)) : 20;
       const q = (url.searchParams.get('q') || '').toLowerCase();
-      const rows = (await list()).filter(p => JSON.stringify([p.id, p.title, p.summary, p.tags]).toLowerCase().includes(q)).sort((a,b) => Number(b.pinned) - Number(a.pinned) || String(b.date).localeCompare(String(a.date)) || a.id.localeCompare(b.id));
+      const rows = (await list()).map(normalize).filter(p => JSON.stringify([p.id, p.title, p.summary, p.tags]).toLowerCase().includes(q)).sort((a,b) => Number(b.pinned) - Number(a.pinned) || String(b.date).localeCompare(String(a.date)) || a.id.localeCompare(b.id));
       return json({ posts: rows.slice((page - 1) * pageSize, page * pageSize).map(p => ({ ...p, content: undefined, source_path: undefined })), total: rows.length, page, pageSize, mode: remote ? 'worker' : mock ? 'mock' : 'd1', warning: mock ? '本地模拟：发布数据仅在内存中，刷新或重启可能丢失。' : !remote ? 'D1 直连模式不会清除博客 Worker 边缘缓存。' : undefined });
     }
     const id = String(context.params?.id || '');
@@ -144,7 +147,7 @@ export async function handlePosts(context: Context, action: 'list' | 'get' | 'pu
     } else if (db) {
       stage = '写入博客 D1';
       const stmt = post ? db.prepare(`INSERT INTO articles (id,title,summary,content,date,tags,cover,author,pinned,chars,updated_at)
-        VALUES (?,?,?,?,?,?,?,?,?,?,datetime('now')) ON CONFLICT(id) DO UPDATE SET title=excluded.title,summary=excluded.summary,content=excluded.content,date=excluded.date,tags=excluded.tags,cover=excluded.cover,author=excluded.author,pinned=excluded.pinned,chars=excluded.chars,updated_at=datetime('now')`).bind(post.id,post.title,post.summary,post.content,post.date,JSON.stringify(post.tags),post.cover,post.author,post.pinned ? 1 : 0,post.chars) : db.prepare('DELETE FROM articles WHERE id = ?').bind(id);
+        VALUES (?,?,?,?,?,?,?,?,?,?,datetime('now')) ON CONFLICT(id) DO UPDATE SET title=excluded.title,summary=excluded.summary,content=excluded.content,date=excluded.date,tags=excluded.tags,cover=excluded.cover,author=excluded.author,pinned=excluded.pinned,chars=excluded.chars,updated_at=datetime('now')`).bind(post.id,storeText(post.title),storeText(post.summary),storeText(post.content),post.date,JSON.stringify(post.tags),post.cover,post.author,post.pinned ? 1 : 0,post.chars) : db.prepare('DELETE FROM articles WHERE id = ?').bind(id);
       const result = await stmt.run();
       if (!result.success) throw new HttpError(500, 'D1 写入失败');
     } else if (post) mockPosts.set(post.id, post); else mockPosts.delete(id);

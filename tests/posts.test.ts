@@ -128,3 +128,15 @@ describe('actionable blog diagnostics', () => {
     expect(text).not.toContain('private credentials');
   });
 });
+
+it('proxies localized content intact with source mapping and all active IDs', async () => {
+  const bilingual = { ...post, title: { zh: '中文', en: 'English' }, summary: { zh: '摘要', en: '' }, content: { zh: '中文正文', en: 'English body', ja: '本文' }, date: '2026-07-24 15:07:59' };
+  const fetcher = vi.fn(async (_url, options) => Response.json(options.method === 'POST' ? { ok: true } : { articles: [bilingual, { ...post, id: 'untouched' }] }));
+  vi.stubGlobal('fetch', fetcher);
+  const db = { prepare: () => ({ bind: () => ({ first: async () => ({ source_path: 'blog/bilingual.md' }) }) }), batch: vi.fn(), exec: vi.fn() };
+  const res = await handlePosts(context('/publish', { post: bilingual, originalId: post.id }, { ...env, DB: db }), 'publish');
+  expect(res.status).toBe(200);
+  const payload = JSON.parse(fetcher.mock.calls[1][1].body);
+  expect(payload.articles[0]).toMatchObject({ ...bilingual, sourcePath: 'blog/bilingual.md' });
+  expect(payload.activeIds).toEqual([post.id, 'untouched']);
+});

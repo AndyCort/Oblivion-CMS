@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useDeferredValue } from 'react';
 import type { KeyboardEvent } from 'react';
 import { pinyin } from 'pinyin-pro';
 import { Plus, Search, UploadCloud, Trash2, ArrowLeft, Settings2, RefreshCw } from 'lucide-react';
-import { emptyPost, countChars, type BlogPost, type PostDraft } from '../../types/post';
+import { emptyPost, countChars, textForLanguage, displayPostText, postLanguages, preferredPostLanguage, updatePostText, addPostLanguage, replacePostDateDay, type PostTextField, type BlogPost, type PostDraft } from '../../types/post';
 import { fetchPosts, fetchPost, publishPost, deletePost, type PostList } from '../../lib/api/posts';
 import { getPostDrafts, savePostDraft, deletePostDraft } from '../../lib/storage/draftStore';
 import { TagManager } from '../tags/TagManager';
@@ -33,11 +33,18 @@ export default function PostsWorkspace() {
   const [mobileEditor, setMobileEditor] = useState(false);
   const [view, setView] = useState<'edit' | 'split' | 'preview'>('split');
   const [metadata, setMetadata] = useState(true);
+  const [language, setLanguage] = useState('zh');
+  const [newLanguage, setNewLanguage] = useState('en');
   const textarea = useRef<HTMLTextAreaElement>(null);
   const gutter = useRef<HTMLDivElement>(null);
   const post = editor.post;
   const dirty = JSON.stringify(post) !== JSON.stringify(editor.baseline);
-  const chars = countChars(post.content);
+  const languages = postLanguages(post);
+  const title = textForLanguage(post.title, language);
+  const summary = textForLanguage(post.summary, language);
+  const content = textForLanguage(post.content, language);
+  const chars = countChars(content);
+  const languageLabel = (code: string) => ({ zh: '中文', en: 'English', ja: '日本語', 'zh-CN': '简体中文', 'zh-TW': '繁體中文' }[code] || code);
 
   function persist(draft: PostDraft): Promise<void> {
     saving.current += 1;
@@ -72,7 +79,7 @@ export default function PostsWorkspace() {
       if (cancelled) return;
       setDrafts(rows);
       const latest = rows.sort((a,b) => b.updatedAt - a.updatedAt)[0];
-      if (latest) { current.current = latest; setEditor(latest); setStatus('已恢复本地草稿'); }
+      if (latest) { setLanguage(preferredPostLanguage(latest.post)); current.current = latest; setEditor(latest); setStatus('已恢复本地草稿'); }
     }).catch(err => { if (!cancelled) setError(`无法读取本地草稿：${err.message}`); }).finally(() => { if (!cancelled) setReady(true); });
     return () => { cancelled = true; };
   }, []);
@@ -97,7 +104,17 @@ export default function PostsWorkspace() {
     setStatus('等待保存…'); clearTimeout(timer.current);
     timer.current = setTimeout(() => { void flush().catch(err => { pending.current = next; setStatus('保存失败'); setError(err.message); }); }, 700);
   }
-  function activate(next: PostDraft) { current.current = next; setEditor(next); setMobileEditor(true); setStatus(JSON.stringify(next.post) !== JSON.stringify(next.baseline) ? '已恢复本地草稿' : '尚未修改'); setError(''); setNotice(''); }
+  function activate(next: PostDraft) { setLanguage(preferredPostLanguage(next.post)); current.current = next; setEditor(next); setMobileEditor(true); setStatus(JSON.stringify(next.post) !== JSON.stringify(next.baseline) ? '已恢复本地草稿' : '尚未修改'); setError(''); setNotice(''); }
+  function editText(field: PostTextField, value: string) {
+    change({ [field]: updatePostText(current.current.post[field], language, value) });
+  }
+  function addLanguage() {
+    const code = newLanguage.trim();
+    try {
+      change(addPostLanguage(current.current.post, code, language));
+      setLanguage(code); setNewLanguage(''); setError('');
+    } catch (err) { setError((err as Error).message); }
+  }
   async function switchEditor(id?: string, draft?: PostDraft) {
     setBusy(true);
     try {
@@ -138,7 +155,7 @@ export default function PostsWorkspace() {
     } catch (err) { setError(`${published ? '文章已发布，但本地草稿清理失败：' : ''}${(err as Error).message}`); } finally { setBusy(false); }
   }
   async function remove() {
-    if (!editor.originalId || !window.confirm(`确定删除「${post.title}」？此操作会删除线上文章。`)) return;
+    if (!editor.originalId || !window.confirm(`确定删除「${displayPostText(post.title)}」？此操作会删除线上文章。`)) return;
     setBusy(true); setError('');
     try {
       await flush(); await deletePost(editor.originalId); await deletePostDraft(editor.id);
@@ -153,19 +170,19 @@ export default function PostsWorkspace() {
     e.preventDefault();
     const el = e.currentTarget, start = el.selectionStart, end = el.selectionEnd;
     const wrap = key === 'b' ? '**' : '*';
-    const selected = post.content.slice(start, end);
+    const selected = content.slice(start, end);
     const insert = key === 'tab' ? '  ' + selected.replace(/\n/g, '\n  ') : wrap + selected + wrap;
-    change({ content: post.content.slice(0, start) + insert + post.content.slice(end) });
+    editText('content', content.slice(0, start) + insert + content.slice(end));
     requestAnimationFrame(() => { el.focus(); el.setSelectionRange(start + (key === 'tab' ? 2 : wrap.length), start + insert.length - (key === 'tab' ? 0 : wrap.length)); });
   }
-  const titleText = (value: unknown) => typeof value === 'string' ? value : '多语言文章（使用原发布工具编辑）';
+  const titleText = displayPostText;
   return <div className={`posts-workspace ${mobileEditor ? 'posts-mobile-editor' : ''}`}>
     <aside className="posts-sidebar">
       {error && <p className="post-error" role="alert">{error}</p>}
       <div className="posts-list-heading"><div><small>YOUR STORIES</small><h2>博客长文 <span>{result?.total ?? 0}</span></h2></div><button aria-label="新建文章" disabled={busy || !ready} onClick={() => void switchEditor()}><Plus size={20}/></button></div>
       <label className="posts-search"><Search size={16}/><input aria-label="搜索博客" placeholder="搜索标题、摘要、标签…" value={query} onChange={e => { setQuery(e.target.value); setPage(1); }}/></label>
       <div className="posts-list-actions"><span>{loading ? '加载中…' : '文章库'}</span><button aria-label="刷新文章列表" onClick={() => setRevision(v => v + 1)}><RefreshCw size={15}/></button></div>
-      {drafts.length > 0 && <details open><summary>本地草稿 · {drafts.length}</summary>{drafts.map(d => <button disabled={busy || !ready} className={`post-list-card ${editor.id === d.id ? 'selected' : ''}`} key={d.id} onClick={() => void switchEditor(undefined, d)}><strong>{d.post.title || '未命名文章'}</strong><span className="post-dirty">未发布修改</span></button>)}</details>}
+      {drafts.length > 0 && <details open><summary>本地草稿 · {drafts.length}</summary>{drafts.map(d => <button disabled={busy || !ready} className={`post-list-card ${editor.id === d.id ? 'selected' : ''}`} key={d.id} onClick={() => void switchEditor(undefined, d)}><strong>{titleText(d.post.title) || '未命名文章'}</strong><span className="post-dirty">未发布修改</span></button>)}</details>}
       <div className="posts-list">{result?.posts.map(p => <button disabled={busy || !ready} className={`post-list-card ${editor.originalId === p.id ? 'selected' : ''}`} key={p.id} onClick={() => void switchEditor(p.id)}><small>{p.pinned ? '置顶 · ' : ''}{p.date}</small><strong>{titleText(p.title)}</strong><p>{titleText(p.summary)}</p><span>{Array.isArray(p.tags) ? p.tags.join(' / ') : ''}</span>{drafts.some(d => d.originalId === p.id) && <span className="post-dirty">未发布修改</span>}</button>)}</div>
       {!loading && !result?.posts.length && <div className="posts-empty">{query ? '没有匹配的文章' : '从一篇新文章开始。'}<button disabled={busy || !ready} onClick={() => void switchEditor()}>撰写文章</button></div>}
       <div className="posts-pagination"><button disabled={page <= 1 || loading} onClick={() => setPage(p => p-1)}>上一页</button><span>{page} / {Math.max(1, Math.ceil((result?.total || 0) / 20))}</span><button disabled={!result || page * 20 >= result.total || loading} onClick={() => setPage(p => p+1)}>下一页</button></div>
@@ -176,20 +193,26 @@ export default function PostsWorkspace() {
       {error && <p className="post-error" role="alert">{error}<button onClick={() => setError('')} aria-label="关闭错误">×</button></p>}
       {notice && <p className="post-notice" role="status">{notice}</p>}
       <fieldset disabled={busy || !ready} className="post-editor-fields">
-        <input className="post-title" aria-label="文章标题" placeholder="给故事一个标题…" value={post.title} onChange={e => change({ title: e.target.value })}/>
+        <div className="post-language-bar">
+          <label>{languages.length ? '编辑语言' : '原文语言'}<select aria-label="编辑语言" value={language} onChange={e => setLanguage(e.target.value)}>{(languages.length ? languages : ['zh', 'en']).map(code => <option key={code} value={code}>{languageLabel(code)}</option>)}</select></label>
+          <div className="post-add-language"><input aria-label="新语言代码" placeholder="语言代码，如 en / ja" value={newLanguage} onChange={e => setNewLanguage(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) { e.preventDefault(); addLanguage(); } }}/><button type="button" disabled={!newLanguage.trim()} onClick={addLanguage}>添加语言</button></div>
+          {languages.length > 0 && <small>标题、摘要、预览与字数随语言切换；发布保存所有语言。</small>}
+          {languages.length > 0 && [post.title, post.summary, post.content].some(value => typeof value === 'string') && <div className="post-shared-fields"><small>此文章的纯文本字段由各语言共用。</small><button type="button" onClick={() => change(addPostLanguage(post, language, language))}>按语言拆分共用字段</button></div>}
+        </div>
+        <input className="post-title" aria-label="文章标题" placeholder="给故事一个标题…" value={title} onChange={e => editText('title', e.target.value)}/>
         <div className="post-editor-options"><div className="post-view-switch" aria-label="编辑器视图">{(['edit','split','preview'] as const).map(v => <button key={v} aria-pressed={view === v} onClick={() => setView(v)}>{v === 'edit' ? '编辑' : v === 'split' ? '分屏' : '预览'}</button>)}</div><span>{chars} 字 · 约 {Math.max(1,Math.ceil(chars/400))} 分钟</span><button aria-expanded={metadata} onClick={() => setMetadata(v => !v)}><Settings2 size={16}/>文章设置</button></div>
         {metadata && <section className="post-metadata" aria-label="文章设置">
-          <label>Slug / 链接 ID<div className="post-slug"><input value={post.id} disabled={!!editor.originalId} placeholder="my-first-post" onChange={e => change({ id: e.target.value })}/><button disabled={!!editor.originalId} onClick={() => change({ id: slugFromTitle(post.title) })}>从标题生成</button></div>{editor.originalId && <small>已发布链接保持稳定；如需新链接请新建文章。</small>}</label>
-          <label>发布日期<input type="date" value={post.date} onChange={e => change({ date: e.target.value })}/></label>
+          <label>Slug / 链接 ID<div className="post-slug"><input value={post.id} disabled={!!editor.originalId} placeholder="my-first-post" onChange={e => change({ id: e.target.value })}/><button disabled={!!editor.originalId} onClick={() => change({ id: slugFromTitle(title || displayPostText(post.title)) })}>从标题生成</button></div>{editor.originalId && <small>已发布链接保持稳定；如需新链接请新建文章。</small>}</label>
+          <label>发布日期<input type="date" value={post.date.slice(0, 10)} onChange={e => change({ date: replacePostDateDay(post.date, e.target.value) })}/>{post.date.length > 10 && <small>保留原时间：{post.date.slice(11)}</small>}</label>
           <label>作者<input value={post.author || ''} onChange={e => change({ author: e.target.value })} placeholder="可选"/></label>
           <label>封面图 URL<div className="post-cover"><input type="url" value={post.cover || ''} placeholder="https://…" onChange={e => change({ cover: e.target.value })}/>{/^https?:\/\//i.test(post.cover || '') && <img src={post.cover} alt="封面预览" referrerPolicy="no-referrer"/>}</div></label>
-          <label className="post-summary">摘要<textarea rows={2} value={post.summary} placeholder="这篇文章讲述什么？" onChange={e => change({ summary: e.target.value })}/></label>
+          <label className="post-summary">摘要<textarea rows={2} aria-label="文章摘要" value={summary} placeholder="这篇文章讲述什么？" onChange={e => editText('summary', e.target.value)}/></label>
           <div className="post-tags"><TagManager tags={post.tags} onChange={tags => change({ tags })} availableTags={[...new Set(result?.posts.flatMap(p => Array.isArray(p.tags) ? p.tags : []) || [])].map(tag => ({ tag, count: 1 }))}/></div>
           <label className="post-pin"><input type="checkbox" checked={!!post.pinned} onChange={e => change({ pinned: e.target.checked })}/>置顶这篇文章</label>
         </section>}
         <div className={`post-writing post-view-${view}`}>
-          {view !== 'preview' && <div className="post-source"><div ref={gutter} className="post-line-numbers" aria-hidden="true">{post.content.split('\n').map((_,i) => <div key={i}>{i+1}</div>)}</div><textarea ref={textarea} aria-label="Markdown 正文" spellCheck={false} wrap="off" placeholder="从这里落笔。支持 Markdown…" value={post.content} onChange={e => change({ content: e.target.value })} onKeyDown={shortcut} onScroll={e => { if (gutter.current) gutter.current.scrollTop = e.currentTarget.scrollTop; }}/></div>}
-          {view !== 'edit' && <MarkdownPreview content={post.content}/>}
+          {view !== 'preview' && <div className="post-source"><div ref={gutter} className="post-line-numbers" aria-hidden="true">{content.split('\n').map((_,i) => <div key={i}>{i+1}</div>)}</div><textarea ref={textarea} aria-label="Markdown 正文" spellCheck={false} wrap="off" placeholder="从这里落笔。支持 Markdown…" value={content} onChange={e => editText('content', e.target.value)} onKeyDown={shortcut} onScroll={e => { if (gutter.current) gutter.current.scrollTop = e.currentTarget.scrollTop; }}/></div>}
+          {view !== 'edit' && <MarkdownPreview content={content}/>}
         </div>
       </fieldset>
       <footer className="post-footer"><small>Markdown · ⌘ / Ctrl+B 加粗 · ⌘ / Ctrl+I 斜体 · Tab 缩进</small><div><button disabled={busy || !ready} onClick={() => void removeDraft()}>清空草稿 / 放弃更改</button>{editor.originalId && <button className="post-delete" disabled={busy} onClick={() => void remove()}><Trash2 size={15}/>删除文章</button>}</div></footer>

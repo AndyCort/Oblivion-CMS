@@ -3,6 +3,7 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import PostsWorkspace from '../src/components/posts/PostsWorkspace';
+import { publishPost } from '../src/lib/api/posts';
 import { savePostDraft, deletePostDraft } from '../src/lib/storage/draftStore';
 vi.mock('../src/lib/storage/draftStore', () => ({ getPostDrafts: vi.fn(async () => []), savePostDraft: vi.fn(async () => {}), deletePostDraft: vi.fn(async () => {}) }));
 vi.mock('../src/lib/api/posts', () => ({ fetchPosts: vi.fn(async () => ({ posts: [], total: 0, mode: 'mock' })), fetchPost: vi.fn(), publishPost: vi.fn(async (post) => ({ post, mode: 'mock' })), deletePost: vi.fn() }));
@@ -56,4 +57,23 @@ it('retains and retries a draft after a failed commit instead of switching away'
   expect(savePostDraft).toHaveBeenCalledTimes(2);
   expect(vi.mocked(savePostDraft).mock.calls[1][0].post.title).toBe('Do not lose this');
   expect((host.querySelector('[aria-label="文章标题"]') as HTMLInputElement).value).toBe('');
+});
+it('edits and previews languages independently and publishes every translation', async () => {
+  await fill('文章标题', '中文标题');
+  await fill('Markdown 正文', '中文正文');
+  await click('添加语言'); // default new language is English
+  expect((host.querySelector('[aria-label="文章标题"]') as HTMLInputElement).value).toBe('');
+  await fill('文章标题', 'English title');
+  await fill('Markdown 正文', 'English body');
+  expect(host.querySelector('.post-prose')?.textContent?.trim()).toBe('English body');
+  await act(async () => {
+    const select = host.querySelector('[aria-label="编辑语言"]') as HTMLSelectElement;
+    select.value = 'zh'; select.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+  expect((host.querySelector('[aria-label="文章标题"]') as HTMLInputElement).value).toBe('中文标题');
+  expect(host.querySelector('.post-prose')?.textContent?.trim()).toBe('中文正文');
+  await fill('Markdown 正文', '更新中文');
+  await click('发布文章');
+  expect(vi.mocked(publishPost).mock.calls[0][0]).toMatchObject({ title: { zh: '中文标题', en: 'English title' }, content: { zh: '更新中文', en: 'English body' } });
+  expect(vi.mocked(savePostDraft).mock.calls.at(-1)?.[0].post.content).toEqual({ zh: '更新中文', en: 'English body' });
 });
