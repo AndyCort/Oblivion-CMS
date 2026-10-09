@@ -47,9 +47,20 @@ import {
   Database,
 } from "lucide-react";
 
+const PostsWorkspace = lazy(() => import("./components/posts/PostsWorkspace"));
+
 const ImportModal = lazy(() => import("./components/modals/ImportModal").then((module) => ({ default: module.ImportModal })));
 
 export function App() {
+  const [contentMode, setContentMode] = useState<"moments" | "posts">(() => {
+    try { return localStorage.getItem("oblivion_content_mode") === "posts" ? "posts" : "moments"; } catch { return "moments"; }
+  });
+  const [postsOpened, setPostsOpened] = useState(contentMode === "posts");
+  function switchContentMode(mode: "moments" | "posts") {
+    setContentMode(mode);
+    if (mode === "posts") setPostsOpened(true);
+    try { localStorage.setItem("oblivion_content_mode", mode); } catch { /* restricted storage */ }
+  }
   // Server state
   const [serverData, setServerData] = useState<FetchArticlesResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -545,7 +556,7 @@ export function App() {
       <header className="h-14 border-b border-stone-200 dark:border-stone-800 bg-white/80 dark:bg-stone-900/80 backdrop-blur-md sticky top-0 z-30 px-3 sm:px-4 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2.5 sm:gap-3">
           {/* Mobile view toggle */}
-          {mobileView === "editor" ? (
+          {contentMode === "moments" && (mobileView === "editor" ? (
             <button
               type="button"
               onClick={() => setMobileView("sidebar")}
@@ -565,7 +576,7 @@ export function App() {
               <PenTool className="w-3.5 h-3.5 text-indigo-500" />
               <span>编辑</span>
             </button>
-          )}
+          ))}
 
           {/* Logo & Brand */}
           <div className="flex items-center gap-2">
@@ -585,7 +596,7 @@ export function App() {
           </div>
 
           {/* D1 Storage status badge */}
-          {serverData && (
+          {contentMode === "moments" && serverData && (
             <div className="hidden lg:flex items-center gap-1.5 pl-3 border-l border-stone-200 dark:border-stone-800 text-xs font-mono text-stone-500">
               <Database className="w-3.5 h-3.5 text-indigo-500" />
               <span>Cloudflare D1</span>
@@ -670,7 +681,7 @@ export function App() {
           </button>
 
           {/* Import data button */}
-          <button
+          {contentMode === "moments" && <button
             type="button"
             onClick={openImportModal}
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium text-stone-700 dark:text-stone-300 bg-stone-100 hover:bg-stone-200 dark:bg-stone-800 dark:hover:bg-stone-700 border border-stone-200/80 dark:border-stone-700/80 transition-colors active:scale-95"
@@ -678,7 +689,7 @@ export function App() {
           >
             <UploadCloud className="w-3.5 h-3.5 text-indigo-500" />
             <span className="hidden sm:inline">导入数据</span>
-          </button>
+          </button>}
 
           {/* System status / config modal button */}
           <button
@@ -702,8 +713,12 @@ export function App() {
         </div>
       </header>
 
-      {isLoading && <div role="status" className="px-4 py-2 text-sm text-stone-500">正在加载文章…</div>}
-      {errorMsg && (
+      <nav aria-label="内容模式" className="sticky top-14 z-20 flex gap-2 px-3 sm:px-5 py-2 border-b border-stone-200 dark:border-stone-800 bg-white/70 dark:bg-stone-900/70 backdrop-blur-md">
+        {(["moments", "posts"] as const).map(mode => <button key={mode} type="button" aria-pressed={contentMode === mode} onClick={() => switchContentMode(mode)} className={`px-4 py-2 rounded-xl text-xs font-medium transition-colors ${contentMode === mode ? "bg-indigo-600 text-white shadow-sm" : "text-stone-500 hover:bg-stone-200 dark:hover:bg-stone-800"}`}>{mode === "moments" ? "💬 说说动态 (Moments)" : "📝 博客长文 (Posts)"}</button>)}
+      </nav>
+      {postsOpened && <div hidden={contentMode !== "posts"}><Suspense fallback={<p role="status" className="p-8">正在载入博客编辑器…</p>}><PostsWorkspace /></Suspense></div>}
+      {contentMode === "moments" && isLoading && <div role="status" className="px-4 py-2 text-sm text-stone-500">正在加载文章…</div>}
+      {contentMode === "moments" && errorMsg && (
         <div role="alert" className="flex items-center gap-3 bg-rose-50 px-4 py-2 text-sm text-rose-700 dark:bg-rose-950 dark:text-rose-200">
           <span>{errorMsg}</span>
           <button type="button" onClick={() => loadInitialData()} disabled={isLoading} className="underline disabled:opacity-50">重新加载</button>
@@ -735,10 +750,10 @@ export function App() {
       )}
 
       {/* Main Workspace Body */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden" style={{ display: contentMode === "moments" ? undefined : "none" }}>
         {/* Left Sidebar: Article List */}
         <aside
-          className={`w-full md:w-80 lg:w-96 shrink-0 h-[calc(100dvh-3.5rem)] ${
+          className={`w-full md:w-80 lg:w-96 shrink-0 h-[calc(100dvh-7rem)] ${
             mobileView === "sidebar" ? "block" : "hidden md:block"
           }`}
         >
@@ -757,7 +772,7 @@ export function App() {
 
         {/* Right Content: Editor & Preview */}
         <main
-          className={`flex-1 h-[calc(100dvh-3.5rem)] overflow-y-auto bg-stone-50/50 dark:bg-stone-950/50 p-3 sm:p-5 md:p-6 lg:p-8 pb-safe ${
+          className={`flex-1 h-[calc(100dvh-7rem)] overflow-y-auto bg-stone-50/50 dark:bg-stone-950/50 p-3 sm:p-5 md:p-6 lg:p-8 pb-safe ${
             mobileView === "editor" ? "block" : "hidden md:block"
           }`}
         >

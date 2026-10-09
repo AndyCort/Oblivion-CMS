@@ -196,3 +196,20 @@ export async function verifyCloudflareAccess(
     status: 401,
   };
 }
+
+/** Strict JWT verification for blog administration, including issuer and audience.
+ * Existing Moments authentication behavior is kept unchanged. */
+export async function verifyBlogAccess(request: Request, env: Record<string, any>) {
+  const local = ['localhost', '127.0.0.1', '0.0.0.0'].includes(new URL(request.url).hostname);
+  if (local && (env.DEV_MODE === 'true' || env.ALLOW_LOCAL_MOCK_AUTH === 'true')) return verifyCloudflareAccess(request, env);
+  if (!env.CF_ACCESS_TEAM_DOMAIN || !env.CF_ACCESS_AUD) return { status: 503, error: '博客管理需要配置 CF_ACCESS_TEAM_DOMAIN 与 CF_ACCESS_AUD', user: undefined };
+  const token = request.headers.get('cf-access-jwt-assertion') || request.headers.get('Cookie')?.match(/(?:^|;\s*)CF_Authorization=([^;]+)/)?.[1];
+  if (!token) return { status: 401, error: '未授权：缺少 Cloudflare Access 凭证', user: undefined };
+  try {
+    const { jwks, issuer } = getJWKS(env.CF_ACCESS_TEAM_DOMAIN);
+    const { payload } = await jwtVerify(token, jwks, { issuer, audience: env.CF_ACCESS_AUD.trim() });
+    return { status: 200, user: { sub: payload.sub || '', email: String(payload.email || ''), isMock: false } };
+  } catch {
+    return { status: 403, error: 'Cloudflare Access 凭证无效或已过期', user: undefined };
+  }
+}

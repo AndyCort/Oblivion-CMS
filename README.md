@@ -193,3 +193,41 @@ Cloudflare Pages 默认会为每次提交生成类似 `<hash>.pages.dev` 的预�
 
 ### Q3: 本地草稿会同步到其他设备吗？
 - **不会**。第一版草稿使用浏览器的 IndexedDB 存储，严格隔离在当前浏览器和当前设备中，不经过任何未授权的云端服务器。仅有点击“发布到 GitHub”后，内容才会同步到远程仓库。
+
+
+## D1 与已有博客数据库共用
+
+CMS 的说说数据默认保存在独立表 `oblivion_cms_moments` 中，首次访问时自动创建。
+已有博客的 `articles` 表（如 `id/title/date/content` 结构）不会被读取、覆盖或删除；
+CMS 的全量导入也只作用于说说表。空表不会自动填充示例内容。
+
+若数据库仍使用旧版 CMS 的 `articles` 表（包含 `time/content/media/tags/location/music/created_at/updated_at`），
+且独立说说表不存在，程序会继续使用旧表以保留已有说说。此时无需手动执行 `schema.sql`。
+
+出现 `no such column: time` 时，部署包含此兼容逻辑的新版本即可，
+无需删除博客表或给博客文章强行添加时间戳字段。博客文章不会自动转换为说说。
+
+## 博客长文（Posts）
+
+顶部可切换「说说动态 / 博客长文」，模式保存在 localStorage。博客编辑器支持 GFM、表格、任务列表、目录、常见语言代码高亮，以及 Ctrl/⌘+B、Ctrl/⌘+I、Tab 缩进。预览经过 DOMPurify 清理。首次进入博客模式才加载编辑器及拼音词典。
+
+博客草稿按 `post:<编辑器 UUID>` 写入 IndexedDB，700ms 防抖，在切换文章和发布前等待保存提交；Slug 编辑不会改变草稿身份。动态草稿使用 `moment:<原 ID>`，继续读取旧版无前缀草稿。新草稿、未发布修改、恢复和清空均独立于动态。清空当前草稿会恢复线上内容。浏览器清除站点数据也会删除本地草稿。
+
+### 部署配置
+
+- Pages 服务端设置 `BLOG_WORKER_URL` 和 Secret `BLOG_PUBLISH_SECRET`，后者与 `oblivion-content` 的 `PUBLISH_SECRET` 相同。不要使用 `VITE_` 前缀。
+- 博客管理接口严格校验 Access JWT 的签名、issuer 与 audience，配置 `CF_ACCESS_TEAM_DOMAIN`、`CF_ACCESS_AUD`，并用 Access 保护 CMS 域名。
+- **编辑既有 Worker 文章还需将博客的同一 D1 绑定到 Pages**。当前 Worker 隐藏 `source_path`，而 upsert 会覆盖这个字段；CMS 从 D1 读取该映射后原样传回。没有绑定时拒绝更新，以免破坏 Obsidian/原始 Markdown 文件的 ID 映射。创建、读取和删除可仅通过 Worker 工作。
+- 不设置 Worker URL 时，复用原有 D1 绑定/REST API 配置，按博客结构创建 `articles`。不会修改 `oblivion_cms_moments`。如果 `articles` 仍为旧动态结构则拒绝操作，不覆盖旧数据。
+- D1 直连不会调用 Worker 的缓存清理，界面会提示这一点。配置了 Worker 后的网络或认证失败不会退回模拟成功。
+- 仅 localhost 显式启用开发认证时使用服务端内存模拟；纯 Vite 本地运行也有明确标记的内存适配器。模拟发布不是上线，刷新/重启可能丢失；IndexedDB 草稿仍保留。
+
+接口：`GET /api/posts?page=1&pageSize=20&q=关键词`、`GET /api/posts/:id`、`POST /api/posts/publish`（`{ post: BlogPost, originalId?: string }`）、`DELETE /api/posts/:id`。创建时不传 originalId；修改时必须与现有 id 相同。已发布 Slug 固定，避免遗留旧链接或产生重复文章。多语言对象文章拒绝进入单语言编辑器，继续使用原发布工具处理。
+
+### Worker 协议与验证范围
+
+此适配器对接现有 `/api/articles`、`/api/articles/:id` 与 `/api/publish`。现有 publish 是全量同步语义：CMS 每次读取不带缓存的完整 ID 列表，然后只 upsert 当前文章，并将全部保留 ID 放入 `activeIds`。删除同样发送空 `articles` 和剔除目标后的 `activeIds`，因此由 Worker 执行原有 `cache.purge()` 流程。Worker 当前只在日志里记录 purge 失败，CMS 无法确认每个边缘节点已清理。
+
+**现有 Worker 没有原子增量发布或版本条件接口，读取 ID 到写入之间仍存在并发窗口。请串行发布，避免同时运行其他 CMS / Obsidian 全量同步。** 真正支持并发写入需要 Worker 增加事务内的单篇更新/删除接口；仅靠 Pages 代理无法保证跨客户端同步互斥。
+
+执行 `npm run check` 可检查前端、Pages Functions 类型和自动化测试；`npm run build` 构建生产产物。新增测试覆盖发布保留列表、删除、鉴权、密钥隔离、Worker 失败不降级、草稿新旧格式隔离、拼音/英文 Slug、GFM 和 XSS。线上 Access、真实 D1 和边缘缓存的端到端效果需在部署配置后验证。

@@ -323,38 +323,70 @@ export function computeArticlesSha(articles: Article[]): string {
   return `d1-${count}-${newest.toString(16)}-${Math.abs(hash).toString(36)}`;
 }
 
-let schemaInitialized = false;
+// Keep initialization scoped to the actual binding, and share concurrent checks.
+// Failed checks must be retryable after an operator repairs the schema.
+export type D1ArticleTable = "articles" | "oblivion_cms_moments";
+const schemaInitializations = new WeakMap<D1Database, Promise<D1ArticleTable>>();
+const requiredArticleColumns = [
+  "time", "content", "media", "tags", "location", "music", "created_at", "updated_at",
+];
 
-/**
- * Automatically creates the articles table and indexes if not present.
- */
-export async function ensureD1Schema(db: D1Database): Promise<void> {
-  if (schemaInitialized) return;
-
-  try {
-    await db
-      .prepare(
-        `CREATE TABLE IF NOT EXISTS articles (
-          time INTEGER PRIMARY KEY,
-          content TEXT NOT NULL DEFAULT '',
-          media TEXT NOT NULL DEFAULT '[]',
-          tags TEXT NOT NULL DEFAULT '[]',
-          location TEXT NOT NULL DEFAULT '',
-          music TEXT,
-          created_at INTEGER NOT NULL,
-          updated_at INTEGER NOT NULL
-        )`
-      )
-      .run();
-
-    await db
-      .prepare(`CREATE INDEX IF NOT EXISTS idx_articles_time ON articles(time DESC)`)
-      .run();
-
-    schemaInitialized = true;
-  } catch (err) {
-    console.warn("D1 schema init warning:", err);
+export async function ensureD1Schema(db: D1Database): Promise<D1ArticleTable> {
+  let initialization = schemaInitializations.get(db);
+  if (!initialization) {
+    initialization = initializeD1Schema(db);
+    schemaInitializations.set(db, initialization);
   }
+  try {
+    return await initialization;
+  } catch (err) {
+    if (schemaInitializations.get(db) === initialization) {
+      schemaInitializations.delete(db);
+    }
+    throw err;
+  }
+}
+
+async function tableColumns(db: D1Database, table: D1ArticleTable): Promise<string[]> {
+  const info = await db.prepare(`PRAGMA table_info(${table})`).all<{ name: string }>();
+  return (info.results || []).map((column) => column.name);
+}
+
+async function initializeD1Schema(db: D1Database): Promise<D1ArticleTable> {
+  // Prefer the dedicated table once it exists. Only reuse "articles" when it
+  // has the legacy CMS layout; a blog's articles table must remain untouched.
+  const dedicatedColumns = await tableColumns(db, "oblivion_cms_moments");
+  const legacyColumns = dedicatedColumns.length === 0 ? await tableColumns(db, "articles") : [];
+  const table: D1ArticleTable = dedicatedColumns.length === 0 &&
+    requiredArticleColumns.every((name) => legacyColumns.includes(name))
+      ? "articles" : "oblivion_cms_moments";
+
+  await db.prepare(
+    `CREATE TABLE IF NOT EXISTS ${table} (
+      time INTEGER PRIMARY KEY,
+      content TEXT NOT NULL DEFAULT '',
+      media TEXT NOT NULL DEFAULT '[]',
+      tags TEXT NOT NULL DEFAULT '[]',
+      location TEXT NOT NULL DEFAULT '',
+      music TEXT,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    )`
+  ).run();
+
+  const columns = await tableColumns(db, table);
+  const missing = requiredArticleColumns.filter((name) => !columns.includes(name));
+  if (missing.length > 0) {
+    throw new Error(
+      `D1 表 ${table} 结构不兼容，缺少字段: ${missing.join(", ")}。` +
+      `现有字段: ${columns.join(", ") || "（无）"}。` +
+      `请执行 PRAGMA table_info(${table}); 检查表结构后进行数据迁移。` +
+      "重复执行 CREATE TABLE IF NOT EXISTS 不会更新已有表结构；现有数据未被修改。"
+    );
+  }
+
+  await db.prepare(`CREATE INDEX IF NOT EXISTS idx_${table}_time ON ${table}(time DESC)`).run();
+  return table;
 }
 
 /**
@@ -397,6 +429,7 @@ export async function getD1Articles(env: Record<string, any>): Promise<{
   isD1: boolean;
   d1Mode: "native" | "http" | "mock";
   bindingName?: string;
+  tableName?: D1ArticleTable;
   warning?: string;
   envKeys?: string[];
 }> {
@@ -410,28 +443,13 @@ export async function getD1Articles(env: Record<string, any>): Promise<{
   );
 
   if (db && typeof db.prepare === "function") {
-    await ensureD1Schema(db);
+    const table = await ensureD1Schema(db);
 
     const query = await db
-      .prepare("SELECT * FROM articles ORDER BY time DESC")
+      .prepare(`SELECT * FROM ${table} ORDER BY time DESC`)
       .all<D1ArticleRow>();
 
     const rows = query.results || [];
-
-    // If database is completely empty on first launch, auto-seed with initial articles
-    if (rows.length === 0 && inMemoryArticles.length > 0) {
-      for (const a of inMemoryArticles) {
-        await saveD1Article(env, a, true);
-      }
-      const seeded = [...inMemoryArticles].sort((a, b) => b.time - a.time);
-      return {
-        articles: seeded,
-        sha: computeArticlesSha(seeded),
-        isD1: true,
-        d1Mode: mode,
-        bindingName,
-      };
-    }
 
     const articles = rows.map(rowToArticle);
 
@@ -441,6 +459,7 @@ export async function getD1Articles(env: Record<string, any>): Promise<{
       isD1: true,
       d1Mode: mode,
       bindingName,
+      tableName: table,
     };
   }
 
@@ -475,13 +494,13 @@ export async function saveD1Article(
   const musicJson = article.music ? JSON.stringify(article.music) : null;
 
   if (db && typeof db.prepare === "function") {
-    await ensureD1Schema(db);
+    const table = await ensureD1Schema(db);
 
     if (isInsert) {
       await db
         .prepare(
-          `INSERT OR REPLACE INTO articles 
-           (time, content, media, tags, location, music, created_at, updated_at) 
+          `INSERT OR REPLACE INTO ${table}
+           (time, content, media, tags, location, music, created_at, updated_at)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
         )
         .bind(
@@ -498,8 +517,8 @@ export async function saveD1Article(
     } else {
       await db
         .prepare(
-          `UPDATE articles 
-           SET content = ?, media = ?, tags = ?, location = ?, music = ?, updated_at = ? 
+          `UPDATE ${table}
+           SET content = ?, media = ?, tags = ?, location = ?, music = ?, updated_at = ?
            WHERE time = ?`
         )
         .bind(
@@ -549,13 +568,13 @@ export async function updateD1Article(
   const musicJson = article.music ? JSON.stringify(article.music) : null;
 
   if (db && typeof db.prepare === "function") {
-    await ensureD1Schema(db);
+    const table = await ensureD1Schema(db);
 
     // If the timestamp itself was updated, update all fields including time
     const updateResult = await db
       .prepare(
-        `UPDATE articles 
-         SET time = ?, content = ?, media = ?, tags = ?, location = ?, music = ?, updated_at = ? 
+        `UPDATE ${table}
+         SET time = ?, content = ?, media = ?, tags = ?, location = ?, music = ?, updated_at = ?
          WHERE time = ?`
       )
       .bind(
@@ -604,10 +623,10 @@ export async function deleteD1Article(
   const { db, serviceBindingWarning } = getD1Database(env);
 
   if (db && typeof db.prepare === "function") {
-    await ensureD1Schema(db);
+    const table = await ensureD1Schema(db);
 
     await db
-      .prepare("DELETE FROM articles WHERE time = ?")
+      .prepare(`DELETE FROM ${table} WHERE time = ?`)
       .bind(targetTime)
       .run();
 
@@ -660,10 +679,10 @@ export async function batchImportD1Articles(
   }
 
   if (db && typeof db.prepare === "function") {
-    await ensureD1Schema(db);
+    const table = await ensureD1Schema(db);
 
     if (mode === "overwrite") {
-      await db.prepare("DELETE FROM articles").run();
+      await db.prepare(`DELETE FROM ${table}`).run();
     }
 
     // In Cloudflare D1 RPC bindings, db.batch(statements) throws:
@@ -675,8 +694,8 @@ export async function batchImportD1Articles(
     for (let i = 0; i < validArticles.length; i += CHUNK_SIZE) {
       const chunk = validArticles.slice(i, i + CHUNK_SIZE);
       const placeholders = chunk.map(() => "(?, ?, ?, ?, ?, ?, ?, ?)").join(", ");
-      const sql = `INSERT OR REPLACE INTO articles 
-        (time, content, media, tags, location, music, created_at, updated_at) 
+      const sql = `INSERT OR REPLACE INTO ${table}
+        (time, content, media, tags, location, music, created_at, updated_at)
         VALUES ${placeholders}`;
 
       const params: unknown[] = [];
@@ -706,8 +725,8 @@ export async function batchImportD1Articles(
           const musicJson = a.music ? JSON.stringify(a.music) : null;
           await db
             .prepare(
-              `INSERT OR REPLACE INTO articles 
-               (time, content, media, tags, location, music, created_at, updated_at) 
+              `INSERT OR REPLACE INTO ${table}
+               (time, content, media, tags, location, music, created_at, updated_at)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
             )
             .bind(

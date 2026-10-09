@@ -21,13 +21,13 @@ export const onRequestGet = async (context: {
 
   // 2. Fetch data from Cloudflare D1 (or fallback)
   try {
-    const { articles, sha, isD1, d1Mode, bindingName, warning, envKeys } = await getD1Articles(env);
+    const { articles, sha, isD1, d1Mode, bindingName, tableName, warning, envKeys } = await getD1Articles(env);
 
     return new Response(
       JSON.stringify({
         articles,
         sha,
-        path: isD1 ? "Cloudflare D1: articles 表" : "离线只读模拟环境",
+        path: isD1 ? `Cloudflare D1: ${tableName} 表` : "离线只读模拟环境",
         branch: isD1
           ? d1Mode === "native"
             ? `D1 原生绑定 (env.${bindingName || "DB"})`
