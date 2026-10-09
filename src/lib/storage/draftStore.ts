@@ -1,4 +1,4 @@
-import type { ArticleDraft, Article } from "../../types/article";
+import type { ArticleDraft } from "../../types/article";
 
 const DB_NAME = "oblivion_cms_db";
 const DB_VERSION = 1;
@@ -25,37 +25,41 @@ function openDB(): Promise<IDBDatabase> {
   });
 }
 
+// Request success does not imply commit: a transaction may still abort.
+// Await completion and release the connection on every terminal path.
+async function runRequest<T>(
+  mode: IDBTransactionMode,
+  request: (store: IDBObjectStore) => IDBRequest<T>
+): Promise<T> {
+  const db = await openDB();
+  try {
+    return await new Promise<T>((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, mode);
+      let result: T;
+      tx.oncomplete = () => resolve(result);
+      tx.onabort = () => reject(tx.error || new Error("草稿存储事务已中止"));
+      tx.onerror = () => reject(tx.error || new Error("草稿存储事务失败"));
+      const req = request(tx.objectStore(STORE_NAME));
+      req.onsuccess = () => { result = req.result; };
+      req.onerror = () => reject(req.error || new Error("草稿存储请求失败"));
+    });
+  } finally {
+    db.close();
+  }
+}
+
 export async function saveDraft(draft: ArticleDraft): Promise<void> {
   try {
-    const db = await openDB();
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction(STORE_NAME, "readwrite");
-      const store = tx.objectStore(STORE_NAME);
-      const req = store.put({
-        ...draft,
-        updatedAt: Date.now(),
-      });
-
-      req.onsuccess = () => resolve();
-      req.onerror = () => reject(req.error || new Error("保存草稿失败"));
-    });
-  } catch (err: any) {
+    await runRequest("readwrite", (store) => store.put({ ...draft, updatedAt: Date.now() }));
+  } catch (err) {
     console.error("IndexedDB saveDraft error:", err);
-    throw new Error(`本地草稿保存失败（请检查浏览器存储权限）: ${err?.message || err}`);
+    throw new Error(`本地草稿保存失败（请检查浏览器存储权限）: ${err instanceof Error ? err.message : err}`);
   }
 }
 
 export async function getDraft(id: string): Promise<ArticleDraft | null> {
   try {
-    const db = await openDB();
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction(STORE_NAME, "readonly");
-      const store = tx.objectStore(STORE_NAME);
-      const req = store.get(id);
-
-      req.onsuccess = () => resolve(req.result || null);
-      req.onerror = () => reject(req.error || new Error("读取草稿失败"));
-    });
+    return (await runRequest("readonly", (store) => store.get(id))) || null;
   } catch (err) {
     console.error("IndexedDB getDraft error:", err);
     return null;
@@ -64,15 +68,7 @@ export async function getDraft(id: string): Promise<ArticleDraft | null> {
 
 export async function getAllDrafts(): Promise<ArticleDraft[]> {
   try {
-    const db = await openDB();
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction(STORE_NAME, "readonly");
-      const store = tx.objectStore(STORE_NAME);
-      const req = store.getAll();
-
-      req.onsuccess = () => resolve(req.result || []);
-      req.onerror = () => reject(req.error || new Error("获取全部草稿失败"));
-    });
+    return await runRequest("readonly", (store) => store.getAll());
   } catch (err) {
     console.error("IndexedDB getAllDrafts error:", err);
     return [];
@@ -81,15 +77,7 @@ export async function getAllDrafts(): Promise<ArticleDraft[]> {
 
 export async function deleteDraft(id: string): Promise<void> {
   try {
-    const db = await openDB();
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction(STORE_NAME, "readwrite");
-      const store = tx.objectStore(STORE_NAME);
-      const req = store.delete(id);
-
-      req.onsuccess = () => resolve();
-      req.onerror = () => reject(req.error || new Error("删除草稿失败"));
-    });
+    await runRequest("readwrite", (store) => store.delete(id));
   } catch (err) {
     console.error("IndexedDB deleteDraft error:", err);
   }

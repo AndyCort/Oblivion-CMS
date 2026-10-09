@@ -116,7 +116,7 @@ npm run dev
 npm test
 
 # 运行 TypeScript 类型检查
-npx tsc --noEmit
+npx tsc -b
 
 # 运行正式生产构建打包
 npm run build

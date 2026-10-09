@@ -7,7 +7,6 @@ import {
   Copy,
   Check,
   Code2,
-  ExternalLink,
   Sparkles,
 } from "lucide-react";
 

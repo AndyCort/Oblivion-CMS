@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, lazy, Suspense } from "react";
 import type {
   Article,
   ArticleDraft,
@@ -15,7 +15,6 @@ import type { FetchArticlesResponse, UserSession } from "./lib/api/client";
 import { LoginPage } from "./components/auth/LoginPage";
 import {
   saveDraft,
-  getDraft,
   getAllDrafts,
   deleteDraft,
 } from "./lib/storage/draftStore";
@@ -29,29 +28,26 @@ import { MomentPreview } from "./components/preview/MomentPreview";
 import { DeleteConfirmModal } from "./components/modals/DeleteConfirmModal";
 import { ConflictResolutionModal } from "./components/modals/ConflictResolutionModal";
 import { ConfigInfoModal } from "./components/modals/ConfigInfoModal";
-import { ImportModal } from "./components/modals/ImportModal";
 import {
   PenTool,
   UploadCloud,
-  Save,
   RotateCcw,
   Undo2,
   Redo2,
   Eye,
   CheckCircle,
   AlertTriangle,
-  GitBranch,
   Sun,
   Moon,
   Laptop,
-  Menu,
   ChevronLeft,
   Sparkles,
-  Layers,
   Settings,
   LogOut,
   Database,
 } from "lucide-react";
+
+const ImportModal = lazy(() => import("./components/modals/ImportModal").then((module) => ({ default: module.ImportModal })));
 
 export function App() {
   // Server state
@@ -101,9 +97,14 @@ export function App() {
   }>({ isOpen: false });
   const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [hasOpenedImport, setHasOpenedImport] = useState(false);
+  const openImportModal = () => {
+    setHasOpenedImport(true);
+    setIsImportModalOpen(true);
+  };
   const [commitMessageInput, setCommitMessageInput] = useState("");
 
-  const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Apply theme
   useEffect(() => {
@@ -671,7 +672,7 @@ export function App() {
           {/* Import data button */}
           <button
             type="button"
-            onClick={() => setIsImportModalOpen(true)}
+            onClick={openImportModal}
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium text-stone-700 dark:text-stone-300 bg-stone-100 hover:bg-stone-200 dark:bg-stone-800 dark:hover:bg-stone-700 border border-stone-200/80 dark:border-stone-700/80 transition-colors active:scale-95"
             title="批量导入历史数据 (moments.ts / JSON)"
           >
@@ -700,6 +701,14 @@ export function App() {
           </button>
         </div>
       </header>
+
+      {isLoading && <div role="status" className="px-4 py-2 text-sm text-stone-500">正在加载文章…</div>}
+      {errorMsg && (
+        <div role="alert" className="flex items-center gap-3 bg-rose-50 px-4 py-2 text-sm text-rose-700 dark:bg-rose-950 dark:text-rose-200">
+          <span>{errorMsg}</span>
+          <button type="button" onClick={() => loadInitialData()} disabled={isLoading} className="underline disabled:opacity-50">重新加载</button>
+        </div>
+      )}
 
       {/* Toast Alert Banner */}
       {toastMsg && (
@@ -742,7 +751,7 @@ export function App() {
             onDeleteArticle={(article, fp) => setDeleteModalArticle({ article, fp })}
             drafts={draftsMap}
             getFingerprint={generateArticleFingerprint}
-            onOpenImport={() => setIsImportModalOpen(true)}
+            onOpenImport={openImportModal}
           />
         </aside>
 
@@ -1016,17 +1025,21 @@ export function App() {
         path={serverData?.path}
         sha={serverData?.sha}
         isMock={serverData?.isMock}
-        userEmail={serverData?.user?.email}
+        userEmail={currentUser?.email || serverData?.user?.email}
         bindingName={serverData?.bindingName}
         envKeys={serverData?.envKeys}
       />
 
-      <ImportModal
-        isOpen={isImportModalOpen}
-        onClose={() => setIsImportModalOpen(false)}
-        onImport={handleBatchImport}
-        currentTotalArticles={serverData?.articles?.length || 0}
-      />
+      {hasOpenedImport && (
+        <Suspense fallback={<div role="status" className="fixed bottom-4 right-4 z-50 rounded-xl bg-white p-4 shadow-lg dark:bg-stone-900">正在加载导入工具…</div>}>
+          <ImportModal
+            isOpen={isImportModalOpen}
+            onClose={() => setIsImportModalOpen(false)}
+            onImport={handleBatchImport}
+            currentTotalArticles={serverData?.articles?.length || 0}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }

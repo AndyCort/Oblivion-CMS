@@ -6,7 +6,6 @@ import {
   UploadCloud,
   FileCode,
   FileText,
-  Layers,
   AlertTriangle,
   X,
   CheckCircle2,
@@ -96,7 +95,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({
     reader.readAsText(file);
   };
 
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+  const handleDrop = (e: React.DragEvent<HTMLLabelElement>) => {
     e.preventDefault();
     setIsDragOver(false);
     const file = e.dataTransfer.files?.[0];

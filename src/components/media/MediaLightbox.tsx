@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import type { ArticleMedia } from "../../types/article";
-import { X, ChevronLeft, ChevronRight, Play } from "lucide-react";
+import { X, ChevronLeft, ChevronRight } from "lucide-react";
 
 interface MediaLightboxProps {
   media: ArticleMedia[];

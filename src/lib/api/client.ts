@@ -121,13 +121,10 @@ const FALLBACK_MOCK_ARTICLES: Article[] = [
 export function computeClientFallbackSha(articles: Article[]): string {
   if (!articles || articles.length === 0) return "local-sha-empty";
   let hash = 0;
-  for (let i = 0; i < articles.length; i++) {
-    const a = articles[i];
-    const itemStr = `${a.time}|${a.location || ""}|${(a.tags || []).join(",")}|${a.content || ""}`;
-    for (let j = 0; j < itemStr.length; j++) {
-      hash = (hash << 5) - hash + itemStr.charCodeAt(j);
-      hash |= 0;
-    }
+  const serialized = JSON.stringify(articles);
+  for (let i = 0; i < serialized.length; i++) {
+    hash = (hash << 5) - hash + serialized.charCodeAt(i);
+    hash |= 0;
   }
   return `local-sha-${articles.length}-${Math.abs(hash).toString(36)}`;
 }
@@ -233,118 +230,65 @@ export async function checkAuthStatus(): Promise<{ user: UserSession | null; err
   }
 }
 
-export async function fetchArticles(): Promise<FetchArticlesResponse> {
-  try {
-    const res = await fetch("/api/articles", {
-      headers: getAuthHeaders(),
-    });
-
-    if (res.ok) {
-      return await res.json();
-    }
-
-    if (res.status === 401 || res.status === 403) {
-      const data = await res.json().catch(() => ({}));
-      const err = new Error(data.error || "Cloudflare Access 权限验证失败，未授权访问");
-      (err as any).isAuthError = true;
-      throw err;
-    }
-
-    if (res.status === 404 && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")) {
-      return {
-        articles: [...localFallbackArticles],
-        sha: computeClientFallbackSha(localFallbackArticles),
-        path: "本地离线模拟环境 (未连接 D1)",
-        branch: "离线开发",
-        owner: "Cloudflare",
-        repo: "D1 Database",
-        isMock: true,
-        isD1: false,
-        d1Mode: "mock",
-        warning: "当前运行于 Vite 本地开发模式，未连接 Cloudflare D1 数据库。",
-        total: localFallbackArticles.length,
-        user: {
-          email: "developer@oblivion.local",
-          sub: "dev-local",
-          name: "本地开发模式",
-          isMock: true,
-        },
-      };
-    }
-
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error || `请求失败 (${res.status})`);
-  } catch (err: any) {
-    if (err.isAuthError) throw err;
-    if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
-      return {
-        articles: [...localFallbackArticles],
-        sha: computeClientFallbackSha(localFallbackArticles),
-        path: "本地离线模拟环境 (未连接 D1)",
-        branch: "离线开发",
-        owner: "Cloudflare",
-        repo: "D1 Database",
-        isMock: true,
-        isD1: false,
-        d1Mode: "mock",
-        warning: "当前运行于 Vite 本地开发模式，未连接 Cloudflare D1 数据库。",
-        total: localFallbackArticles.length,
-        user: {
-          email: "developer@oblivion.local",
-          sub: "dev-local",
-          name: "本地开发模式",
-          isMock: true,
-        },
-      };
-    }
-    throw err;
-  }
+// Vite serves HTML for missing API routes. Only that explicit local-only
+// response (or a non-JSON 404) enables the in-memory adapter.
+function isLocalFallbackResponse(res: Response): boolean {
+  const isLocal = window.location.hostname === "localhost" ||
+    window.location.hostname === "127.0.0.1";
+  const contentType = res.headers.get("Content-Type") || "";
+  return isLocal && ((res.status === 404 && !contentType.includes("json")) ||
+    (res.ok && contentType.includes("text/html")));
 }
 
-export async function publishArticleToServer(
-  request: PublishRequest
-): Promise<PublishResponse> {
-  try {
-    const headers = getAuthHeaders();
-    headers["Content-Type"] = "application/json";
+function getLocalFallbackArticles(): FetchArticlesResponse {
+  return {
+    articles: structuredClone(localFallbackArticles),
+    sha: computeClientFallbackSha(localFallbackArticles),
+    path: "本地离线模拟环境 (未连接 D1)",
+    branch: "离线开发",
+    owner: "Cloudflare",
+    repo: "D1 Database",
+    isMock: true,
+    isD1: false,
+    d1Mode: "mock",
+    warning: "当前运行于 Vite 本地开发模式，未连接 Cloudflare D1 数据库。",
+    total: localFallbackArticles.length,
+    user: {
+      email: "developer@oblivion.local",
+      sub: "dev-local",
+      name: "本地开发模式",
+      isMock: true,
+    },
+  };
+}
 
-    const res = await fetch("/api/publish", {
-      method: "POST",
-      headers,
-      body: JSON.stringify(request),
-    });
+export async function fetchArticles(): Promise<FetchArticlesResponse> {
+  const res = await fetch("/api/articles", { headers: getAuthHeaders() });
+  if (isLocalFallbackResponse(res)) return getLocalFallbackArticles();
+  if (!res.ok) await throwApiError(res, "请求失败");
+  return await res.json();
+}
 
-    if (res.status === 401 || res.status === 403) {
-      const data = await res.json().catch(() => ({}));
-      const err = new Error(data.error || "未通过 Cloudflare Access 验证");
-      (err as any).isAuthError = true;
-      throw err;
-    }
-
-    if (res.status === 409) {
-      const conflict: ConflictErrorResponse = await res.json();
-      const err = new Error(conflict.message || "远程版本冲突");
-      (err as any).isConflict = true;
-      (err as any).conflictData = conflict;
-      throw err;
-    }
-
-    if (!res.ok) {
-      if (res.status === 404 && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")) {
-        return handleLocalFallbackPublish(request);
-      }
-      const data = await res.json().catch(() => ({}));
-      throw new Error(data.error || `发布失败 (${res.status})`);
-    }
-
-    return await res.json();
-  } catch (err: any) {
-    if (err.isAuthError || err.isConflict) throw err;
-    if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
-      return handleLocalFallbackPublish(request);
-    }
-    throw err;
+async function throwApiError(res: Response, message: string): Promise<never> {
+  const data = (await res.json().catch(() => null)) || {};
+  const err = new Error(data.message || data.error || `${message} (${res.status})`);
+  if (res.status === 401 || res.status === 403) {
+    Object.assign(err, { isAuthError: true });
+  } else if (res.status === 409) {
+    Object.assign(err, { isConflict: true, conflictData: data as ConflictErrorResponse });
   }
+  throw err;
+}
+
+export async function publishArticleToServer(request: PublishRequest): Promise<PublishResponse> {
+  const res = await fetch("/api/publish", {
+    method: "POST",
+    headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
+  if (isLocalFallbackResponse(res)) return handleLocalFallbackPublish(request);
+  if (!res.ok) await throwApiError(res, "发布失败");
+  return await res.json();
 }
 
 function handleLocalFallbackPublish(req: PublishRequest): PublishResponse {
@@ -362,16 +306,25 @@ function handleLocalFallbackPublish(req: PublishRequest): PublishResponse {
   }
 
   if (req.action === "create" && req.article) {
-    localFallbackArticles = [req.article, ...localFallbackArticles];
-  } else if (req.action === "update" && req.article && req.targetFingerprint) {
-    localFallbackArticles = localFallbackArticles.map((a) => {
-      const fp = `${a.time}`;
-      return req.targetFingerprint?.startsWith(fp) ? req.article! : a;
-    });
-  } else if (req.action === "delete" && req.targetFingerprint) {
-    localFallbackArticles = localFallbackArticles.filter(
-      (a) => !req.targetFingerprint?.startsWith(`${a.time}`)
+    if (localFallbackArticles.some((a) => a.time === req.article!.time)) {
+      throw new Error("相同时间的文章已存在");
+    }
+    localFallbackArticles = [structuredClone(req.article), ...localFallbackArticles];
+  } else if ((req.action === "update" && req.article) || req.action === "delete") {
+    const index = localFallbackArticles.findIndex(
+      (a) => req.targetFingerprint?.startsWith(`${a.time}-`)
     );
+    if (index === -1) throw new Error("目标文章不存在或已更改，请刷新后重试");
+    if (req.action === "update") {
+      if (localFallbackArticles.some((a, i) => i !== index && a.time === req.article!.time)) {
+        throw new Error("相同时间的文章已存在");
+      }
+      localFallbackArticles[index] = structuredClone(req.article!);
+    } else {
+      localFallbackArticles.splice(index, 1);
+    }
+  } else {
+    throw new Error("无效的文章操作或缺少文章数据");
   }
 
   const newSha = computeClientFallbackSha(localFallbackArticles);
@@ -401,46 +354,14 @@ export async function batchImportArticles(
   articles: Article[],
   mode: "merge" | "overwrite"
 ): Promise<ImportArticlesResponse> {
-  try {
-    const headers = getAuthHeaders();
-    headers["Content-Type"] = "application/json";
-
-    const res = await fetch("/api/import", {
-      method: "POST",
-      headers,
-      body: JSON.stringify({ articles, mode }),
-    });
-
-    if (res.status === 401 || res.status === 403) {
-      const data = await res.json().catch(() => ({}));
-      const err = new Error(data.error || "未通过 Cloudflare Access 验证");
-      (err as any).isAuthError = true;
-      throw err;
-    }
-
-    if (!res.ok) {
-      if (
-        res.status === 404 &&
-        (window.location.hostname === "localhost" ||
-          window.location.hostname === "127.0.0.1")
-      ) {
-        return handleLocalFallbackImport(articles, mode);
-      }
-      const data = await res.json().catch(() => ({}));
-      throw new Error(data.error || `导入失败 (${res.status})`);
-    }
-
-    return await res.json();
-  } catch (err: any) {
-    if (err.isAuthError) throw err;
-    if (
-      window.location.hostname === "localhost" ||
-      window.location.hostname === "127.0.0.1"
-    ) {
-      return handleLocalFallbackImport(articles, mode);
-    }
-    throw err;
-  }
+  const res = await fetch("/api/import", {
+    method: "POST",
+    headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
+    body: JSON.stringify({ articles, mode }),
+  });
+  if (isLocalFallbackResponse(res)) return handleLocalFallbackImport(articles, mode);
+  if (!res.ok) await throwApiError(res, "导入失败");
+  return await res.json();
 }
 
 function handleLocalFallbackImport(
@@ -448,14 +369,14 @@ function handleLocalFallbackImport(
   mode: "merge" | "overwrite"
 ): ImportArticlesResponse {
   if (mode === "overwrite") {
-    localFallbackArticles = [...articles].sort((a, b) => b.time - a.time);
+    localFallbackArticles = structuredClone(articles).sort((a, b) => b.time - a.time);
   } else {
     const map = new Map<number, Article>();
     for (const a of localFallbackArticles) {
-      map.set(a.time, a);
+      map.set(a.time, structuredClone(a));
     }
     for (const a of articles) {
-      map.set(a.time, a);
+      map.set(a.time, structuredClone(a));
     }
     localFallbackArticles = Array.from(map.values()).sort((a, b) => b.time - a.time);
   }

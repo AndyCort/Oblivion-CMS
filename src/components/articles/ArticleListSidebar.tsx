@@ -4,8 +4,6 @@ import {
   Search,
   Plus,
   ArrowUpDown,
-  Filter,
-  Image as ImageIcon,
   Music2,
   MapPin,
   Trash2,
