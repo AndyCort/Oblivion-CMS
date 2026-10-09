@@ -61,7 +61,7 @@ it('retains and retries a draft after a failed commit instead of switching away'
 it('edits and previews languages independently and publishes every translation', async () => {
   await fill('文章标题', '中文标题');
   await fill('Markdown 正文', '中文正文');
-  await click('添加语言'); // default new language is English
+  await click('添加英文版');
   expect((host.querySelector('[aria-label="文章标题"]') as HTMLInputElement).value).toBe('');
   await fill('文章标题', 'English title');
   await fill('Markdown 正文', 'English body');

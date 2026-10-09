@@ -222,7 +222,7 @@ CMS 的全量导入也只作用于说说表。空表不会自动填充示例内�
 - D1 直连不会调用 Worker 的缓存清理，界面会提示这一点。配置了 Worker 后的网络或认证失败不会退回模拟成功。
 - 仅 localhost 显式启用开发认证时使用服务端内存模拟；纯 Vite 本地运行也有明确标记的内存适配器。模拟发布不是上线，刷新/重启可能丢失；IndexedDB 草稿仍保留。
 
-接口：`GET /api/posts?page=1&pageSize=20&q=关键词`、`GET /api/posts/:id`、`POST /api/posts/publish`（`{ post: BlogPost, originalId?: string }`）、`DELETE /api/posts/:id`。创建时不传 originalId；修改时必须与现有 id 相同。已发布 Slug 固定，避免遗留旧链接或产生重复文章。标题、摘要和正文同时支持纯文本或语言对象（例如 `{ "zh": "中文", "en": "English" }`）。编辑器可切换已有语言、添加语言并按当前语言预览；发布与本地草稿保存完整语言对象，未编辑的语言保持原样。列表优先显示中文，再回退到英文或其他非空语言。纯文本字段默认各语言共用，可点击「按语言拆分共用字段」后独立编辑。日期同时兼容 `YYYY-MM-DD`、已有的 `YYYY-MM-DD HH:mm:ss` 及 ISO 时间格式；修改日期时保留原时间和时区后缀。阅读字数按当前语言显示，发布的 `chars` 为各语言非空白字符总数。
+接口：`GET /api/posts?page=1&pageSize=20&q=关键词`、`GET /api/posts/:id`、`POST /api/posts/publish`（`{ post: BlogPost, originalId?: string }`）、`DELETE /api/posts/:id`。创建时不传 originalId；修改时必须与现有 id 相同。已发布 Slug 固定，避免遗留旧链接或产生重复文章。标题、摘要和正文同时支持纯文本或语言对象（例如 `{ "zh": "中文", "en": "English" }`）。「文章设置」中可切换已有语言、一键添加中英文版本，并按当前语言预览；其他语言收纳在「更多语言设置」中；发布与本地草稿保存完整语言对象，未编辑的语言保持原样。列表优先显示中文，再回退到英文或其他非空语言。纯文本字段默认各语言共用，可在「更多语言设置」中点击「改为分语言编辑」后独立编辑。日期同时兼容 `YYYY-MM-DD`、已有的 `YYYY-MM-DD HH:mm:ss` 及 ISO 时间格式；修改日期时保留原时间和时区后缀。阅读字数按当前语言显示，发布的 `chars` 为各语言非空白字符总数。
 
 ### Worker 协议与验证范围
 
