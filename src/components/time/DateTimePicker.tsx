@@ -1,5 +1,6 @@
+import * as S from './DateTimePicker.styles';
 import React from "react";
-import { Clock, RotateCcw } from "lucide-react";
+
 
 interface DateTimePickerProps {
   time: number;
@@ -38,31 +39,31 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({ time, onChange }
   };
 
   return (
-    <div className="space-y-1.5">
-      <div className="flex items-center justify-between">
-        <label className="text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wider flex items-center gap-1.5">
-          <Clock className="w-3.5 h-3.5 text-indigo-500" />
+    <S.Div>
+      <S.Div2>
+        <S.Label>
+          <S.Clock />
           <span>发表时间</span>
-        </label>
-        <button
+        </S.Label>
+        <S.Button
           type="button"
           onClick={handleSetNow}
-          className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 flex items-center gap-1"
-        >
-          <RotateCcw className="w-3 h-3" />
-          设为当前时间
-        </button>
-      </div>
 
-      <div className="flex items-center gap-2">
-        <input
+        >
+          <S.RotateCcw />
+          设为当前时间
+        </S.Button>
+      </S.Div2>
+
+      <S.Div3>
+        <S.Input
           type="datetime-local"
           step="1"
           value={dateStr}
           onChange={handleChange}
-          className="w-full text-sm sm:text-xs p-2.5 rounded-xl border border-stone-200 dark:border-stone-800 bg-stone-50/50 dark:bg-stone-900/50 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
-        />
-      </div>
-    </div>
+
+ />
+      </S.Div3>
+    </S.Div>
   );
 };

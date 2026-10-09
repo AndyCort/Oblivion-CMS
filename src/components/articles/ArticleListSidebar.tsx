@@ -1,19 +1,6 @@
+import * as S from './ArticleListSidebar.styles';
 import React, { useState, useMemo } from "react";
 import type { Article, ArticleDraft } from "../../types/article";
-import {
-  Search,
-  Plus,
-  ArrowUpDown,
-  Music2,
-  MapPin,
-  Trash2,
-  Copy,
-  Clock,
-  Sparkles,
-  CheckCircle2,
-  FileEdit,
-  UploadCloud,
-} from "lucide-react";
 
 interface ArticleListSidebarProps {
   articles: Article[];
@@ -24,7 +11,6 @@ interface ArticleListSidebarProps {
   onDeleteArticle: (article: Article, fingerprint: string) => void;
   drafts: Map<string, ArticleDraft>;
   getFingerprint: (article: Article) => string;
-  onOpenImport?: () => void;
 }
 
 export const ArticleListSidebar: React.FC<ArticleListSidebarProps> = ({
@@ -36,7 +22,6 @@ export const ArticleListSidebar: React.FC<ArticleListSidebarProps> = ({
   onDeleteArticle,
   drafts,
   getFingerprint,
-  onOpenImport,
 }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
@@ -103,124 +88,105 @@ export const ArticleListSidebar: React.FC<ArticleListSidebarProps> = ({
   };
 
   return (
-    <div className="h-full flex flex-col bg-white dark:bg-stone-900 border-r border-stone-200 dark:border-stone-800">
+    <S.Div>
       {/* Sidebar Header & New Article Button */}
-      <div className="p-3.5 border-b border-stone-100 dark:border-stone-800 space-y-3 shrink-0">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <h2 className="text-sm font-semibold text-stone-900 dark:text-stone-100">
+      <S.Div2>
+        <S.Div3>
+          <S.Div4>
+            <S.H2>
               文章列表
-            </h2>
-            <span className="text-xs px-2 py-0.5 rounded-full bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-400 font-mono">
+            </S.H2>
+            <S.Span>
               {filteredArticles.length} / {articles.length}
-            </span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            {onOpenImport && (
-              <button
-                type="button"
-                onClick={onOpenImport}
-                className="px-2.5 py-1.5 rounded-xl border border-stone-200 dark:border-stone-700/80 bg-stone-50 dark:bg-stone-800 text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-700/80 text-xs font-medium flex items-center gap-1 shadow-2xs transition-colors active:scale-95"
-                title="导入历史数据 (JSON / moments.ts)"
-              >
-                <UploadCloud className="w-3.5 h-3.5 text-indigo-500" />
-                <span>导入</span>
-              </button>
-            )}
-            <button
+            </S.Span>
+          </S.Div4>
+          <S.Div5>
+            <S.Button2
               type="button"
               onClick={onNewArticle}
-              className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium flex items-center gap-1.5 shadow-sm transition-transform active:scale-95"
+
             >
-              <Plus className="w-3.5 h-3.5" />
+              <S.Plus />
               发表新说说
-            </button>
-          </div>
-        </div>
+            </S.Button2>
+          </S.Div5>
+        </S.Div3>
 
         {/* Search input */}
-        <div className="relative">
-          <Search className="w-3.5 h-3.5 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
+        <S.Div6>
+          <S.Search />
+          <S.Input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="搜索正文、地点、标签、音乐..."
-            className="w-full text-sm sm:text-xs pl-8.5 pr-3 py-2 rounded-xl border border-stone-200 dark:border-stone-800 bg-stone-50 dark:bg-stone-950 text-stone-900 dark:text-stone-100 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          />
-        </div>
+
+ />
+        </S.Div6>
 
         {/* Filter chips & Sort toggle */}
-        <div className="flex items-center justify-between text-xs pt-1">
-          <div className="flex items-center gap-1 overflow-x-auto no-scrollbar py-0.5">
-            <button
+        <S.Div7>
+          <S.Div8>
+            <S.Button3
               type="button"
               onClick={() => setFilterDraftOnly(!filterDraftOnly)}
-              className={`px-2 py-0.5 rounded-lg text-[11px] whitespace-nowrap transition-colors ${
-                filterDraftOnly
-                  ? "bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 font-medium border border-amber-300/60"
-                  : "bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-400 hover:bg-stone-200"
-              }`}
+              $variant={((filterDraftOnly)) ? "v0" : "v1"}
             >
               草稿 ({drafts.size})
-            </button>
-            <button
+            </S.Button3>
+            <S.Button4
               type="button"
               onClick={() => setFilterMediaOnly(!filterMediaOnly)}
-              className={`px-2 py-0.5 rounded-lg text-[11px] whitespace-nowrap transition-colors ${
-                filterMediaOnly
-                  ? "bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-medium border border-indigo-300/60"
-                  : "bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-400 hover:bg-stone-200"
-              }`}
+              $variant={((filterMediaOnly)) ? "v0" : "v1"}
             >
               带媒体
-            </button>
+            </S.Button4>
             {selectedTag && (
-              <button
+              <S.Button5
                 type="button"
                 onClick={() => setSelectedTag(null)}
-                className="px-2 py-0.5 rounded-lg text-[11px] bg-indigo-600 text-white flex items-center gap-1"
+
               >
                 #{selectedTag} ×
-              </button>
+              </S.Button5>
             )}
-          </div>
+          </S.Div8>
 
-          <button
+          <S.Button6
             type="button"
             onClick={() => setSortOrder(sortOrder === "desc" ? "asc" : "desc")}
-            className="text-[11px] text-stone-500 hover:text-stone-800 dark:hover:text-stone-200 flex items-center gap-1 shrink-0 ml-2"
+
             title="切换时间排序"
           >
-            <ArrowUpDown className="w-3 h-3" />
+            <S.ArrowUpDown />
             {sortOrder === "desc" ? "最新优先" : "最早优先"}
-          </button>
-        </div>
+          </S.Button6>
+        </S.Div7>
 
         {/* Tag pills bar */}
         {allTagsWithCount.length > 0 && !selectedTag && (
-          <div className="flex items-center gap-1 overflow-x-auto no-scrollbar py-0.5">
+          <S.Div8>
             {allTagsWithCount.slice(0, 6).map((t) => (
-              <button
+              <S.Button7
                 key={t.tag}
                 type="button"
                 onClick={() => setSelectedTag(t.tag)}
-                className="text-[10px] px-2 py-0.5 rounded-md bg-stone-100 dark:bg-stone-800/80 text-stone-600 dark:text-stone-400 hover:bg-stone-200 dark:hover:bg-stone-700 shrink-0"
+
               >
                 #{t.tag}
-              </button>
+              </S.Button7>
             ))}
-          </div>
+          </S.Div8>
         )}
-      </div>
+      </S.Div2>
 
       {/* Article List Cards */}
-      <div className="flex-1 overflow-y-auto divide-y divide-stone-100 dark:divide-stone-800/80 pb-safe">
+      <S.Div9>
         {filteredArticles.length === 0 ? (
-          <div className="p-8 text-center text-stone-400 space-y-2">
-            <Sparkles className="w-8 h-8 mx-auto stroke-1 opacity-60" />
-            <p className="text-xs">暂无符合条件的文章</p>
-          </div>
+          <S.Div10>
+            <S.Sparkles />
+            <S.P>暂无符合条件的文章</S.P>
+          </S.Div10>
         ) : (
           filteredArticles.map((article) => {
             const fp = getFingerprint(article);
@@ -228,120 +194,116 @@ export const ArticleListSidebar: React.FC<ArticleListSidebarProps> = ({
             const draft = drafts.get(fp);
 
             return (
-              <div
+              <S.Div11
                 key={fp}
                 onClick={() => onSelectArticle(fp)}
-                className={`p-3.5 cursor-pointer transition-colors relative group active:bg-stone-100/70 dark:active:bg-stone-800/60 ${
-                  isSelected
-                    ? "bg-indigo-50/70 dark:bg-indigo-950/40 border-l-3 border-indigo-600"
-                    : "hover:bg-stone-50 dark:hover:bg-stone-800/50"
-                }`}
+                $variant={((isSelected)) ? "v0" : "v1"} data-style-group
               >
                 {/* Meta row: Date & status */}
-                <div className="flex items-center justify-between text-[11px] text-stone-400 mb-1.5">
-                  <div className="flex items-center gap-1 font-mono">
-                    <Clock className="w-3 h-3 text-stone-400" />
+                <S.Div12>
+                  <S.Div13>
+                    <S.Clock />
                     <span>{formatDate(article.time)}</span>
-                  </div>
+                  </S.Div13>
                   {draft ? (
-                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] bg-amber-100 dark:bg-amber-950/80 text-amber-700 dark:text-amber-400 font-medium">
-                      <FileEdit className="w-2.5 h-2.5" />
+                    <S.Span2>
+                      <S.FileEdit />
                       未发布草稿
-                    </span>
+                    </S.Span2>
                   ) : (
-                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                      <CheckCircle2 className="w-2.5 h-2.5" />
+                    <S.Span3>
+                      <S.CheckCircle2 />
                       已发布
-                    </span>
+                    </S.Span3>
                   )}
-                </div>
+                </S.Div12>
 
                 {/* Content Excerpt - 1:1 aligned with frontend preview */}
-                <div className="text-xs sm:text-[13px] text-stone-800 dark:text-stone-200 leading-relaxed whitespace-pre-wrap font-serif tracking-wide mb-2 select-text break-words">
+                <S.Div14>
                   {article.content || (
-                    <span className="text-stone-400 dark:text-stone-500 italic">
+                    <S.Span4>
                       （暂无正文内容）
-                    </span>
+                    </S.Span4>
                   )}
-                </div>
+                </S.Div14>
 
                 {/* Media thumbnail preview snippet */}
                 {article.media && article.media.length > 0 && (
-                  <div className="flex items-center gap-1.5 mb-2">
+                  <S.Div15>
                     {article.media.slice(0, 3).map((m, idx) => (
-                      <div
+                      <S.Div16
                         key={idx}
-                        className="w-7 h-7 rounded-md overflow-hidden bg-stone-200 dark:bg-stone-800 shrink-0 border border-stone-200 dark:border-stone-700"
+
                       >
                         {m.type === "img" ? (
-                          <img
+                          <S.Img
                             src={m.url}
                             alt=""
-                            className="w-full h-full object-cover"
-                          />
+
+ />
                         ) : (
-                          <div className="w-full h-full bg-stone-900 flex items-center justify-center text-[8px] text-white font-bold">
+                          <S.Div17>
                             VID
-                          </div>
+                          </S.Div17>
                         )}
-                      </div>
+                      </S.Div16>
                     ))}
                     {article.media.length > 3 && (
-                      <span className="text-[10px] text-stone-400 font-mono">
+                      <S.Span5>
                         +{article.media.length - 3}
-                      </span>
+                      </S.Span5>
                     )}
-                  </div>
+                  </S.Div15>
                 )}
 
                 {/* Bottom Badges & Hover Actions */}
-                <div className="flex items-center justify-between text-[11px] text-stone-400 pt-1">
-                  <div className="flex items-center gap-2 overflow-hidden truncate">
+                <S.Div18>
+                  <S.Div19>
                     {article.location && (
-                      <span className="flex items-center gap-0.5 truncate text-stone-500">
-                        <MapPin className="w-3 h-3 text-indigo-400 shrink-0" />
-                        <span className="truncate">{article.location}</span>
-                      </span>
+                      <S.Span6>
+                        <S.MapPin />
+                        <S.Span7>{article.location}</S.Span7>
+                      </S.Span6>
                     )}
                     {article.music && (
-                      <span className="flex items-center gap-0.5 truncate text-stone-500">
-                        <Music2 className="w-3 h-3 text-indigo-400 shrink-0" />
-                        <span className="truncate">{article.music.title}</span>
-                      </span>
+                      <S.Span6>
+                        <S.Music2 />
+                        <S.Span7>{article.music.title}</S.Span7>
+                      </S.Span6>
                     )}
-                  </div>
+                  </S.Div19>
 
                   {/* Actions visible on hover or mobile touch */}
-                  <div className="flex items-center gap-1 opacity-90 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                    <button
+                  <S.Div20>
+                    <S.Button8
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
                         onCloneArticle(article);
                       }}
-                      className="p-1.5 sm:p-1 rounded-md text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 hover:bg-stone-200/60 dark:hover:bg-stone-700/60 active:scale-95 transition-transform"
+
                       title="复制文章"
                     >
-                      <Copy className="w-3.5 h-3.5 sm:w-3 sm:h-3" />
-                    </button>
-                    <button
+                      <S.Copy />
+                    </S.Button8>
+                    <S.Button9
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
                         onDeleteArticle(article, fp);
                       }}
-                      className="p-1.5 sm:p-1 rounded-md text-stone-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 active:scale-95 transition-transform"
+
                       title="删除文章"
                     >
-                      <Trash2 className="w-3.5 h-3.5 sm:w-3 sm:h-3" />
-                    </button>
-                  </div>
-                </div>
-              </div>
+                      <S.Trash2 />
+                    </S.Button9>
+                  </S.Div20>
+                </S.Div18>
+              </S.Div11>
             );
           })
         )}
-      </div>
-    </div>
+      </S.Div9>
+    </S.Div>
   );
 };

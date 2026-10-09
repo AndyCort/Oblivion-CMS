@@ -1,6 +1,7 @@
+import * as S from './MediaLightbox.styles';
 import React, { useEffect, useRef } from "react";
 import type { ArticleMedia } from "../../types/article";
-import { X, ChevronLeft, ChevronRight } from "lucide-react";
+
 
 interface MediaLightboxProps {
   media: ArticleMedia[];
@@ -71,72 +72,72 @@ export const MediaLightbox: React.FC<MediaLightboxProps> = ({
   };
 
   return (
-    <div
+    <S.Div
       onClick={handleBackdropClick}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-2 sm:p-4 animate-in fade-in duration-200 select-none"
+
     >
       {/* Top action bar */}
-      <div className="absolute top-4 right-4 pt-safe flex items-center gap-3 z-20">
-        <span className="text-stone-300 text-xs sm:text-sm font-mono bg-black/40 px-2 py-0.5 rounded-full backdrop-blur-xs">
+      <S.Div2>
+        <S.Span>
           {currentIndex + 1} / {media.length}
-        </span>
-        <button
+        </S.Span>
+        <S.Button
           onClick={() => {
             if (videoRef.current) videoRef.current.pause();
             onClose();
           }}
-          className="p-2 sm:p-2.5 rounded-full bg-white/15 hover:bg-white/25 active:bg-white/35 text-white transition-colors"
+
           title="关闭 (Esc)"
         >
-          <X className="w-5 h-5" />
-        </button>
-      </div>
+          <S.X />
+        </S.Button>
+      </S.Div2>
 
       {/* Prev button */}
       {hasPrev && (
-        <button
+        <S.Button2
           onClick={() => onNavigate(currentIndex - 1)}
-          className="absolute left-2 sm:left-4 p-2 sm:p-3 rounded-full bg-white/10 hover:bg-white/25 active:bg-white/35 text-white transition-colors z-20 backdrop-blur-xs"
+
           title="上一张 (←)"
         >
-          <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
-        </button>
+          <S.ChevronLeft />
+        </S.Button2>
       )}
 
       {/* Next button */}
       {hasNext && (
-        <button
+        <S.Button3
           onClick={() => onNavigate(currentIndex + 1)}
-          className="absolute right-2 sm:right-4 p-2 sm:p-3 rounded-full bg-white/10 hover:bg-white/25 active:bg-white/35 text-white transition-colors z-20 backdrop-blur-xs"
+
           title="下一张 (→)"
         >
-          <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6" />
-        </button>
+          <S.ChevronRight />
+        </S.Button3>
       )}
 
       {/* Media content */}
-      <div className="max-w-4xl max-h-[85vh] w-full flex items-center justify-center p-2">
+      <S.Div3>
         {currentItem.type === "img" ? (
-          <img
+          <S.Img
             src={currentItem.url}
             alt=""
-            className="max-h-[80vh] max-w-full object-contain rounded-lg shadow-2xl transition-transform"
-          />
+
+ />
         ) : (
-          <div className="w-full max-w-3xl aspect-video bg-black rounded-xl overflow-hidden shadow-2xl flex items-center justify-center">
-            <video
+          <S.Div4>
+            <S.Video
               ref={videoRef}
               src={currentItem.url}
               controls
               autoPlay
               playsInline
-              className="w-full h-full object-contain"
-            />
-          </div>
+
+ />
+          </S.Div4>
         )}
-      </div>
-    </div>
+      </S.Div3>
+    </S.Div>
   );
 };

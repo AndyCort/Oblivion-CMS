@@ -80,7 +80,7 @@ Oblivion-CMS/
 │   │   └── storage/              # IndexedDB 本机草稿存储服务
 │   ├── types/                    # TypeScript 数据模型与接口定义
 │   ├── App.tsx                   # 主应用布局与交互中枢
-│   └── index.css                 # Tailwind CSS 基础样式
+│   └── styles/GlobalStyle.ts     # styled-components 全局样式与设计变量
 ├── tests/                        # 单元测试与集成测试
 │   ├── articleParser.test.ts     # AST 解析、更新、插入、删除、往返测试
 │   ├── apiAndAccess.test.ts      # Cloudflare Access 鉴权、Base64 UTF-8、API 冲突测试
@@ -199,7 +199,7 @@ Cloudflare Pages 默认会为每次提交生成类似 `<hash>.pages.dev` 的预�
 
 CMS 的说说数据默认保存在独立表 `oblivion_cms_moments` 中，首次访问时自动创建。
 已有博客的 `articles` 表（如 `id/title/date/content` 结构）不会被读取、覆盖或删除；
-CMS 的全量导入也只作用于说说表。空表不会自动填充示例内容。
+说说不再提供全量数据导入入口。空表不会自动填充示例内容。
 
 若数据库仍使用旧版 CMS 的 `articles` 表（包含 `time/content/media/tags/location/music/created_at/updated_at`），
 且独立说说表不存在，程序会继续使用旧表以保留已有说说。此时无需手动执行 `schema.sql`。
@@ -231,3 +231,7 @@ CMS 的全量导入也只作用于说说表。空表不会自动填充示例内�
 **现有 Worker 没有原子增量发布或版本条件接口，读取 ID 到写入之间仍存在并发窗口。请串行发布，避免同时运行其他 CMS / Obsidian 全量同步。** 真正支持并发写入需要 Worker 增加事务内的单篇更新/删除接口；仅靠 Pages 代理无法保证跨客户端同步互斥。
 
 执行 `npm run check` 可检查前端、Pages Functions 类型和自动化测试；`npm run build` 构建生产产物。新增测试覆盖发布保留列表、删除、鉴权、密钥隔离、Worker 失败不降级、草稿新旧格式隔离、拼音/英文 Slug、GFM 和 XSS。线上 Access、真实 D1 和边缘缓存的端到端效果需在部署配置后验证。
+
+### 界面样式
+
+CMS 统一使用 `styled-components`，组件样式与组件放在同目录的 `*.styles.ts` 中；全局重置、设计变量和安全区域设置位于 `src/styles/GlobalStyle.ts`。深浅主题沿用根元素的 `dark` 状态。动态样式使用 `$` 前缀的 transient props，避免将样式状态传入 DOM。博客正文与代码高亮样式限定在预览组件内。无需 Tailwind 或额外 CSS 编译插件。

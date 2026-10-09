@@ -1,3 +1,4 @@
+import * as S from './App.styles';
 import { useState, useEffect, useMemo, useRef, lazy, Suspense } from "react";
 import type {
   Article,
@@ -9,7 +10,6 @@ import {
   publishArticleToServer,
   checkAuthStatus,
   logoutUser,
-  batchImportArticles,
 } from "./lib/api/client";
 import type { FetchArticlesResponse, UserSession } from "./lib/api/client";
 import { LoginPage } from "./components/auth/LoginPage";
@@ -28,28 +28,9 @@ import { MomentPreview } from "./components/preview/MomentPreview";
 import { DeleteConfirmModal } from "./components/modals/DeleteConfirmModal";
 import { ConflictResolutionModal } from "./components/modals/ConflictResolutionModal";
 import { ConfigInfoModal } from "./components/modals/ConfigInfoModal";
-import {
-  PenTool,
-  UploadCloud,
-  RotateCcw,
-  Undo2,
-  Redo2,
-  Eye,
-  CheckCircle,
-  AlertTriangle,
-  Sun,
-  Moon,
-  Laptop,
-  ChevronLeft,
-  Sparkles,
-  Settings,
-  LogOut,
-  Database,
-} from "lucide-react";
 
 const PostsWorkspace = lazy(() => import("./components/posts/PostsWorkspace"));
 
-const ImportModal = lazy(() => import("./components/modals/ImportModal").then((module) => ({ default: module.ImportModal })));
 
 export function App() {
   const [contentMode, setContentMode] = useState<"moments" | "posts">(() => {
@@ -107,12 +88,6 @@ export function App() {
     clientBaseSha?: string;
   }>({ isOpen: false });
   const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
-  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  const [hasOpenedImport, setHasOpenedImport] = useState(false);
-  const openImportModal = () => {
-    setHasOpenedImport(true);
-    setIsImportModalOpen(true);
-  };
   const [commitMessageInput, setCommitMessageInput] = useState("");
 
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -501,17 +476,6 @@ export function App() {
     }
   };
 
-  const handleBatchImport = async (articles: Article[], mode: "merge" | "overwrite") => {
-    try {
-      const res = await batchImportArticles(articles, mode);
-      showToast("success", res.message || `成功导入 ${res.count} 篇文章`);
-      await loadInitialData();
-    } catch (err: any) {
-      showToast("error", err.message || "批量导入失败");
-      throw err;
-    }
-  };
-
   // Autocomplete tags and locations from all articles
   const availableTags = useMemo(() => {
     const map = new Map<string, number>();
@@ -533,10 +497,10 @@ export function App() {
 
   if (isCheckingAuth) {
     return (
-      <div className="min-h-screen bg-stone-950 flex flex-col items-center justify-center text-stone-400 gap-3 select-none font-sans">
-        <div className="w-9 h-9 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
-        <span className="text-xs font-mono text-stone-400 tracking-wider">正在验证安全会话...</span>
-      </div>
+      <S.SessionScreen>
+        <S.SessionSpinner />
+        <S.SessionMessage>正在验证安全会话...</S.SessionMessage>
+      </S.SessionScreen>
     );
   }
 
@@ -546,216 +510,186 @@ export function App() {
         onLoginSuccess={handleLoginSuccess}
         initialError={authError}
         onRetry={initAuth}
-      />
+ />
     );
   }
 
   return (
-    <div className="min-h-screen bg-stone-100 dark:bg-stone-950 text-stone-900 dark:text-stone-100 flex flex-col antialiased">
+    <S.AppShell>
       {/* Top Navbar */}
-      <header className="h-14 border-b border-stone-200 dark:border-stone-800 bg-white/80 dark:bg-stone-900/80 backdrop-blur-md sticky top-0 z-30 px-3 sm:px-4 flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-2.5 sm:gap-3">
+      <S.TopBar>
+        <S.BrandArea>
           {/* Mobile view toggle */}
           {contentMode === "moments" && (mobileView === "editor" ? (
-            <button
+            <S.Button
               type="button"
               onClick={() => setMobileView("sidebar")}
-              className="md:hidden flex items-center gap-1 px-2.5 py-1.5 -ml-1 text-xs font-semibold text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 rounded-xl active:scale-95 transition-all"
+
               title="返回文章列表"
             >
-              <ChevronLeft className="w-4 h-4 text-indigo-500 stroke-[2.5]" />
+              <S.ChevronLeft />
               <span>列表</span>
-            </button>
+            </S.Button>
           ) : (
-            <button
+            <S.Button2
               type="button"
               onClick={() => setMobileView("editor")}
-              className="md:hidden flex items-center gap-1 px-2.5 py-1.5 -ml-1 text-xs font-medium text-stone-600 dark:text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-800 rounded-xl active:scale-95 transition-all"
+
               title="前往编辑器"
             >
-              <PenTool className="w-3.5 h-3.5 text-indigo-500" />
+              <S.PenTool />
               <span>编辑</span>
-            </button>
+            </S.Button2>
           ))}
 
           {/* Logo & Brand */}
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-purple-500 flex items-center justify-center text-white shadow-md shadow-indigo-500/20">
-              <PenTool className="w-4 h-4" />
-            </div>
+          <S.InlineGroup>
+            <S.BrandIcon>
+              <S.PenTool2 />
+            </S.BrandIcon>
             <div>
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-sm tracking-tight text-stone-900 dark:text-stone-100">
+              <S.InlineGroup>
+                <S.BrandName>
                   Oblivion-CMS
-                </span>
-                <span className="hidden sm:inline-block text-[10px] font-mono px-1.5 py-0.5 rounded bg-stone-100 dark:bg-stone-800 text-stone-500 dark:text-stone-400">
+                </S.BrandName>
+                <S.VersionBadge>
                   v1.0
-                </span>
-              </div>
+                </S.VersionBadge>
+              </S.InlineGroup>
             </div>
-          </div>
+          </S.InlineGroup>
 
           {/* D1 Storage status badge */}
           {contentMode === "moments" && serverData && (
-            <div className="hidden lg:flex items-center gap-1.5 pl-3 border-l border-stone-200 dark:border-stone-800 text-xs font-mono text-stone-500">
-              <Database className="w-3.5 h-3.5 text-indigo-500" />
+            <S.DatabaseStatus>
+              <S.Database />
               <span>Cloudflare D1</span>
               {serverData.isD1 ? (
-                <span className="px-1.5 py-0.5 rounded text-[10px] bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-400 font-sans font-medium">
+                <S.Span4>
                   {serverData.d1Mode === "http" ? "REST 直连" : "已联机 (生产)"}
-                </span>
+                </S.Span4>
               ) : (
-                <button
+                <S.Button3
                   type="button"
                   onClick={() => setIsConfigModalOpen(true)}
-                  className="px-1.5 py-0.5 rounded text-[10px] bg-amber-100 hover:bg-amber-200 dark:bg-amber-950/80 dark:hover:bg-amber-900/80 text-amber-700 dark:text-amber-400 font-sans font-medium cursor-pointer transition-colors"
+
                   title="未检测到 Cloudflare D1 绑定，点击查看配置指引"
                 >
                   未绑定 D1
-                </button>
+                </S.Button3>
               )}
-            </div>
+            </S.DatabaseStatus>
           )}
-        </div>
+        </S.BrandArea>
 
         {/* Right action controls */}
-        <div className="flex items-center gap-1.5 sm:gap-2">
+        <S.HeaderActions>
           {/* Desktop 3-option theme switcher */}
-          <div className="hidden sm:flex items-center p-1 rounded-xl bg-stone-100 dark:bg-stone-800/80 border border-stone-200 dark:border-stone-700/60 text-xs">
-            <button
+          <S.ThemeSwitcher>
+            <S.LightThemeButton
               type="button"
               onClick={() => setTheme("light")}
-              className={`p-1.5 rounded-lg transition-colors ${
-                theme === "light"
-                  ? "bg-white dark:bg-stone-700 text-amber-600 shadow-xs"
-                  : "text-stone-500 hover:text-stone-800 dark:hover:text-stone-200"
-              }`}
+              $variant={((theme === "light")) ? "v0" : "v1"}
               title="浅色模式"
             >
-              <Sun className="w-3.5 h-3.5" />
-            </button>
-            <button
+              <S.Sun />
+            </S.LightThemeButton>
+            <S.DarkThemeButton
               type="button"
               onClick={() => setTheme("dark")}
-              className={`p-1.5 rounded-lg transition-colors ${
-                theme === "dark"
-                  ? "bg-white dark:bg-stone-700 text-indigo-400 shadow-xs"
-                  : "text-stone-500 hover:text-stone-800 dark:hover:text-stone-200"
-              }`}
+              $variant={((theme === "dark")) ? "v0" : "v1"}
               title="深色模式"
             >
-              <Moon className="w-3.5 h-3.5" />
-            </button>
-            <button
+              <S.Moon />
+            </S.DarkThemeButton>
+            <S.SystemThemeButton
               type="button"
               onClick={() => setTheme("system")}
-              className={`p-1.5 rounded-lg transition-colors ${
-                theme === "system"
-                  ? "bg-white dark:bg-stone-700 text-stone-800 dark:text-stone-200 shadow-xs"
-                  : "text-stone-500 hover:text-stone-800 dark:hover:text-stone-200"
-              }`}
+              $variant={((theme === "system")) ? "v0" : "v1"}
               title="跟随系统"
             >
-              <Laptop className="w-3.5 h-3.5" />
-            </button>
-          </div>
+              <S.Laptop />
+            </S.SystemThemeButton>
+          </S.ThemeSwitcher>
 
           {/* Mobile compact single theme cycle button */}
-          <button
+          <S.MobileThemeButton
             type="button"
             onClick={() => {
               if (theme === "light") setTheme("dark");
               else if (theme === "dark") setTheme("system");
               else setTheme("light");
             }}
-            className="sm:hidden p-2 rounded-xl text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 active:scale-95 transition-all"
+
             title="切换主题"
           >
             {theme === "light" ? (
-              <Sun className="w-4 h-4 text-amber-500" />
+              <S.Sun2 />
             ) : theme === "dark" ? (
-              <Moon className="w-4 h-4 text-indigo-400" />
+              <S.Moon2 />
             ) : (
-              <Laptop className="w-4 h-4 text-stone-500" />
+              <S.Laptop2 />
             )}
-          </button>
+          </S.MobileThemeButton>
 
-          {/* Import data button */}
-          {contentMode === "moments" && <button
-            type="button"
-            onClick={openImportModal}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium text-stone-700 dark:text-stone-300 bg-stone-100 hover:bg-stone-200 dark:bg-stone-800 dark:hover:bg-stone-700 border border-stone-200/80 dark:border-stone-700/80 transition-colors active:scale-95"
-            title="批量导入历史数据 (moments.ts / JSON)"
-          >
-            <UploadCloud className="w-3.5 h-3.5 text-indigo-500" />
-            <span className="hidden sm:inline">导入数据</span>
-          </button>}
 
           {/* System status / config modal button */}
-          <button
+          <S.SettingsButton
             type="button"
             onClick={() => setIsConfigModalOpen(true)}
-            className="p-2 rounded-xl text-stone-500 hover:text-stone-800 dark:hover:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-800 active:scale-95"
+
             title="查看连接与鉴权配置"
           >
-            <Settings className="w-4 h-4" />
-          </button>
+            <S.Settings />
+          </S.SettingsButton>
 
           {/* Logout button */}
-          <button
+          <S.LogoutButton
             type="button"
             onClick={handleLogout}
-            className="p-2 rounded-xl text-stone-500 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors active:scale-95"
+
             title="退出登录"
           >
-            <LogOut className="w-4 h-4" />
-          </button>
-        </div>
-      </header>
+            <S.LogOut />
+          </S.LogoutButton>
+        </S.HeaderActions>
+      </S.TopBar>
 
-      <nav aria-label="内容模式" className="sticky top-14 z-20 flex gap-2 px-3 sm:px-5 py-2 border-b border-stone-200 dark:border-stone-800 bg-white/70 dark:bg-stone-900/70 backdrop-blur-md">
-        {(["moments", "posts"] as const).map(mode => <button key={mode} type="button" aria-pressed={contentMode === mode} onClick={() => switchContentMode(mode)} className={`px-4 py-2 rounded-xl text-xs font-medium transition-colors ${contentMode === mode ? "bg-indigo-600 text-white shadow-sm" : "text-stone-500 hover:bg-stone-200 dark:hover:bg-stone-800"}`}>{mode === "moments" ? "💬 说说动态 (Moments)" : "📝 博客长文 (Posts)"}</button>)}
-      </nav>
-      {postsOpened && <div hidden={contentMode !== "posts"}><Suspense fallback={<p role="status" className="p-8">正在载入博客编辑器…</p>}><PostsWorkspace /></Suspense></div>}
-      {contentMode === "moments" && isLoading && <div role="status" className="px-4 py-2 text-sm text-stone-500">正在加载文章…</div>}
+      <S.ModeNavigation aria-label="内容模式" >
+        {(["moments", "posts"] as const).map(mode => <S.ModeButton key={mode} type="button" aria-pressed={contentMode === mode} onClick={() => switchContentMode(mode)} $variant={((contentMode === mode)) ? "v0" : "v1"}>{mode === "moments" ? "💬 说说动态 (Moments)" : "📝 博客长文 (Posts)"}</S.ModeButton>)}
+      </S.ModeNavigation>
+      {postsOpened && <div hidden={contentMode !== "posts"}><Suspense fallback={<S.P role="status" >正在载入博客编辑器…</S.P>}><PostsWorkspace /></Suspense></div>}
+      {contentMode === "moments" && isLoading && <S.LoadingNotice role="status" >正在加载文章…</S.LoadingNotice>}
       {contentMode === "moments" && errorMsg && (
-        <div role="alert" className="flex items-center gap-3 bg-rose-50 px-4 py-2 text-sm text-rose-700 dark:bg-rose-950 dark:text-rose-200">
+        <S.ErrorNotice role="alert" >
           <span>{errorMsg}</span>
-          <button type="button" onClick={() => loadInitialData()} disabled={isLoading} className="underline disabled:opacity-50">重新加载</button>
-        </div>
+          <S.Button12 type="button" onClick={() => loadInitialData()} disabled={isLoading} >重新加载</S.Button12>
+        </S.ErrorNotice>
       )}
 
       {/* Toast Alert Banner */}
       {toastMsg && (
-        <div
-          className={`fixed bottom-4 sm:bottom-6 left-3 right-3 sm:left-auto sm:right-6 z-50 px-4 py-2.5 rounded-2xl shadow-xl border text-xs font-medium flex items-center justify-between sm:justify-start gap-2 animate-in slide-in-from-bottom-5 duration-200 ${
-            toastMsg.type === "success"
-              ? "bg-emerald-50 dark:bg-emerald-950/90 text-emerald-800 dark:text-emerald-200 border-emerald-300 dark:border-emerald-800"
-              : toastMsg.type === "error"
-              ? "bg-rose-50 dark:bg-rose-950/90 text-rose-800 dark:text-rose-200 border-rose-300 dark:border-rose-800"
-              : "bg-indigo-50 dark:bg-indigo-950/90 text-indigo-800 dark:text-indigo-200 border-indigo-300 dark:border-indigo-800"
-          }`}
+        <S.Toast
+          $variant={((toastMsg.type === "success")) ? "v0" : ((toastMsg.type === "error")) ? "v1" : "v2"}
         >
-          <div className="flex items-center gap-2 truncate">
+          <S.ToastContent>
             {toastMsg.type === "success" ? (
-              <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />
+              <S.CheckCircle />
             ) : toastMsg.type === "error" ? (
-              <AlertTriangle className="w-4 h-4 text-rose-500 shrink-0" />
+              <S.AlertTriangle />
             ) : (
-              <Sparkles className="w-4 h-4 text-indigo-500 shrink-0" />
+              <S.Sparkles />
             )}
-            <span className="truncate">{toastMsg.text}</span>
-          </div>
-        </div>
+            <S.ToastText>{toastMsg.text}</S.ToastText>
+          </S.ToastContent>
+        </S.Toast>
       )}
 
       {/* Main Workspace Body */}
-      <div className="flex-1 flex overflow-hidden" style={{ display: contentMode === "moments" ? undefined : "none" }}>
+      <S.MomentsWorkspace  $visible={contentMode === "moments"}>
         {/* Left Sidebar: Article List */}
-        <aside
-          className={`w-full md:w-80 lg:w-96 shrink-0 h-[calc(100dvh-7rem)] ${
-            mobileView === "sidebar" ? "block" : "hidden md:block"
-          }`}
+        <S.MomentsSidebar
+          $variant={((mobileView === "sidebar")) ? "v0" : "v1"}
         >
           <ArticleListSidebar
             articles={serverData?.articles || []}
@@ -766,179 +700,168 @@ export function App() {
             onDeleteArticle={(article, fp) => setDeleteModalArticle({ article, fp })}
             drafts={draftsMap}
             getFingerprint={generateArticleFingerprint}
-            onOpenImport={openImportModal}
-          />
-        </aside>
+ />
+        </S.MomentsSidebar>
 
         {/* Right Content: Editor & Preview */}
-        <main
-          className={`flex-1 h-[calc(100dvh-7rem)] overflow-y-auto bg-stone-50/50 dark:bg-stone-950/50 p-3 sm:p-5 md:p-6 lg:p-8 pb-safe ${
-            mobileView === "editor" ? "block" : "hidden md:block"
-          }`}
+        <S.MomentsEditor
+          $variant={((mobileView === "editor")) ? "v0" : "v1"}
         >
-          <div className="max-w-3xl mx-auto space-y-4 sm:space-y-6">
+          <S.EditorContainer>
             {/* D1 Unbound Warning Banner */}
             {serverData && !serverData.isD1 && (
-              <div className="p-3 sm:p-4 rounded-2xl bg-amber-500/10 dark:bg-amber-950/40 border border-amber-500/30 text-amber-900 dark:text-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-xs">
-                <div className="flex items-start sm:items-center gap-2.5">
-                  <AlertTriangle className="w-4 h-4 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5 sm:mt-0" />
+              <S.DatabaseWarning>
+                <S.WarningContent>
+                  <S.AlertTriangle2 />
                   <div>
-                    <span className="font-semibold">未检测到 Cloudflare D1 数据库绑定（当前为离线模拟模式）</span>
-                    <p className="text-[11px] text-amber-700/80 dark:text-amber-400/80 mt-0.5">
+                    <S.Span7>未检测到 Cloudflare D1 数据库绑定（当前为离线模拟模式）</S.Span7>
+                    <S.P2>
                       您所做的修改当前仅保存在临时内存中，未写入云端 D1 数据库。请在 Cloudflare Pages 绑定 D1 数据库以持久化保存文章。
-                    </p>
+                    </S.P2>
                   </div>
-                </div>
-                <button
+                </S.WarningContent>
+                <S.Button13
                   type="button"
                   onClick={() => setIsConfigModalOpen(true)}
-                  className="px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-medium shrink-0 shadow-sm self-start sm:self-auto cursor-pointer transition-colors"
+
                 >
                   如何绑定 D1
-                </button>
-              </div>
+                </S.Button13>
+              </S.DatabaseWarning>
             )}
 
             {/* Editor Action Bar / Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-stone-200 dark:border-stone-800">
-              <div className="flex items-center gap-2">
-                <span className="text-base font-semibold text-stone-900 dark:text-stone-100">
+            <S.EditorToolbar>
+              <S.InlineGroup>
+                <S.Span8>
                   {isNewArticle ? "撰写新说说" : "编辑说说"}
-                </span>
-                <span className="text-xs px-2 py-0.5 rounded-full bg-stone-200/60 dark:bg-stone-800 text-stone-600 dark:text-stone-400 font-mono">
+                </S.Span8>
+                <S.Span9>
                   {autoSaveStatus}
-                </span>
-              </div>
+                </S.Span9>
+              </S.InlineGroup>
 
               {/* View Mode Toggle: Edit <-> Preview */}
-              <div className="flex items-center gap-1.5">
-                <div className="flex p-0.5 rounded-xl bg-stone-200/60 dark:bg-stone-800/80 text-xs">
-                  <button
+              <S.EditorActions>
+                <S.EditorViewSwitcher>
+                  <S.EditViewButton
                     type="button"
                     onClick={() => setActiveTab("edit")}
-                    className={`px-3 py-1 rounded-lg font-medium transition-colors ${
-                      activeTab === "edit"
-                        ? "bg-white dark:bg-stone-700 text-stone-900 dark:text-stone-100 shadow-xs"
-                        : "text-stone-500 hover:text-stone-800 dark:hover:text-stone-200"
-                    }`}
+                    $variant={((activeTab === "edit")) ? "v0" : "v1"}
                   >
                     编辑
-                  </button>
-                  <button
+                  </S.EditViewButton>
+                  <S.PreviewViewButton
                     type="button"
                     onClick={() => setActiveTab("preview")}
-                    className={`px-3 py-1 rounded-lg font-medium flex items-center gap-1 transition-colors ${
-                      activeTab === "preview"
-                        ? "bg-white dark:bg-stone-700 text-stone-900 dark:text-stone-100 shadow-xs"
-                        : "text-stone-500 hover:text-stone-800 dark:hover:text-stone-200"
-                    }`}
+                    $variant={((activeTab === "preview")) ? "v0" : "v1"}
                   >
-                    <Eye className="w-3.5 h-3.5" />
+                    <S.Eye />
                     前台预览
-                  </button>
-                </div>
-              </div>
-            </div>
+                  </S.PreviewViewButton>
+                </S.EditorViewSwitcher>
+              </S.EditorActions>
+            </S.EditorToolbar>
 
             {/* Editor Mode */}
             {activeTab === "edit" ? (
-              <div className="space-y-5 sm:space-y-6 bg-white dark:bg-stone-900 p-4 sm:p-6 md:p-7 rounded-2xl border border-stone-200 dark:border-stone-800 shadow-sm relative">
+              <S.EditorCard>
                 {/* Meta details row: Time & Location */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <S.MetadataRow>
                   <DateTimePicker
                     time={currentArticle.time}
                     onChange={(newTime) =>
                       updateArticle((prev) => ({ ...prev, time: newTime }))
                     }
-                  />
+ />
                   <LocationInput
                     location={currentArticle.location}
                     onChange={(newLoc) =>
                       updateArticle((prev) => ({ ...prev, location: newLoc }))
                     }
                     historicalLocations={historicalLocations}
-                  />
-                </div>
+ />
+                </S.MetadataRow>
 
                 {/* Content Textarea with word count & Undo/Redo */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wider">
+                <S.Div23>
+                  <S.Div24>
+                    <S.Label>
                       正文内容 (支持多行与换行)
-                    </label>
-                    <div className="flex items-center gap-3 text-xs text-stone-400">
-                      <div className="flex items-center gap-1">
-                        <button
+                    </S.Label>
+                    <S.Div25>
+                      <S.Div26>
+                        <S.Button16
                           type="button"
                           onClick={handleUndo}
                           disabled={historyIndex <= 0}
-                          className="p-1.5 sm:p-1 rounded hover:bg-stone-100 dark:hover:bg-stone-800 disabled:opacity-30 active:scale-95"
+
                           title="撤回 (Undo)"
                         >
-                          <Undo2 className="w-3.5 h-3.5" />
-                        </button>
-                        <button
+                          <S.Undo2 />
+                        </S.Button16>
+                        <S.Button16
                           type="button"
                           onClick={handleRedo}
                           disabled={historyIndex >= historyStack.length - 1}
-                          className="p-1.5 sm:p-1 rounded hover:bg-stone-100 dark:hover:bg-stone-800 disabled:opacity-30 active:scale-95"
+
                           title="重做 (Redo)"
                         >
-                          <Redo2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                      <span className="font-mono">
+                          <S.Redo2 />
+                        </S.Button16>
+                      </S.Div26>
+                      <S.Span10>
                         {currentArticle.content.length} 字
-                      </span>
-                    </div>
-                  </div>
+                      </S.Span10>
+                    </S.Div25>
+                  </S.Div24>
 
-                  <textarea
+                  <S.Textarea
                     value={currentArticle.content}
                     onChange={(e) => handleContentChange(e.target.value)}
                     placeholder="分享此刻的所思所想..."
                     rows={6}
-                    className="w-full text-sm leading-relaxed p-3.5 sm:p-4 rounded-xl border border-stone-200 dark:border-stone-800 bg-stone-50/50 dark:bg-stone-950/50 text-stone-900 dark:text-stone-100 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-sans resize-y min-h-[140px]"
-                  />
-                </div>
+
+ />
+                </S.Div23>
 
                 {/* 9-Grid Media Manager */}
-                <div className="pt-1 sm:pt-2">
+                <S.Div27>
                   <NineGridMedia
                     media={currentArticle.media}
                     onChange={(newMedia) =>
                       updateArticle((prev) => ({ ...prev, media: newMedia }))
                     }
-                  />
-                </div>
+ />
+                </S.Div27>
 
                 {/* Tags Manager */}
-                <div className="pt-1 sm:pt-2">
+                <S.Div27>
                   <TagManager
                     tags={currentArticle.tags}
                     onChange={(newTags) =>
                       updateArticle((prev) => ({ ...prev, tags: newTags }))
                     }
                     availableTags={availableTags}
-                  />
-                </div>
+ />
+                </S.Div27>
 
                 {/* Music Editor */}
-                <div className="pt-1 sm:pt-2">
+                <S.Div27>
                   <MusicEditor
                     music={currentArticle.music}
                     onChange={(newMusic) =>
                       updateArticle((prev) => ({ ...prev, music: newMusic }))
                     }
-                  />
-                </div>
+ />
+                </S.Div27>
 
                 {/* Commit message custom input */}
-                <div className="pt-4 border-t border-stone-100 dark:border-stone-800/80">
-                  <label className="block text-xs text-stone-500 dark:text-stone-400 mb-1">
+                <S.Div28>
+                  <S.Label2>
                     自定义发布备注 / 变更说明 (留空将使用默认)
-                  </label>
-                  <input
+                  </S.Label2>
+                  <S.Input
                     type="text"
                     value={commitMessageInput}
                     onChange={(e) => setCommitMessageInput(e.target.value)}
@@ -947,65 +870,65 @@ export function App() {
                         ? "发表新说说"
                         : "更新说说内容"
                     }
-                    className="w-full text-sm sm:text-xs p-2.5 rounded-xl border border-stone-200 dark:border-stone-800 bg-stone-50 dark:bg-stone-950 font-mono text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
+
+ />
+                </S.Div28>
 
                 {/* Action Buttons Bar - sticky at bottom on mobile */}
-                <div className="sticky bottom-0 z-20 -mx-4 -mb-4 sm:mx-0 sm:mb-0 p-3 sm:p-0 bg-white/95 dark:bg-stone-900/95 sm:bg-transparent backdrop-blur-md sm:backdrop-blur-none border-t border-stone-200 dark:border-stone-800 flex items-center justify-between gap-2.5 sm:gap-3 rounded-b-2xl shadow-lg sm:shadow-none pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:pb-0">
-                  <div className="flex items-center gap-2">
-                    <button
+                <S.Div29>
+                  <S.InlineGroup>
+                    <S.Button17
                       type="button"
                       onClick={handleRevertChanges}
-                      className="px-3 sm:px-3.5 py-2.5 sm:py-2 text-xs font-medium text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100 hover:bg-stone-100 dark:hover:bg-stone-800 rounded-xl transition-colors flex items-center gap-1.5 active:scale-95"
-                    >
-                      <RotateCcw className="w-3.5 h-3.5" />
-                      <span>放弃草稿更改</span>
-                    </button>
-                  </div>
 
-                  <div className="flex items-center gap-2.5 w-auto">
-                    <button
+                    >
+                      <S.RotateCcw />
+                      <span>放弃草稿更改</span>
+                    </S.Button17>
+                  </S.InlineGroup>
+
+                  <S.Div30>
+                    <S.Button18
                       type="button"
                       onClick={() => handlePublish()}
                       disabled={isPublishing}
-                      className="px-4 sm:px-5 py-2.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl shadow-md shadow-indigo-600/20 flex items-center justify-center gap-2 transition-transform active:scale-95"
+
                     >
-                      <UploadCloud className="w-4 h-4" />
+                      <S.UploadCloud2 />
                       <span>{isPublishing ? "正在发布..." : "发布到数据库"}</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
+                    </S.Button18>
+                  </S.Div30>
+                </S.Div29>
+              </S.EditorCard>
             ) : (
               /* Live Preview Mode */
-              <div className="space-y-6">
+              <S.Div31>
                 <MomentPreview article={currentArticle} />
 
                 {/* Quick publish bar under preview */}
-                <div className="sticky bottom-0 z-20 flex justify-end gap-2.5 sm:gap-3 p-3 sm:p-4 bg-white/95 dark:bg-stone-900/95 backdrop-blur-md rounded-2xl border border-stone-200 dark:border-stone-800 shadow-md pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:pb-4">
-                  <button
+                <S.Div32>
+                  <S.Button19
                     type="button"
                     onClick={() => setActiveTab("edit")}
-                    className="px-3.5 sm:px-4 py-2.5 sm:py-2 text-xs font-medium text-stone-600 dark:text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-800 rounded-xl active:scale-95 transition-all"
+
                   >
                     返回编辑
-                  </button>
-                  <button
+                  </S.Button19>
+                  <S.Button20
                     type="button"
                     onClick={() => handlePublish()}
                     disabled={isPublishing}
-                    className="px-4 sm:px-5 py-2.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 rounded-xl shadow-md flex items-center gap-2 active:scale-95 transition-all"
+
                   >
-                    <UploadCloud className="w-4 h-4" />
+                    <S.UploadCloud2 />
                     <span>{isPublishing ? "正在发布..." : "直接发布此版本"}</span>
-                  </button>
-                </div>
-              </div>
+                  </S.Button20>
+                </S.Div32>
+              </S.Div31>
             )}
-          </div>
-        </main>
-      </div>
+          </S.EditorContainer>
+        </S.MomentsEditor>
+      </S.MomentsWorkspace>
 
       {/* Modals */}
       <DeleteConfirmModal
@@ -1014,7 +937,7 @@ export function App() {
         onClose={() => setDeleteModalArticle(null)}
         onConfirm={handleConfirmDelete}
         isDeleting={isDeleting}
-      />
+ />
 
       <ConflictResolutionModal
         isOpen={conflictModalData.isOpen}
@@ -1029,7 +952,7 @@ export function App() {
         remoteSha={conflictModalData.remoteSha}
         clientBaseSha={conflictModalData.clientBaseSha}
         isPublishing={isPublishing}
-      />
+ />
 
       <ConfigInfoModal
         isOpen={isConfigModalOpen}
@@ -1043,19 +966,9 @@ export function App() {
         userEmail={currentUser?.email || serverData?.user?.email}
         bindingName={serverData?.bindingName}
         envKeys={serverData?.envKeys}
-      />
+ />
 
-      {hasOpenedImport && (
-        <Suspense fallback={<div role="status" className="fixed bottom-4 right-4 z-50 rounded-xl bg-white p-4 shadow-lg dark:bg-stone-900">正在加载导入工具…</div>}>
-          <ImportModal
-            isOpen={isImportModalOpen}
-            onClose={() => setIsImportModalOpen(false)}
-            onImport={handleBatchImport}
-            currentTotalArticles={serverData?.articles?.length || 0}
-          />
-        </Suspense>
-      )}
-    </div>
+    </S.AppShell>
   );
 }
 export default App;

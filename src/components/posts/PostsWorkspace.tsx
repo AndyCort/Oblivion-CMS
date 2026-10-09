@@ -1,15 +1,7 @@
 import { useEffect, useRef, useState, useDeferredValue } from "react";
 import type { KeyboardEvent } from "react";
 import { pinyin } from "pinyin-pro";
-import {
-  Plus,
-  Search,
-  UploadCloud,
-  Trash2,
-  ArrowLeft,
-  Settings2,
-  RefreshCw,
-} from "lucide-react";
+import { Plus, Search, UploadCloud, Trash2, ArrowLeft, Settings2, RefreshCw } from 'lucide-react';
 import {
   emptyPost,
   countChars,
@@ -38,7 +30,7 @@ import {
 } from "../../lib/storage/draftStore";
 import { TagManager } from "../tags/TagManager";
 import { MarkdownPreview } from "./MarkdownPreview";
-import "./posts.css";
+import { Workspace } from './PostsWorkspace.styles';
 export function slugFromTitle(title: string) {
   return pinyin(title, {
     toneType: "none",
@@ -396,8 +388,8 @@ export default function PostsWorkspace() {
   }
   const titleText = displayPostText;
   return (
-    <div
-      className={`posts-workspace ${mobileEditor ? "posts-mobile-editor" : ""}`}
+    <Workspace
+      className={mobileEditor ? "posts-mobile-editor" : undefined}
     >
       <aside className="posts-sidebar">
         {error && (
@@ -407,17 +399,19 @@ export default function PostsWorkspace() {
         )}
         <div className="posts-list-heading">
           <div>
-            <small>YOUR STORIES</small>
+
             <h2>
-              博客长文 <span>{result?.total ?? 0}</span>
+              文章列表 <span>{result?.total ?? 0}</span>
             </h2>
           </div>
           <button
+            className="post-primary"
             aria-label="新建文章"
             disabled={busy || !ready}
             onClick={() => void switchEditor()}
           >
-            <Plus size={20} />
+            <Plus size={14} />
+            新建文章
           </button>
         </div>
         <label className="posts-search">
@@ -430,7 +424,7 @@ export default function PostsWorkspace() {
               setQuery(e.target.value);
               setPage(1);
             }}
-          />
+ />
         </label>
         <div className="posts-list-actions">
           <span>{loading ? "加载中…" : "文章库"}</span>
@@ -508,30 +502,35 @@ export default function PostsWorkspace() {
         </div>
       </aside>
       <main className="posts-main">
+        <div className="posts-editor-container">
+        {result?.warning && (
+          <p className="post-warning" role="status">
+            {result.warning}
+          </p>
+        )}
         <div className="posts-toolbar">
           <button className="posts-back" onClick={() => setMobileEditor(false)}>
             <ArrowLeft size={16} />
             列表
           </button>
           <div>
-            <strong>{editor.originalId ? "编辑文章" : "新的故事"}</strong>
+            <strong>{editor.originalId ? "编辑文章" : "撰写新文章"}</strong>
             <span role="status">{ready ? status : "恢复草稿中…"}</span>
             {dirty && <small className="post-dirty">未发布修改</small>}
           </div>
-          <button
-            disabled={busy || !ready}
-            className="post-primary"
-            onClick={() => void publish()}
-          >
-            <UploadCloud size={16} />
-            {busy ? "处理中…" : "发布文章"}
-          </button>
+            <div className="post-view-switch" aria-label="编辑器视图">
+              {(["edit", "split", "preview"] as const).map((v) => (
+                <button
+                  key={v}
+                  disabled={busy || !ready}
+                  aria-pressed={view === v}
+                  onClick={() => setView(v)}
+                >
+                  {v === "edit" ? "编辑" : v === "split" ? "分屏" : "预览"}
+                </button>
+              ))}
+            </div>
         </div>
-        {result?.warning && (
-          <p className="post-warning" role="status">
-            {result.warning}
-          </p>
-        )}
         {error && (
           <p className="post-error" role="alert">
             {error}
@@ -546,25 +545,17 @@ export default function PostsWorkspace() {
           </p>
         )}
         <fieldset disabled={busy || !ready} className="post-editor-fields">
+          <label className="post-field-label" htmlFor="post-title">文章标题</label>
           <input
+            id="post-title"
             className="post-title"
             aria-label="文章标题"
-            placeholder="给故事一个标题…"
+            placeholder="输入文章标题…"
             value={title}
             onChange={(e) => editText("title", e.target.value)}
-          />
+ />
           <div className="post-editor-options">
-            <div className="post-view-switch" aria-label="编辑器视图">
-              {(["edit", "split", "preview"] as const).map((v) => (
-                <button
-                  key={v}
-                  aria-pressed={view === v}
-                  onClick={() => setView(v)}
-                >
-                  {v === "edit" ? "编辑" : v === "split" ? "分屏" : "预览"}
-                </button>
-              ))}
-            </div>
+
             <span>
               {chars} 字 · 约 {Math.max(1, Math.ceil(chars / 400))} 分钟
             </span>
@@ -617,7 +608,7 @@ export default function PostsWorkspace() {
                     disabled={!!editor.originalId}
                     placeholder="my-first-post"
                     onChange={(e) => change({ id: e.target.value })}
-                  />
+ />
                   <button
                     disabled={!!editor.originalId}
                     onClick={() =>
@@ -643,7 +634,7 @@ export default function PostsWorkspace() {
                       date: replacePostDateDay(post.date, e.target.value),
                     })
                   }
-                />
+ />
                 {post.date.length > 10 && (
                   <small>保留原时间：{post.date.slice(11)}</small>
                 )}
@@ -654,7 +645,7 @@ export default function PostsWorkspace() {
                   value={post.author || ""}
                   onChange={(e) => change({ author: e.target.value })}
                   placeholder="可选"
-                />
+ />
               </label>
               <label>
                 封面图 URL
@@ -664,13 +655,13 @@ export default function PostsWorkspace() {
                     value={post.cover || ""}
                     placeholder="https://…"
                     onChange={(e) => change({ cover: e.target.value })}
-                  />
+ />
                   {/^https?:\/\//i.test(post.cover || "") && (
                     <img
                       src={post.cover}
                       alt="封面预览"
                       referrerPolicy="no-referrer"
-                    />
+ />
                   )}
                 </div>
               </label>
@@ -682,7 +673,7 @@ export default function PostsWorkspace() {
                   value={summary}
                   placeholder="这篇文章讲述什么？"
                   onChange={(e) => editText("summary", e.target.value)}
-                />
+ />
               </label>
               <div className="post-tags">
                 <TagManager
@@ -695,14 +686,14 @@ export default function PostsWorkspace() {
                       ) || [],
                     ),
                   ].map((tag) => ({ tag, count: 1 }))}
-                />
+ />
               </div>
               <label className="post-pin">
                 <input
                   type="checkbox"
                   checked={!!post.pinned}
                   onChange={(e) => change({ pinned: e.target.checked })}
-                />
+ />
                 置顶这篇文章
               </label>
             </section>
@@ -715,15 +706,15 @@ export default function PostsWorkspace() {
                   className="post-line-numbers"
                   aria-hidden="true"
                 >
-                  {content.split("\n").map((_, i) => (
-                    <div key={i}>{i + 1}</div>
+                  {content.split("\n").map((line, i) => (
+                    <div key={i} data-line={i + 1}>{line || "\u200b"}</div>
                   ))}
                 </div>
                 <textarea
                   ref={textarea}
                   aria-label="Markdown 正文"
                   spellCheck={false}
-                  wrap="off"
+                  wrap="soft"
                   placeholder="从这里落笔。支持 Markdown…"
                   value={content}
                   onChange={(e) => editText("content", e.target.value)}
@@ -732,7 +723,7 @@ export default function PostsWorkspace() {
                     if (gutter.current)
                       gutter.current.scrollTop = e.currentTarget.scrollTop;
                   }}
-                />
+ />
               </div>
             )}
             {view !== "edit" && <MarkdownPreview content={content} />}
@@ -758,8 +749,17 @@ export default function PostsWorkspace() {
               </button>
             )}
           </div>
+          <button
+            disabled={busy || !ready}
+            className="post-primary"
+            onClick={() => void publish()}
+          >
+            <UploadCloud size={16} />
+            {busy ? "处理中…" : "发布文章"}
+          </button>
         </footer>
+      </div>
       </main>
-    </div>
+    </Workspace>
   );
 }

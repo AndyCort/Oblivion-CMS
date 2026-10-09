@@ -1,14 +1,5 @@
+import * as S from './ConfigInfoModal.styles';
 import React, { useState } from "react";
-import {
-  Settings,
-  Shield,
-  Database,
-  X,
-  Copy,
-  Check,
-  Code2,
-  Sparkles,
-} from "lucide-react";
 
 interface ConfigInfoModalProps {
   isOpen: boolean;
@@ -49,135 +40,131 @@ export const ConfigInfoModal: React.FC<ConfigInfoModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm animate-in fade-in select-none">
-      <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-2xl sm:rounded-3xl max-w-lg w-full p-4.5 sm:p-7 shadow-2xl space-y-4 sm:space-y-5 max-h-[92dvh] overflow-y-auto">
+    <S.Div>
+      <S.Div2>
         {/* Header */}
-        <div className="flex items-center justify-between pb-3 border-b border-stone-100 dark:border-stone-800">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center border border-indigo-200 dark:border-indigo-800/60">
-              <Settings className="w-4 h-4" />
-            </div>
+        <S.Div3>
+          <S.Div4>
+            <S.Div5>
+              <S.Settings />
+            </S.Div5>
             <div>
-              <h3 className="font-semibold text-stone-900 dark:text-stone-100 text-base">
+              <S.H3>
                 数据库与前台集成
-              </h3>
-              <p className="text-[11px] text-stone-400">
+              </S.H3>
+              <S.P>
                 Cloudflare D1 驱动与博客开放数据接口
-              </p>
+              </S.P>
             </div>
-          </div>
-          <button
+          </S.Div4>
+          <S.Button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-xl text-stone-400 hover:text-stone-600 dark:hover:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-800 cursor-pointer"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
 
-        <div className="space-y-3.5 text-xs">
+          >
+            <S.X />
+          </S.Button>
+        </S.Div3>
+
+        <S.Div6>
           {/* Public API for Frontend Blog (Highlight Card) */}
-          <div className="p-4 rounded-2xl bg-gradient-to-br from-indigo-500/10 via-purple-500/5 to-transparent border border-indigo-500/30 space-y-2.5">
-            <div className="font-medium text-stone-900 dark:text-stone-100 flex items-center justify-between">
-              <span className="flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400 font-semibold">
-                <Sparkles className="w-4 h-4" />
+          <S.Div7>
+            <S.Div8>
+              <S.Span>
+                <S.Sparkles />
                 前台博客实时读取接口 (Public Moments API)
-              </span>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 font-mono">
+              </S.Span>
+              <S.Span2>
                 CORS 跨域开放
-              </span>
-            </div>
-            <p className="text-[11px] text-stone-600 dark:text-stone-400 leading-relaxed">
+              </S.Span2>
+            </S.Div8>
+            <S.P2>
               你的前台博客（如 oblivion-dashboard）无需再等待 GitHub 编译重构，直接调用此接口即可获取最新发布的说说：
-            </p>
+            </S.P2>
 
             {/* API URL Copy row */}
-            <div className="flex items-center gap-2 p-2 rounded-xl bg-white dark:bg-stone-950 border border-stone-200 dark:border-stone-800">
-              <input
+            <S.Div9>
+              <S.Input
                 type="text"
                 readOnly
                 value={publicApiUrl}
-                className="flex-1 bg-transparent font-mono text-[11px] text-indigo-600 dark:text-indigo-400 outline-none select-all"
-              />
-              <button
+
+ />
+              <S.Button2
                 type="button"
                 onClick={handleCopyApi}
-                className="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-[11px] flex items-center gap-1 shrink-0 cursor-pointer transition-all active:scale-95"
+
               >
                 {copied ? (
                   <>
-                    <Check className="w-3.5 h-3.5" />
+                    <S.Check />
                     <span>已复制</span>
                   </>
                 ) : (
                   <>
-                    <Copy className="w-3.5 h-3.5" />
+                    <S.Copy />
                     <span>复制</span>
                   </>
                 )}
-              </button>
-            </div>
+              </S.Button2>
+            </S.Div9>
 
             {/* Quick JS code snippet */}
-            <div className="text-[10px] font-mono p-2.5 rounded-xl bg-stone-900 text-stone-300 space-y-1">
-              <div className="text-stone-400 flex items-center gap-1 font-sans">
-                <Code2 className="w-3 h-3 text-indigo-400" /> 前台代码调用示例：
-              </div>
-              <p className="text-indigo-300">
+            <S.Div10>
+              <S.Div11>
+                <S.Code2 /> 前台代码调用示例：
+              </S.Div11>
+              <S.P3>
                 const moments = await fetch(&quot;{publicApiUrl}&quot;).then(r =&gt; r.json());
-              </p>
-            </div>
-          </div>
+              </S.P3>
+            </S.Div10>
+          </S.Div7>
 
           {/* Cloudflare D1 Database Status */}
-          <div className="p-3.5 sm:p-4 rounded-2xl bg-stone-50 dark:bg-stone-950 border border-stone-200 dark:border-stone-800 space-y-3">
-            <div className="font-medium text-stone-900 dark:text-stone-100 flex items-center justify-between">
-              <span className="flex items-center gap-1.5">
-                <Database className="w-4 h-4 text-emerald-500" />
+          <S.Div12>
+            <S.Div8>
+              <S.Span3>
+                <S.Database />
                 数据储存引擎 (Cloudflare D1)
-              </span>
-              <span
-                className={`px-2 py-0.5 rounded text-[10px] font-medium ${
-                  isMock
-                    ? "bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 border border-amber-300/60"
-                    : "bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-300/60"
-                }`}
+              </S.Span3>
+              <S.Span4
+                $variant={((isMock)) ? "v0" : "v1"}
               >
                 {isMock ? "未绑定 (离线模拟)" : "D1 生产数据库 (已联机)"}
-              </span>
-            </div>
+              </S.Span4>
+            </S.Div8>
 
-            <div className="space-y-1 font-mono text-stone-600 dark:text-stone-400 text-[11px]">
+            <S.Div13>
               <div>数据表: articles (SQLite)</div>
               <div>当前修订: {sha || "初始版本"}</div>
               <div>
-                绑定名称: <span className="text-indigo-600 dark:text-indigo-400 font-bold">env.{bindingName || "DB"}</span>
+                绑定名称: <S.Span5>env.{bindingName || "DB"}</S.Span5>
               </div>
-            </div>
+            </S.Div13>
 
             {isMock && (
-              <div className="mt-2.5 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-[11px] text-amber-900 dark:text-amber-200 space-y-2">
-                <div className="font-semibold text-amber-800 dark:text-amber-300 flex items-center gap-1">
+              <S.Div14>
+                <S.Div15>
                   ⚠️ 为什么提示未绑定 D1 数据库？
-                </div>
-                <p className="leading-relaxed">
+                </S.Div15>
+                <S.P4>
                   如果您已经在 Cloudflare 控制台添加了绑定，仍然提示未绑定，<strong>90% 的原因是由于 Cloudflare 尚未重新部署</strong>（添加绑定不会自动应用到已上线的容器）。
-                </p>
+                </S.P4>
 
                 {envKeys && envKeys.length > 0 && (
-                  <div className="p-2 rounded-lg bg-white/60 dark:bg-stone-900/60 font-mono text-[10px] text-stone-600 dark:text-stone-400 border border-amber-500/20">
+                  <S.Div16>
                     <div>当前容器读取到的配置键：</div>
-                    <div className="text-indigo-600 dark:text-indigo-400 font-semibold break-all">
+                    <S.Div17>
                       [{envKeys.join(", ")}]
-                    </div>
-                  </div>
+                    </S.Div17>
+                  </S.Div16>
                 )}
 
-                <div className="space-y-1.5 pt-1 font-sans">
-                  <div className="font-medium text-amber-900 dark:text-amber-200">
+                <S.Div18>
+                  <S.Div19>
                     排查与解决步骤：
-                  </div>
-                  <ol className="list-decimal list-inside space-y-1 text-stone-700 dark:text-stone-300">
+                  </S.Div19>
+                  <S.Ol>
                     <li>
                       <strong>关键：重新部署（Retry deployment）</strong>：进入 Cloudflare Pages 的 <strong>Deployments</strong> 标签页，点击最新部署右侧的 <strong>...</strong> -&gt; 选择 <strong>Retry deployment</strong>。
                     </li>
@@ -185,40 +172,40 @@ export const ConfigInfoModal: React.FC<ConfigInfoModalProps> = ({
                       <strong>检查环境是否匹配</strong>：进入 <strong>Settings</strong> -&gt; <strong>Functions</strong> -&gt; <strong>D1 database bindings</strong>，确保该绑定添加到了 <strong>Production</strong>（生产环境）。
                     </li>
                     <li>
-                      <strong>变量名称</strong>：推荐填写 <code className="font-mono font-bold text-indigo-600 dark:text-indigo-400">DB</code>（系统也已支持自动识别其它名称）。
+                      <strong>变量名称</strong>：推荐填写 <S.Code>DB</S.Code>（系统也已支持自动识别其它名称）。
                     </li>
-                  </ol>
-                </div>
-              </div>
+                  </S.Ol>
+                </S.Div18>
+              </S.Div14>
             )}
-          </div>
+          </S.Div12>
 
           {/* Cloudflare Access */}
-          <div className="p-3.5 rounded-2xl bg-stone-50 dark:bg-stone-950 border border-stone-200 dark:border-stone-800 space-y-1.5">
-            <div className="font-medium text-stone-900 dark:text-stone-100 flex items-center gap-1.5">
-              <Shield className="w-4 h-4 text-indigo-500" />
+          <S.Div20>
+            <S.Div21>
+              <S.Shield />
               后台安全策略 (Zero Trust Access)
-            </div>
-            <div className="text-stone-600 dark:text-stone-400 text-[11px] leading-relaxed">
-              当前操作会话: <span className="font-mono text-indigo-600 dark:text-indigo-400">{userEmail || "已验证"}</span>
-              <p className="mt-1">
+            </S.Div21>
+            <S.Div22>
+              当前操作会话: <S.Span6>{userEmail || "已验证"}</S.Span6>
+              <S.P5>
                 写权限受 Cloudflare Access 强鉴权保护；前台读取接口已开放公开只读。
-              </p>
-            </div>
-          </div>
-        </div>
+              </S.P5>
+            </S.Div22>
+          </S.Div20>
+        </S.Div6>
 
         {/* Footer action */}
-        <div className="flex justify-end pt-2">
-          <button
+        <S.Div23>
+          <S.Button3
             type="button"
             onClick={onClose}
-            className="px-5 py-2.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl cursor-pointer transition-all active:scale-95 shadow-md shadow-indigo-600/20"
+
           >
             完成并关闭
-          </button>
-        </div>
-      </div>
-    </div>
+          </S.Button3>
+        </S.Div23>
+      </S.Div2>
+    </S.Div>
   );
 };

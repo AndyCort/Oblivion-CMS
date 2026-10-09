@@ -1,5 +1,6 @@
+import * as S from './LocationInput.styles';
 import React, { useState } from "react";
-import { MapPin, X } from "lucide-react";
+
 
 interface LocationInputProps {
   location: string;
@@ -19,39 +20,39 @@ export const LocationInput: React.FC<LocationInputProps> = ({
   );
 
   return (
-    <div className="space-y-1.5 relative">
-      <label className="text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wider flex items-center gap-1.5">
-        <MapPin className="w-3.5 h-3.5 text-indigo-500" />
+    <S.Div>
+      <S.Label>
+        <S.MapPin />
         <span>地点位置</span>
-      </label>
+      </S.Label>
 
-      <div className="relative flex items-center">
-        <input
+      <S.Div2>
+        <S.Input
           type="text"
           value={location}
           onChange={(e) => onChange(e.target.value)}
           onFocus={() => setShowHistory(true)}
           placeholder="例如: Elysium, 东京, 杭州 · 咖啡馆..."
-          className="w-full text-sm sm:text-xs p-2.5 pl-3 pr-8 rounded-xl border border-stone-200 dark:border-stone-800 bg-stone-50/50 dark:bg-stone-900/50 text-stone-900 dark:text-stone-100 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-        />
+
+ />
         {location && (
-          <button
+          <S.Button
             type="button"
             onClick={() => onChange("")}
-            className="absolute right-2.5 p-1 rounded-md text-stone-400 hover:text-stone-700 dark:hover:text-stone-200"
+
             title="清空地点"
           >
-            <X className="w-3.5 h-3.5" />
-          </button>
+            <S.X />
+          </S.Button>
         )}
-      </div>
+      </S.Div2>
 
       {/* Historical suggestions popup / chips */}
       {showHistory && filteredHistory.length > 0 && (
-        <div className="flex flex-wrap items-center gap-1 pt-1 animate-in fade-in">
-          <span className="text-[11px] text-stone-400 dark:text-stone-500">历史地点:</span>
+        <S.Div3>
+          <S.Span>历史地点:</S.Span>
           {filteredHistory.slice(0, 6).map((hist) => (
-            <button
+            <S.Button2
               key={hist}
               type="button"
               onMouseDown={(e) => {
@@ -59,13 +60,13 @@ export const LocationInput: React.FC<LocationInputProps> = ({
                 onChange(hist);
                 setShowHistory(false);
               }}
-              className="text-[11px] px-2 py-0.5 rounded-md bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-400 hover:bg-stone-200 dark:hover:bg-stone-700 hover:text-stone-900 transition-colors"
+
             >
               {hist}
-            </button>
+            </S.Button2>
           ))}
-        </div>
+        </S.Div3>
       )}
-    </div>
+    </S.Div>
   );
 };

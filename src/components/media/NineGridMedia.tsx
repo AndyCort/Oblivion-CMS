@@ -1,18 +1,7 @@
+import * as S from './NineGridMedia.styles';
 import React, { useState } from "react";
 import type { ArticleMedia, ArticleMediaType } from "../../types/article";
-import {
-  Plus,
-  Play,
-  Trash2,
-  Edit2,
-  ArrowLeftRight,
-  GripVertical,
-  Image as ImageIcon,
-  Video as VideoIcon,
-  AlertTriangle,
-  RotateCw,
-  Layers,
-} from "lucide-react";
+
 import { MediaLightbox } from "./MediaLightbox";
 import { BatchAddModal } from "./BatchAddModal";
 
@@ -147,33 +136,33 @@ export const NineGridMedia: React.FC<NineGridMediaProps> = ({ media, onChange })
   };
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <label className="text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wider flex items-center gap-1.5">
+    <S.Div>
+      <S.Div2>
+        <S.Label>
           <span>九宫格媒体</span>
-          <span className="text-stone-400 dark:text-stone-600 font-normal">
+          <S.Span>
             ({media.length} 项，支持自由混排与拖拽排序)
-          </span>
-        </label>
-        <button
+          </S.Span>
+        </S.Label>
+        <S.Button
           type="button"
           onClick={() => setIsBatchModalOpen(true)}
-          className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 flex items-center gap-1 font-medium"
+
         >
-          <Layers className="w-3.5 h-3.5" />
+          <S.Layers />
           批量粘贴导入
-        </button>
-      </div>
+        </S.Button>
+      </S.Div2>
 
       {/* 3-column Grid (QQ Space style) */}
-      <div className="grid grid-cols-3 gap-3">
+      <S.Div3>
         {media.map((item, index) => {
           const isFailed = failedUrls.has(item.url);
           const isDragging = draggedIndex === index;
           const isOver = dragOverIndex === index;
 
           return (
-            <div
+            <S.Div4
               key={`${index}-${item.url}`}
               draggable
               onDragStart={() => handleDragStart(index)}
@@ -182,231 +171,221 @@ export const NineGridMedia: React.FC<NineGridMediaProps> = ({ media, onChange })
               onDragEnd={handleDragEnd}
               onTouchStart={(e) => handleTouchStart(index, e)}
               onClick={() => setLightboxIndex(index)}
-              className={`group relative aspect-square rounded-xl overflow-hidden bg-stone-100 dark:bg-stone-800/80 border border-stone-200 dark:border-stone-700/80 shadow-sm cursor-pointer select-none transition-all duration-200 ${
-                isDragging ? "opacity-30 scale-95" : ""
-              } ${isOver ? "ring-2 ring-indigo-500 scale-102" : "hover:shadow-md"}`}
+              $variant={((isDragging) && (isOver)) ? "v0" : ((isDragging) && (!(isOver))) ? "v1" : ((!(isDragging)) && (isOver)) ? "v2" : "v3"} data-style-group
             >
               {/* Media Preview */}
               {isFailed ? (
-                <div className="w-full h-full flex flex-col items-center justify-center p-2 text-center bg-stone-200/50 dark:bg-stone-800">
-                  <AlertTriangle className="w-6 h-6 text-amber-500 mb-1" />
-                  <span className="text-[10px] text-stone-600 dark:text-stone-400 leading-tight">
+                <S.Div5>
+                  <S.AlertTriangle />
+                  <S.Span2>
                     加载异常
-                  </span>
-                  <div className="flex gap-1.5 mt-2">
-                    <button
+                  </S.Span2>
+                  <S.Div6>
+                    <S.Button2
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleRetryMedia(item.url);
                       }}
-                      className="p-1 rounded bg-white dark:bg-stone-700 text-stone-700 dark:text-stone-200 hover:bg-stone-50"
+
                       title="重试"
                     >
-                      <RotateCw className="w-3 h-3" />
-                    </button>
-                    <button
+                      <S.RotateCw />
+                    </S.Button2>
+                    <S.Button2
                       type="button"
                       onClick={(e) => handleStartEdit(index, e)}
-                      className="p-1 rounded bg-white dark:bg-stone-700 text-stone-700 dark:text-stone-200 hover:bg-stone-50"
+
                       title="修改 URL"
                     >
-                      <Edit2 className="w-3 h-3" />
-                    </button>
-                  </div>
-                </div>
+                      <S.Edit2 />
+                    </S.Button2>
+                  </S.Div6>
+                </S.Div5>
               ) : item.type === "img" ? (
-                <img
+                <S.Img
                   src={item.url}
                   alt=""
                   loading="lazy"
                   onError={() => handleMediaError(item.url)}
-                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                />
+
+ />
               ) : (
-                <div className="w-full h-full relative bg-stone-900 flex items-center justify-center">
-                  <video
+                <S.Div7>
+                  <S.Video
                     src={item.url}
                     preload="metadata"
                     onError={() => handleMediaError(item.url)}
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute inset-0 bg-black/25 flex items-center justify-center">
-                    <div className="w-8 h-8 rounded-full bg-black/60 text-white flex items-center justify-center shadow-lg backdrop-blur-xs">
-                      <Play className="w-4 h-4 fill-white translate-x-0.5" />
-                    </div>
-                  </div>
-                  <span className="absolute bottom-1.5 right-1.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-black/70 text-white">
+
+ />
+                  <S.Div8>
+                    <S.Div9>
+                      <S.Play />
+                    </S.Div9>
+                  </S.Div8>
+                  <S.Span3>
                     VID
-                  </span>
-                </div>
+                  </S.Span3>
+                </S.Div7>
               )}
 
               {/* Order index badge */}
-              <div className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-md bg-black/50 backdrop-blur-xs text-[10px] font-mono text-white/90">
+              <S.Div10>
                 {index + 1}
-              </div>
+              </S.Div10>
 
               {/* Actions group: always visible & easy to tap on mobile, hover on desktop */}
-              <div className="absolute top-1.5 right-1.5 flex items-center gap-1 z-10 opacity-90 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                <button
+              <S.Div11>
+                <S.Button3
                   type="button"
                   onClick={(e) => handleToggleType(index, e)}
-                  className="w-6 h-6 rounded-md bg-black/60 hover:bg-black/90 text-white flex items-center justify-center backdrop-blur-xs active:scale-90 transition-transform"
+
                   title={item.type === "img" ? "切换为视频" : "切换为图片"}
                 >
-                  <ArrowLeftRight className="w-3 h-3" />
-                </button>
-                <button
+                  <S.ArrowLeftRight />
+                </S.Button3>
+                <S.Button3
                   type="button"
                   onClick={(e) => handleStartEdit(index, e)}
-                  className="w-6 h-6 rounded-md bg-black/60 hover:bg-black/90 text-white flex items-center justify-center backdrop-blur-xs active:scale-90 transition-transform"
+
                   title="编辑 URL"
                 >
-                  <Edit2 className="w-3 h-3" />
-                </button>
-                <button
+                  <S.Edit2 />
+                </S.Button3>
+                <S.Button4
                   type="button"
                   onClick={(e) => handleDelete(index, e)}
-                  className="w-6 h-6 rounded-md bg-rose-600/90 hover:bg-rose-600 text-white flex items-center justify-center backdrop-blur-xs shadow-xs active:scale-90 transition-transform"
+
                   title="删除"
                 >
-                  <Trash2 className="w-3 h-3" />
-                </button>
-              </div>
+                  <S.Trash2 />
+                </S.Button4>
+              </S.Div11>
 
               {/* Drag handle & Preview hint */}
-              <div className="absolute inset-0 bg-black/30 opacity-0 sm:group-hover:opacity-100 transition-opacity flex flex-col justify-between p-1.5 pointer-events-none">
-                <div className="flex items-center">
-                  <div
-                    className="cursor-grab active:cursor-grabbing p-1 rounded-md bg-black/50 text-white pointer-events-auto"
+              <S.Div12>
+                <S.Div13>
+                  <S.Div14
+
                     title="拖拽排序"
                   >
-                    <GripVertical className="w-3.5 h-3.5" />
-                  </div>
-                </div>
-                <div className="text-center text-[11px] text-white/90 font-medium pb-1 drop-shadow">
+                    <S.GripVertical />
+                  </S.Div14>
+                </S.Div13>
+                <S.Div15>
                   点击查看大图
-                </div>
-              </div>
-            </div>
+                </S.Div15>
+              </S.Div12>
+            </S.Div4>
           );
         })}
 
         {/* Add Card (Always at the end) */}
-        <button
+        <S.Button5
           type="button"
           onClick={() => setIsAddingSingle(true)}
-          className="aspect-square rounded-xl border-2 border-dashed border-stone-300 dark:border-stone-700 hover:border-indigo-500 dark:hover:border-indigo-400 bg-stone-50/50 dark:bg-stone-900/50 hover:bg-indigo-50/30 dark:hover:bg-indigo-950/20 flex flex-col items-center justify-center gap-1 text-stone-500 dark:text-stone-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors active:scale-95"
+
         >
-          <div className="w-8 sm:w-9 h-8 sm:h-9 rounded-full bg-stone-200/70 dark:bg-stone-800 flex items-center justify-center">
-            <Plus className="w-4 sm:w-5 h-4 sm:h-5" />
-          </div>
-          <span className="text-[11px] sm:text-xs font-medium">添加媒体</span>
-        </button>
-      </div>
+          <S.Div16>
+            <S.Plus />
+          </S.Div16>
+          <S.Span4>添加媒体</S.Span4>
+        </S.Button5>
+      </S.Div3>
 
       {/* Single Add Media Modal */}
       {isAddingSingle && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-2xl max-w-sm w-full p-5 shadow-2xl space-y-4">
-            <h4 className="font-semibold text-stone-900 dark:text-stone-100 text-sm">
+        <S.Div17>
+          <S.Div18>
+            <S.H4>
               添加单项媒体
-            </h4>
-            <form onSubmit={handleAddSingle} className="space-y-3.5">
-              <div className="flex gap-2">
-                <button
+            </S.H4>
+            <S.Form onSubmit={handleAddSingle} >
+              <S.Div19>
+                <S.Button6
                   type="button"
                   onClick={() => setNewTypeInput("img")}
-                  className={`flex-1 text-xs py-2 rounded-xl flex items-center justify-center gap-1.5 transition-colors ${
-                    newTypeInput === "img"
-                      ? "bg-indigo-600 text-white font-medium shadow-xs"
-                      : "bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-400"
-                  }`}
+                  $variant={((newTypeInput === "img")) ? "v0" : "v1"}
                 >
-                  <ImageIcon className="w-3.5 h-3.5" /> 图片
-                </button>
-                <button
+                  <S.ImageIcon /> 图片
+                </S.Button6>
+                <S.Button6
                   type="button"
                   onClick={() => setNewTypeInput("vid")}
-                  className={`flex-1 text-xs py-2 rounded-xl flex items-center justify-center gap-1.5 transition-colors ${
-                    newTypeInput === "vid"
-                      ? "bg-indigo-600 text-white font-medium shadow-xs"
-                      : "bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-400"
-                  }`}
+                  $variant={((newTypeInput === "vid")) ? "v0" : "v1"}
                 >
-                  <VideoIcon className="w-3.5 h-3.5" /> 视频
-                </button>
-              </div>
+                  <S.VideoIcon /> 视频
+                </S.Button6>
+              </S.Div19>
 
               <div>
-                <label className="block text-[11px] text-stone-500 dark:text-stone-400 mb-1">
+                <S.Label2>
                   媒体链接 URL (支持图片或视频直接访问地址)
-                </label>
-                <input
+                </S.Label2>
+                <S.Input
                   type="url"
                   value={newUrlInput}
                   onChange={(e) => setNewUrlInput(e.target.value)}
                   placeholder="https://example.com/photo.jpg"
-                  className="w-full text-sm sm:text-xs p-2.5 rounded-xl border border-stone-300 dark:border-stone-700 bg-stone-50 dark:bg-stone-950 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
+
                   autoFocus
-                />
+ />
               </div>
 
-              <div className="flex justify-end gap-2 pt-1">
-                <button
+              <S.Div20>
+                <S.Button7
                   type="button"
                   onClick={() => setIsAddingSingle(false)}
-                  className="px-3.5 py-2 text-xs text-stone-600 dark:text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-800 rounded-xl"
+
                 >
                   取消
-                </button>
-                <button
+                </S.Button7>
+                <S.Button8
                   type="submit"
                   disabled={!newUrlInput.trim()}
-                  className="px-4 py-2 text-xs bg-indigo-600 hover:bg-indigo-500 text-white font-medium rounded-xl disabled:opacity-50 shadow-xs"
+
                 >
                   确定添加
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+                </S.Button8>
+              </S.Div20>
+            </S.Form>
+          </S.Div18>
+        </S.Div17>
       )}
 
       {/* Inline edit URL modal */}
       {editingIndex !== null && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-          <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-2xl max-w-md w-full p-5 shadow-2xl space-y-4">
-            <h4 className="font-semibold text-stone-900 dark:text-stone-100 text-sm">
+        <S.Div21>
+          <S.Div22>
+            <S.H4>
               修改媒体链接 #{editingIndex + 1}
-            </h4>
-            <form onSubmit={handleSaveEdit} className="space-y-3">
-              <input
+            </S.H4>
+            <S.Form2 onSubmit={handleSaveEdit} >
+              <S.Input2
                 type="url"
                 value={editUrlValue}
                 onChange={(e) => setEditUrlValue(e.target.value)}
-                className="w-full text-sm font-mono p-2.5 rounded-xl border border-stone-300 dark:border-stone-700 bg-stone-50 dark:bg-stone-950 text-stone-900 dark:text-stone-100 focus:ring-2 focus:ring-indigo-500 outline-none"
+
                 autoFocus
-              />
-              <div className="flex justify-end gap-2">
-                <button
+ />
+              <S.Div23>
+                <S.Button9
                   type="button"
                   onClick={() => setEditingIndex(null)}
-                  className="px-3 py-1.5 text-xs text-stone-600 dark:text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-800 rounded-lg"
+
                 >
                   取消
-                </button>
-                <button
+                </S.Button9>
+                <S.Button10
                   type="submit"
-                  className="px-3 py-1.5 text-xs bg-indigo-600 hover:bg-indigo-500 text-white font-medium rounded-lg"
+
                 >
                   保存修改
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+                </S.Button10>
+              </S.Div23>
+            </S.Form2>
+          </S.Div22>
+        </S.Div21>
       )}
 
       {/* Lightbox */}
@@ -415,14 +394,14 @@ export const NineGridMedia: React.FC<NineGridMediaProps> = ({ media, onChange })
         currentIndex={lightboxIndex}
         onClose={() => setLightboxIndex(null)}
         onNavigate={(idx) => setLightboxIndex(idx)}
-      />
+ />
 
       {/* Batch Import Modal */}
       <BatchAddModal
         isOpen={isBatchModalOpen}
         onClose={() => setIsBatchModalOpen(false)}
         onAdd={handleBatchAdd}
-      />
-    </div>
+ />
+    </S.Div>
   );
 };
