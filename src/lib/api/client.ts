@@ -114,7 +114,20 @@ const FALLBACK_MOCK_ARTICLES: Article[] = [
   },
 ];
 
-let localFallbackSha = "local-sha-" + Date.now().toString(16);
+export function computeClientFallbackSha(articles: Article[]): string {
+  if (!articles || articles.length === 0) return "local-sha-empty";
+  let hash = 0;
+  for (let i = 0; i < articles.length; i++) {
+    const a = articles[i];
+    const itemStr = `${a.time}|${a.location || ""}|${(a.tags || []).join(",")}|${a.content || ""}`;
+    for (let j = 0; j < itemStr.length; j++) {
+      hash = (hash << 5) - hash + itemStr.charCodeAt(j);
+      hash |= 0;
+    }
+  }
+  return `local-sha-${articles.length}-${Math.abs(hash).toString(36)}`;
+}
+
 let localFallbackArticles: Article[] = [...FALLBACK_MOCK_ARTICLES];
 
 /**
@@ -236,7 +249,7 @@ export async function fetchArticles(): Promise<FetchArticlesResponse> {
     if (res.status === 404 && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")) {
       return {
         articles: [...localFallbackArticles],
-        sha: localFallbackSha,
+        sha: computeClientFallbackSha(localFallbackArticles),
         path: "src/components/data/moments.ts",
         branch: "main",
         owner: "AndyCort",
@@ -259,7 +272,7 @@ export async function fetchArticles(): Promise<FetchArticlesResponse> {
     if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
       return {
         articles: [...localFallbackArticles],
-        sha: localFallbackSha,
+        sha: computeClientFallbackSha(localFallbackArticles),
         path: "src/components/data/moments.ts",
         branch: "main",
         owner: "AndyCort",
@@ -325,13 +338,14 @@ export async function publishArticleToServer(
 }
 
 function handleLocalFallbackPublish(req: PublishRequest): PublishResponse {
-  if (req.baseSha && req.baseSha !== localFallbackSha) {
+  const currentSha = computeClientFallbackSha(localFallbackArticles);
+  if (!req.force && req.baseSha && req.baseSha !== currentSha) {
     const err = new Error("版本冲突：本地数据已被更改，请刷新后重试");
     (err as any).isConflict = true;
     (err as any).conflictData = {
       error: "CONFLICT",
       message: "本地版本基准不一致",
-      remoteSha: localFallbackSha,
+      remoteSha: currentSha,
       clientBaseSha: req.baseSha,
     };
     throw err;
@@ -350,10 +364,10 @@ function handleLocalFallbackPublish(req: PublishRequest): PublishResponse {
     );
   }
 
-  localFallbackSha = "local-sha-" + Date.now().toString(16);
+  const newSha = computeClientFallbackSha(localFallbackArticles);
   return {
     success: true,
-    newSha: localFallbackSha,
+    newSha,
     commitMessage: req.commitMessage || `content: ${req.action} article (local mock)`,
     articleCount: localFallbackArticles.length,
   };

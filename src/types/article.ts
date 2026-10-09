@@ -52,6 +52,7 @@ export interface PublishRequest {
   targetFingerprint?: string;
   baseSha: string;
   commitMessage?: string;
+  force?: boolean;
 }
 
 export interface PublishResponse {

@@ -172,6 +172,37 @@ describe("API Endpoints & Conflict Detection", () => {
     expect(verifyData.articles[0].content).toBe("API created article! 🚀");
   });
 
+  it("POST /api/publish bypasses conflict check when force is true", async () => {
+    // Attempt publish with outdated SHA but force: true
+    const postReq = new Request("http://localhost:5173/api/publish", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "create",
+        article: {
+          time: 1850000000000,
+          content: "Force published article! ⚡",
+          media: [],
+          tags: ["force"],
+          location: "cloud",
+        },
+        baseSha: "definitely-outdated-sha",
+        force: true,
+      }),
+    });
+
+    const postRes = await publishArticle({ request: postReq, env: localEnv });
+    expect(postRes.status).toBe(200);
+    const postData: any = await postRes.json();
+    expect(postData.success).toBe(true);
+
+    // Verify via GET
+    const verifyReq = new Request("http://localhost:5173/api/articles");
+    const verifyRes = await getArticles({ request: verifyReq, env: localEnv });
+    const verifyData: any = await verifyRes.json();
+    expect(verifyData.articles[0].content).toBe("Force published article! ⚡");
+  });
+
   it("GET /api/public/moments returns moments array with open CORS headers", async () => {
     const req = new Request("http://localhost:5173/api/public/moments");
     const res = await getPublicMoments({ request: req, env: localEnv });

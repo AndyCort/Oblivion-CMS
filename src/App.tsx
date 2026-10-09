@@ -393,10 +393,11 @@ export function App() {
   };
 
   // Publish to D1 Database
-  const handlePublish = async () => {
+  const handlePublish = async (options?: { force?: boolean }) => {
     if (!serverData) return;
     setIsPublishing(true);
 
+    const isForce = options?.force === true;
     const action = isNewArticle ? "create" : "update";
     const draftId = isNewArticle ? "new-draft" : (selectedFingerprint || "new-draft");
 
@@ -405,8 +406,9 @@ export function App() {
         action,
         article: currentArticle,
         targetFingerprint: isNewArticle ? undefined : (selectedFingerprint || undefined),
-        baseSha: serverData.sha,
+        baseSha: conflictModalData.remoteSha || serverData.sha,
         commitMessage: commitMessageInput.trim() || undefined,
+        force: isForce,
       });
 
       // Clear draft on successful publish
@@ -417,8 +419,16 @@ export function App() {
         return next;
       });
 
-      showToast("success", `发布成功！${res.commitMessage}`);
+      showToast("success", isForce ? `强制覆盖发布成功！${res.commitMessage}` : `发布成功！${res.commitMessage}`);
       setCommitMessageInput("");
+
+      // Lock on newly published article and exit new mode
+      const newFp = generateArticleFingerprint(currentArticle);
+      setSelectedFingerprint(newFp);
+      setIsNewArticle(false);
+
+      // Close conflict modal if open
+      setConflictModalData({ isOpen: false });
 
       // Refresh articles from server
       await loadInitialData();
@@ -459,7 +469,13 @@ export function App() {
       });
 
       showToast("success", "文章已成功从数据库中删除");
+      const deletedFp = deleteModalArticle.fp;
       setDeleteModalArticle(null);
+
+      if (selectedFingerprint === deletedFp) {
+        setSelectedFingerprint(null);
+        setIsNewArticle(true);
+      }
 
       // Reload
       await loadInitialData();
@@ -874,7 +890,7 @@ export function App() {
                   <div className="flex items-center gap-2.5 w-auto">
                     <button
                       type="button"
-                      onClick={handlePublish}
+                      onClick={() => handlePublish()}
                       disabled={isPublishing}
                       className="px-4 sm:px-5 py-2.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl shadow-md shadow-indigo-600/20 flex items-center justify-center gap-2 transition-transform active:scale-95"
                     >
@@ -900,7 +916,7 @@ export function App() {
                   </button>
                   <button
                     type="button"
-                    onClick={handlePublish}
+                    onClick={() => handlePublish()}
                     disabled={isPublishing}
                     className="px-4 sm:px-5 py-2.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 rounded-xl shadow-md flex items-center gap-2 active:scale-95 transition-all"
                   >
@@ -926,13 +942,16 @@ export function App() {
       <ConflictResolutionModal
         isOpen={conflictModalData.isOpen}
         onClose={() => setConflictModalData({ isOpen: false })}
-        onReloadRemote={() => {
+        onReloadRemote={async () => {
           setConflictModalData({ isOpen: false });
-          loadInitialData();
+          await loadInitialData();
+          showToast("info", "已拉取最新远程版本，当前草稿已保留");
         }}
+        onForcePublish={() => handlePublish({ force: true })}
         localArticle={currentArticle}
         remoteSha={conflictModalData.remoteSha}
         clientBaseSha={conflictModalData.clientBaseSha}
+        isPublishing={isPublishing}
       />
 
       <ConfigInfoModal

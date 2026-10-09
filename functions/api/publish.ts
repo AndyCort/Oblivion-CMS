@@ -37,7 +37,7 @@ export const onRequestPost = async (context: {
     });
   }
 
-  const { action, article, targetFingerprint, baseSha, commitMessage } = payload;
+  const { action, article, targetFingerprint, baseSha, commitMessage, force } = payload;
 
   if (!action || !["create", "update", "delete"].includes(action)) {
     return new Response(
@@ -49,9 +49,9 @@ export const onRequestPost = async (context: {
     );
   }
 
-  // Check optimistic locking version if baseSha provided
+  // Check optimistic locking version if baseSha provided and not forced
   const { sha: currentSha } = await getD1Articles(env);
-  if (baseSha && baseSha !== currentSha) {
+  if (!force && baseSha && baseSha !== currentSha) {
     return new Response(
       JSON.stringify({
         error: "CONFLICT",
@@ -103,11 +103,11 @@ export const onRequestPost = async (context: {
       summaryMsg = commitMessage?.trim() || `D1: 删除文章 (${targetTime})`;
     }
 
-    const { articles } = await getD1Articles(env);
+    const { articles, sha: currentDbSha } = await getD1Articles(env);
 
     const responseData: PublishResponse = {
       success: true,
-      newSha,
+      newSha: currentDbSha || newSha,
       commitMessage: summaryMsg,
       articleCount: articles.length,
     };

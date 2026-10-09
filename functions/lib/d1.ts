@@ -97,7 +97,25 @@ let inMemoryArticles: Article[] = [
   },
 ];
 
-let inMemorySha = "d1-mock-rev-" + Date.now().toString(16);
+/**
+ * Computes a deterministic revision SHA from a list of articles.
+ * Ensures consistent version tracking across worker isolates and serverless instances.
+ */
+export function computeArticlesSha(articles: Article[]): string {
+  if (!articles || articles.length === 0) return "d1-empty-v1";
+  const count = articles.length;
+  let hash = 0;
+  for (let i = 0; i < articles.length; i++) {
+    const a = articles[i];
+    const itemStr = `${a.time}|${a.location || ""}|${(a.tags || []).join(",")}|${(a.media || []).map((m) => m.url).join(",")}|${a.content || ""}|${a.music?.title || ""}`;
+    for (let j = 0; j < itemStr.length; j++) {
+      hash = (hash << 5) - hash + itemStr.charCodeAt(j);
+      hash |= 0;
+    }
+  }
+  const newest = articles[0]?.time || 0;
+  return `d1-${count}-${newest.toString(16)}-${Math.abs(hash).toString(36)}`;
+}
 
 let schemaInitialized = false;
 
@@ -187,27 +205,28 @@ export async function getD1Articles(env: Record<string, any>): Promise<{
       for (const a of inMemoryArticles) {
         await saveD1Article(env, a, true);
       }
+      const seeded = [...inMemoryArticles].sort((a, b) => b.time - a.time);
       return {
-        articles: [...inMemoryArticles].sort((a, b) => b.time - a.time),
-        sha: "d1-" + Date.now().toString(16),
+        articles: seeded,
+        sha: computeArticlesSha(seeded),
         isD1: true,
       };
     }
 
     const articles = rows.map(rowToArticle);
-    const latestUpdated = rows.length > 0 ? rows[0].updated_at || rows[0].time : Date.now();
 
     return {
       articles,
-      sha: `d1-${articles.length}-${latestUpdated.toString(16)}`,
+      sha: computeArticlesSha(articles),
       isD1: true,
     };
   }
 
   // Fallback when D1 is not bound
+  const fallback = [...inMemoryArticles].sort((a, b) => b.time - a.time);
   return {
-    articles: [...inMemoryArticles].sort((a, b) => b.time - a.time),
-    sha: inMemorySha,
+    articles: fallback,
+    sha: computeArticlesSha(fallback),
     isD1: false,
   };
 }
@@ -267,7 +286,8 @@ export async function saveD1Article(
         .run();
     }
 
-    return `d1-${Date.now().toString(16)}`;
+    const { sha } = await getD1Articles(env);
+    return sha;
   }
 
   // In-memory fallback
@@ -277,8 +297,7 @@ export async function saveD1Article(
   } else {
     inMemoryArticles.unshift(article);
   }
-  inMemorySha = "d1-mock-rev-" + Date.now().toString(16);
-  return inMemorySha;
+  return computeArticlesSha(inMemoryArticles);
 }
 
 /**
@@ -300,7 +319,7 @@ export async function updateD1Article(
     await ensureD1Schema(db);
 
     // If the timestamp itself was updated, update all fields including time
-    await db
+    const updateResult = await db
       .prepare(
         `UPDATE articles 
          SET time = ?, content = ?, media = ?, tags = ?, location = ?, music = ?, updated_at = ? 
@@ -318,7 +337,13 @@ export async function updateD1Article(
       )
       .run();
 
-    return `d1-${Date.now().toString(16)}`;
+    // If targetTime was not found in D1, fallback to insert/replace to prevent data loss
+    if (updateResult.meta && updateResult.meta.changes === 0) {
+      await saveD1Article(env, article, true);
+    }
+
+    const { sha } = await getD1Articles(env);
+    return sha;
   }
 
   // In-memory fallback
@@ -328,8 +353,7 @@ export async function updateD1Article(
   } else {
     inMemoryArticles.unshift(article);
   }
-  inMemorySha = "d1-mock-rev-" + Date.now().toString(16);
-  return inMemorySha;
+  return computeArticlesSha(inMemoryArticles);
 }
 
 /**
@@ -349,13 +373,13 @@ export async function deleteD1Article(
       .bind(targetTime)
       .run();
 
-    return `d1-${Date.now().toString(16)}`;
+    const { sha } = await getD1Articles(env);
+    return sha;
   }
 
   // In-memory fallback
   inMemoryArticles = inMemoryArticles.filter((a) => a.time !== targetTime);
-  inMemorySha = "d1-mock-rev-" + Date.now().toString(16);
-  return inMemorySha;
+  return computeArticlesSha(inMemoryArticles);
 }
 
 /**
