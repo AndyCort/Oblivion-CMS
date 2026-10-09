@@ -620,67 +620,7 @@ height: calc(var(--spacing) * 4);
 width: calc(var(--spacing) * 4)
 `;
 
-export const ModeNavigation = styled.nav`
-position: sticky;
-top: calc(var(--spacing) * 14);
-z-index: 20;
-display: flex;
-gap: calc(var(--spacing) * 2);
-border-bottom-style: var(--cms-border-style);
-border-bottom-width: 1px;
-border-color: var(--color-stone-200);
-background-color: color-mix(in oklab, var(--color-white) 70%, transparent);
-padding-inline: calc(var(--spacing) * 3);
-padding-block: calc(var(--spacing) * 2);
---cms-backdrop-blur: blur(var(--blur-md));
--webkit-backdrop-filter: var(--cms-backdrop-blur,) var(--cms-backdrop-brightness,) var(--cms-backdrop-contrast,) var(--cms-backdrop-grayscale,) var(--cms-backdrop-hue-rotate,) var(--cms-backdrop-invert,) var(--cms-backdrop-opacity,) var(--cms-backdrop-saturate,) var(--cms-backdrop-sepia,);
-backdrop-filter: var(--cms-backdrop-blur,) var(--cms-backdrop-brightness,) var(--cms-backdrop-contrast,) var(--cms-backdrop-grayscale,) var(--cms-backdrop-hue-rotate,) var(--cms-backdrop-invert,) var(--cms-backdrop-opacity,) var(--cms-backdrop-saturate,) var(--cms-backdrop-sepia,);
 
-@media (width >= 40rem) {
-  & {
-    padding-inline: calc(var(--spacing) * 5);
-  }
-}
-
-&:where(.dark, .dark *) {
-  border-color: var(--color-stone-800);
-  background-color: color-mix(in oklab, var(--color-stone-900) 70%, transparent);
-}
-`;
-
-const ModeButtonVariants = {
-v0: css`
-background-color: var(--color-indigo-600);
-color: var(--color-white);
---cms-shadow: 0 1px 3px 0 var(--cms-shadow-color, rgb(0 0 0 / 0.1)), 0 1px 2px -1px var(--cms-shadow-color, rgb(0 0 0 / 0.1));
-box-shadow: var(--cms-inset-shadow), var(--cms-inset-ring-shadow), var(--cms-ring-offset-shadow), var(--cms-ring-shadow), var(--cms-shadow)
-`,
-v1: css`
-color: var(--color-stone-500);
-
-@media (hover: hover) {
-  &:hover {
-    background-color: var(--color-stone-200);
-  }
-  &:where(.dark, .dark *):hover {
-    background-color: var(--color-stone-800);
-  }
-}
-`
-};
-export const ModeButton = styled.button<{ $variant: keyof typeof ModeButtonVariants }>`
-border-radius: var(--radius-xl);
-padding-inline: calc(var(--spacing) * 4);
-padding-block: calc(var(--spacing) * 2);
-font-size: var(--text-xs);
-line-height: var(--cms-leading, var(--text-xs--line-height));
---cms-font-weight: var(--font-weight-medium);
-font-weight: var(--font-weight-medium);
-transition-property: color, background-color, border-color, outline-color, text-decoration-color, fill, stroke, --cms-gradient-from, --cms-gradient-via, --cms-gradient-to;
-transition-timing-function: var(--cms-ease, var(--default-transition-timing-function));
-transition-duration: var(--cms-duration, var(--default-transition-duration));
-${p => ModeButtonVariants[p.$variant]}
-`;
 
 export const P = styled.p`
 padding: calc(var(--spacing) * 8)

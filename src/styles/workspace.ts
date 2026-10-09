@@ -12,7 +12,7 @@ export const sidebarSurface = css`
 
 export const workspaceSidebar = css`
   width: 100%;
-  height: calc(100dvh - 7rem);
+  height: calc(100dvh - 56px);
   flex-shrink: 0;
   @media (min-width: 768px) { width: 320px; }
   @media (min-width: 1024px) { width: 384px; }
@@ -20,7 +20,7 @@ export const workspaceSidebar = css`
 
 export const editorSurface = css`
   min-width: 0;
-  height: calc(100dvh - 7rem);
+  height: calc(100dvh - 56px);
   flex: 1;
   overflow-y: auto;
   padding: 12px;

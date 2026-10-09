@@ -1,6 +1,7 @@
+import { filterPosts, postTagCounts, type PostFilters } from '../postsList';
 import { getDevMockToken } from './client';
 import { validatePost, type BlogPost } from '../../types/post';
-export interface PostList { posts: BlogPost[]; total: number; page: number; pageSize: number; mode: string; warning?: string }
+export interface PostList { posts: BlogPost[]; total: number; page: number; pageSize: number; mode: string; warning?: string; tags?: { tag: string; count: number }[] }
 const localPosts = new Map<string, BlogPost>();
 async function request(path: string, method = 'GET', body?: unknown) {
   const token = getDevMockToken();
@@ -11,11 +12,16 @@ async function request(path: string, method = 'GET', body?: unknown) {
   if (!res.ok) throw new Error(data.error || `请求失败 (${res.status})`);
   return data;
 }
-export async function fetchPosts(page = 1, q = ''): Promise<PostList> {
-  const result = await request(`?page=${page}&q=${encodeURIComponent(q)}`);
+export async function fetchPosts(page = 1, q = '', filters: PostFilters = {}): Promise<PostList> {
+  const params = new URLSearchParams({ page: String(page), q });
+  if (filters.tag) params.set('tag', filters.tag);
+  if (filters.coverOnly) params.set('cover', '1');
+  if (filters.sortOrder) params.set('sort', filters.sortOrder);
+  const result = await request(`?${params}`);
   if (result) return result;
-  const rows = [...localPosts.values()].filter(p => JSON.stringify([p.id, p.title, p.summary, p.tags]).toLowerCase().includes(q.toLowerCase())).sort((a,b) => Number(b.pinned) - Number(a.pinned) || b.date.localeCompare(a.date));
-  return { posts: rows.slice((page-1)*20,page*20), total: rows.length, page, pageSize: 20, mode: 'mock', warning: '本地模拟：发布仅写入临时内存，刷新后丢失；草稿保存在此浏览器。' };
+  const all = [...localPosts.values()];
+  const rows = filterPosts(all, q, filters);
+  return { posts: rows.slice((page-1)*20,page*20), total: rows.length, tags: postTagCounts(all), page, pageSize: 20, mode: 'mock', warning: '本地模拟：发布仅写入临时内存，刷新后丢失；草稿保存在此浏览器。' };
 }
 export async function fetchPost(id: string): Promise<BlogPost> {
   const result = await request(`/${encodeURIComponent(id)}`);

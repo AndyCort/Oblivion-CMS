@@ -1,7 +1,8 @@
+import { ContentModeSwitch } from '../src/components/articles/ContentModeSwitch';
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { ServerStyleSheet } from 'styled-components';
-import { ModeButton, MomentsWorkspace } from '../src/App.styles';
+import { MomentsWorkspace } from '../src/App.styles';
 import { Workspace } from '../src/components/posts/PostsWorkspace.styles';
 
 function renderStyles(element: React.ReactElement) {
@@ -16,10 +17,11 @@ function renderStyles(element: React.ReactElement) {
 
 describe('styled CMS integration', () => {
   it('keeps selected-mode colors separate from shared transition declarations', () => {
-    const { html, styles } = renderStyles(<ModeButton $variant="v0">博客长文</ModeButton>);
-    expect(styles).toMatch(/[;{]background-color:var\(--color-indigo-600\);/);
-    expect(styles).toMatch(/[;{]color:var\(--color-white\);/);
-    expect(html).not.toContain('$variant');
+    const { html, styles } = renderStyles(<ContentModeSwitch mode="posts" onChange={() => {}} />);
+    expect(styles).toMatch(/[;{]background:var\(--color-indigo-600\);/);
+    expect(styles).toMatch(/[;{]color:white;/);
+    expect(html).not.toContain('$active');
+    expect(html).toContain('aria-pressed="true"');
   });
 
   it('hides the inactive moments workspace without unmounting its contents', () => {
@@ -31,7 +33,7 @@ describe('styled CMS integration', () => {
 
   it('scopes mobile editor and dark-theme selectors to the blog workspace', () => {
     const { styles } = renderStyles(<Workspace className="posts-mobile-editor" />);
-    expect(styles).toMatch(/\.\w+\.posts-mobile-editor \.posts-main\{display:block;/);
+    expect(styles).toMatch(/\.\w+\.posts-mobile-editor \.posts-main\{display:flex;/);
     expect(styles).toMatch(/\.dark \.\w+\{/);
     expect(styles).toMatch(/@media \(max-width:\s*767px\)/);
   });

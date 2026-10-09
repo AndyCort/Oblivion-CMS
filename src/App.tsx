@@ -1,3 +1,4 @@
+import { ContentModeSwitch } from './components/articles/ContentModeSwitch';
 import * as S from './App.styles';
 import { useState, useEffect, useMemo, useRef, lazy, Suspense } from "react";
 import type {
@@ -655,10 +656,7 @@ export function App() {
         </S.HeaderActions>
       </S.TopBar>
 
-      <S.ModeNavigation aria-label="内容模式" >
-        {(["moments", "posts"] as const).map(mode => <S.ModeButton key={mode} type="button" aria-pressed={contentMode === mode} onClick={() => switchContentMode(mode)} $variant={((contentMode === mode)) ? "v0" : "v1"}>{mode === "moments" ? "💬 说说动态 (Moments)" : "📝 博客长文 (Posts)"}</S.ModeButton>)}
-      </S.ModeNavigation>
-      {postsOpened && <div hidden={contentMode !== "posts"}><Suspense fallback={<S.P role="status" >正在载入博客编辑器…</S.P>}><PostsWorkspace /></Suspense></div>}
+      {postsOpened && <div hidden={contentMode !== "posts"}><Suspense fallback={<S.P role="status" >正在载入博客编辑器…</S.P>}><PostsWorkspace listNavigation={<ContentModeSwitch mode="posts" onChange={switchContentMode} />} /></Suspense></div>}
       {contentMode === "moments" && isLoading && <S.LoadingNotice role="status" >正在加载文章…</S.LoadingNotice>}
       {contentMode === "moments" && errorMsg && (
         <S.ErrorNotice role="alert" >
@@ -692,6 +690,7 @@ export function App() {
           $variant={((mobileView === "sidebar")) ? "v0" : "v1"}
         >
           <ArticleListSidebar
+            listNavigation={<ContentModeSwitch mode="moments" onChange={switchContentMode} />}
             articles={serverData?.articles || []}
             selectedFingerprint={selectedFingerprint}
             onSelectArticle={handleSelectArticle}

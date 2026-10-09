@@ -1,3 +1,4 @@
+import { filterPosts, postTagCounts } from '../../src/lib/postsList';
 import { verifyBlogAccess } from './access';
 import { getD1Database, type D1Database } from './d1';
 import { validatePost, decodePostText, postTextFields, type PostText, type BlogPost } from '../../src/types/post';
@@ -109,8 +110,13 @@ export async function handlePosts(context: Context, action: 'list' | 'get' | 'pu
       const rawSize = Number(url.searchParams.get('pageSize'));
       const pageSize = Number.isFinite(rawSize) ? Math.min(50, Math.max(1, Math.floor(rawSize) || 20)) : 20;
       const q = (url.searchParams.get('q') || '').toLowerCase();
-      const rows = (await list()).map(normalize).filter(p => JSON.stringify([p.id, p.title, p.summary, p.tags]).toLowerCase().includes(q)).sort((a,b) => Number(b.pinned) - Number(a.pinned) || String(b.date).localeCompare(String(a.date)) || a.id.localeCompare(b.id));
-      return json({ posts: rows.slice((page - 1) * pageSize, page * pageSize).map(p => ({ ...p, content: undefined, source_path: undefined })), total: rows.length, page, pageSize, mode: remote ? 'worker' : mock ? 'mock' : 'd1', warning: mock ? '本地模拟：发布数据仅在内存中，刷新或重启可能丢失。' : !remote ? 'D1 直连模式不会清除博客 Worker 边缘缓存。' : undefined });
+      const all = (await list()).map(normalize);
+      const rows = filterPosts(all, q, {
+        tag: url.searchParams.get('tag') || undefined,
+        coverOnly: url.searchParams.get('cover') === '1',
+        sortOrder: url.searchParams.get('sort') === 'asc' ? 'asc' : 'desc',
+      });
+      return json({ posts: rows.slice((page - 1) * pageSize, page * pageSize).map(p => ({ ...p, content: undefined, source_path: undefined })), total: rows.length, tags: postTagCounts(all), page, pageSize, mode: remote ? 'worker' : mock ? 'mock' : 'd1', warning: mock ? '本地模拟：发布数据仅在内存中，刷新或重启可能丢失。' : !remote ? 'D1 直连模式不会清除博客 Worker 边缘缓存。' : undefined });
     }
     const id = String(context.params?.id || '');
     if (action === 'get') { const p = await detail(id); return json({ ...p, source_path: undefined }); }

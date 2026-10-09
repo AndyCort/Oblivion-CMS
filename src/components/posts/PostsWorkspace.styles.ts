@@ -17,7 +17,7 @@ export const Workspace = styled.div`
   --post-muted: var(--color-stone-400);
   color: var(--color-stone-100);
 }
-& button {
+& :where(.posts-main, .posts-pagination) button {
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -27,7 +27,7 @@ export const Workspace = styled.div`
   padding: 8px 10px;
   transition: background 0.15s;
 }
-& button:hover {
+& :where(.posts-main, .posts-pagination) button:hover {
   background: #6366f119;
 }
 & button:disabled {
@@ -41,7 +41,9 @@ export const Workspace = styled.div`
 .posts-sidebar {
   ${workspaceSidebar};
   ${sidebarSurface};
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 .posts-list-heading {
   display: flex;
@@ -164,8 +166,28 @@ export const Workspace = styled.div`
   padding: 12px 14px;
 }
 .posts-main {
-  ${editorSurface};
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  height: calc(100dvh - 56px);
+  overflow: hidden;
 }
+.posts-editor-scroll {
+  ${editorSurface};
+  height: auto;
+  min-height: 0;
+}
+.posts-list-scroll { flex: 1; min-height: 0; overflow-y: auto; }
+.posts-list-status { display:flex; justify-content:space-between; align-items:center; font-size:10px; color:var(--post-muted); }
+.posts-list-status button { padding:2px; cursor:pointer; }
+.post-tag-pills { display:flex; flex-wrap:wrap; gap:5px; }
+.post-list-card .post-tag-pill {
+  display:inline-flex; padding:2px 7px; border-radius:999px;
+  font-size:10px; line-height:16px; background:var(--color-stone-100); color:var(--post-muted);
+}
+.dark & .post-list-card .post-tag-pill { background:var(--color-stone-800); }
+
 .posts-toolbar {
   ${editorToolbar};
   margin-bottom: 20px;
@@ -353,7 +375,6 @@ export const Workspace = styled.div`
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   word-break: normal;
-  scrollbar-gutter: stable;
 }
 .post-line-numbers {
   position: absolute;
@@ -392,26 +413,28 @@ export const Workspace = styled.div`
   overflow-y: auto;
 }
 .post-footer {
-  position: sticky;
-  bottom: 0;
-  z-index: 10;
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  margin-top: 16px;
-  padding: 12px 0 max(12px, env(safe-area-inset-bottom));
+  flex-shrink: 0;
   border-top: 1px solid var(--post-border);
-  background: color-mix(in oklab, var(--post-panel) 90%, transparent);
-  backdrop-filter: blur(12px);
+  padding: 12px 12px max(12px, env(safe-area-inset-bottom));
+  background: var(--post-panel);
   color: var(--post-muted);
   font-size: 12px;
 }
-.post-footer > div {
-  display: flex;
-  gap: 8px;
+.post-footer-inner {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  width:100%;
+  max-width:768px;
+  margin:0 auto;
 }
+.post-footer-inner > div { display:flex; flex-wrap:wrap; gap:8px; min-width:0; }
+.post-footer .post-primary { flex-shrink:0; }
+.post-shortcuts { padding:16px 0 0; font-size:10px; color:var(--post-muted); }
+@media (min-width:640px) { .post-footer { padding-inline:20px; } }
+@media (min-width:768px) { .post-footer { padding-inline:24px; } }
+@media (min-width:1024px) { .post-footer { padding-inline:32px; } }
 .post-footer .post-delete {
   color: #e11d48;
 }
@@ -452,7 +475,7 @@ export const Workspace = styled.div`
     display: none;
   }
   &.posts-mobile-editor .posts-main {
-    display: block;
+    display: flex;
   }
   & .posts-back {
     display: inline-flex;
@@ -584,7 +607,6 @@ export const Workspace = styled.div`
 .posts-editor-container { max-width: 768px; margin: 0 auto; }
 .posts-toolbar strong { font-size: 16px; font-weight: 600; }
 .post-field-label { font-size: 12px; font-weight: 600; color: var(--post-muted); }
-.post-footer > small { flex-basis: 100%; font-size: 10px; }
 .post-slug-field { grid-column: 1 / -1; }
 .post-summary { grid-column: span 1; }
 .post-view-switch button { padding: 4px 12px; border-radius: 8px; }

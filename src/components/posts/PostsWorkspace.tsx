@@ -1,7 +1,9 @@
+import * as ListUI from '../articles/ArticleListSidebar.styles';
+import { matchesPost, postTagCounts } from '../../lib/postsList';
 import { useEffect, useRef, useState, useDeferredValue } from "react";
-import type { KeyboardEvent } from "react";
+import type { KeyboardEvent, ReactNode } from "react";
 import { pinyin } from "pinyin-pro";
-import { Plus, Search, UploadCloud, Trash2, ArrowLeft, Settings2, RefreshCw } from 'lucide-react';
+import { Plus, UploadCloud, Trash2, ArrowLeft, Settings2, RefreshCw } from 'lucide-react';
 import {
   emptyPost,
   countChars,
@@ -46,9 +48,13 @@ export function slugFromTitle(title: string) {
     .slice(0, 150)
     .replace(/-$/, "");
 }
-export default function PostsWorkspace() {
+export default function PostsWorkspace({ listNavigation }: { listNavigation?: ReactNode } = {}) {
   const [result, setResult] = useState<PostList>();
   const [query, setQuery] = useState("");
+  const [filterDraftOnly, setFilterDraftOnly] = useState(false);
+  const [coverOnly, setCoverOnly] = useState(false);
+  const [selectedTag, setSelectedTag] = useState<string | null>(null);
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const search = useDeferredValue(query);
   const [page, setPage] = useState(1);
   const [revision, setRevision] = useState(0);
@@ -178,7 +184,7 @@ export default function PostsWorkspace() {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    fetchPosts(page, search)
+    fetchPosts(page, search, { tag: selectedTag || undefined, coverOnly, sortOrder })
       .then((data) => {
         if (!cancelled) {
           setResult(data);
@@ -194,7 +200,7 @@ export default function PostsWorkspace() {
     return () => {
       cancelled = true;
     };
-  }, [page, search, revision]);
+  }, [page, search, revision, selectedTag, coverOnly, sortOrder]);
   function change(patch: Partial<BlogPost>) {
     const next = {
       ...current.current,
@@ -387,58 +393,60 @@ export default function PostsWorkspace() {
     });
   }
   const titleText = displayPostText;
+  const visibleDrafts = drafts.filter(d => matchesPost(d.post, search, { tag: selectedTag || undefined, coverOnly }))
+    .sort((a, b) => sortOrder === 'asc' ? a.post.date.localeCompare(b.post.date) : b.post.date.localeCompare(a.post.date));
+  const tags = [...new Set([...(result?.tags || postTagCounts(result?.posts || [])).map(t => t.tag), ...postTagCounts(drafts.map(d => d.post)).map(t => t.tag)])];
+  const visiblePosts = filterDraftOnly ? [] : result?.posts || [];
   return (
     <Workspace
       className={mobileEditor ? "posts-mobile-editor" : undefined}
     >
       <aside className="posts-sidebar">
+        {listNavigation}
         {error && (
           <p className="post-error" role="alert">
             {error}
           </p>
         )}
-        <div className="posts-list-heading">
-          <div>
-
-            <h2>
-              文章列表 <span>{result?.total ?? 0}</span>
-            </h2>
+        <ListUI.Div2>
+          <ListUI.Div3>
+            <ListUI.Div4>
+              <ListUI.H2>文章列表</ListUI.H2>
+              <ListUI.Span>{filterDraftOnly ? visibleDrafts.length : result?.total ?? 0}</ListUI.Span>
+            </ListUI.Div4>
+            <ListUI.Button2 aria-label="新建文章" disabled={busy || !ready} onClick={() => void switchEditor()}>
+              <Plus size={14} />新建文章
+            </ListUI.Button2>
+          </ListUI.Div3>
+          <ListUI.Div6>
+            <ListUI.Search />
+            <ListUI.Input aria-label="搜索博客" placeholder="搜索标题、摘要、标签…" value={query}
+              onChange={e => { setQuery(e.target.value); setPage(1); }} />
+          </ListUI.Div6>
+          <ListUI.Div7>
+            <ListUI.Div8>
+              <ListUI.Button3 type="button" aria-pressed={filterDraftOnly} $variant={filterDraftOnly ? 'v0' : 'v1'}
+                onClick={() => { setFilterDraftOnly(v => !v); setPage(1); }}>草稿 ({drafts.length})</ListUI.Button3>
+              <ListUI.Button4 type="button" aria-pressed={coverOnly} $variant={coverOnly ? 'v0' : 'v1'}
+                onClick={() => { setCoverOnly(v => !v); setPage(1); }}>带封面</ListUI.Button4>
+              {selectedTag && <ListUI.Button5 type="button" onClick={() => { setSelectedTag(null); setPage(1); }}>#{selectedTag} ×</ListUI.Button5>}
+            </ListUI.Div8>
+            <ListUI.Button6 type="button" title="切换时间排序" onClick={() => { setSortOrder(v => v === 'desc' ? 'asc' : 'desc'); setPage(1); }}>
+              <ListUI.ArrowUpDown />{sortOrder === 'desc' ? '最新优先' : '最早优先'}
+            </ListUI.Button6>
+          </ListUI.Div7>
+          {tags.length > 0 && !selectedTag && <ListUI.Div8>
+            {tags.slice(0, 6).map(tag => <ListUI.Button7 key={tag} type="button" onClick={() => { setSelectedTag(tag); setPage(1); }}>#{tag}</ListUI.Button7>)}
+          </ListUI.Div8>}
+          <div className="posts-list-status"><span role="status">{loading ? '加载中…' : '文章库'}</span>
+            <button type="button" aria-label="刷新文章列表" onClick={() => setRevision(v => v + 1)}><RefreshCw size={13} /></button>
           </div>
-          <button
-            className="post-primary"
-            aria-label="新建文章"
-            disabled={busy || !ready}
-            onClick={() => void switchEditor()}
-          >
-            <Plus size={14} />
-            新建文章
-          </button>
-        </div>
-        <label className="posts-search">
-          <Search size={16} />
-          <input
-            aria-label="搜索博客"
-            placeholder="搜索标题、摘要、标签…"
-            value={query}
-            onChange={(e) => {
-              setQuery(e.target.value);
-              setPage(1);
-            }}
- />
-        </label>
-        <div className="posts-list-actions">
-          <span>{loading ? "加载中…" : "文章库"}</span>
-          <button
-            aria-label="刷新文章列表"
-            onClick={() => setRevision((v) => v + 1)}
-          >
-            <RefreshCw size={15} />
-          </button>
-        </div>
-        {drafts.length > 0 && (
+        </ListUI.Div2>
+        <div className="posts-list-scroll">
+        {visibleDrafts.length > 0 && (
           <details open>
-            <summary>本地草稿 · {drafts.length}</summary>
-            {drafts.map((d) => (
+            <summary>本地草稿 · {visibleDrafts.length}</summary>
+            {visibleDrafts.map((d) => (
               <button
                 disabled={busy || !ready}
                 className={`post-list-card ${editor.id === d.id ? "selected" : ""}`}
@@ -446,13 +454,14 @@ export default function PostsWorkspace() {
                 onClick={() => void switchEditor(undefined, d)}
               >
                 <strong>{titleText(d.post.title) || "未命名文章"}</strong>
+                <span className="post-tag-pills">{d.post.tags.map(tag => <span className="post-tag-pill" key={tag}>{tag}</span>)}</span>
                 <span className="post-dirty">未发布修改</span>
               </button>
             ))}
           </details>
         )}
         <div className="posts-list">
-          {result?.posts.map((p) => (
+          {visiblePosts.map((p) => (
             <button
               disabled={busy || !ready}
               className={`post-list-card ${editor.originalId === p.id ? "selected" : ""}`}
@@ -465,16 +474,16 @@ export default function PostsWorkspace() {
               </small>
               <strong>{titleText(p.title)}</strong>
               <p>{titleText(p.summary)}</p>
-              <span>{Array.isArray(p.tags) ? p.tags.join(" / ") : ""}</span>
+              <span className="post-tag-pills">{p.tags.map(tag => <span className="post-tag-pill" key={tag}>{tag}</span>)}</span>
               {drafts.some((d) => d.originalId === p.id) && (
                 <span className="post-dirty">未发布修改</span>
               )}
             </button>
           ))}
         </div>
-        {!loading && !result?.posts.length && (
+        {!loading && !visiblePosts.length && !visibleDrafts.length && (
           <div className="posts-empty">
-            {query ? "没有匹配的文章" : "从一篇新文章开始。"}
+            {query || selectedTag || coverOnly || filterDraftOnly ? "暂无符合条件的文章" : "从一篇新文章开始。"}
             <button
               disabled={busy || !ready}
               onClick={() => void switchEditor()}
@@ -483,7 +492,7 @@ export default function PostsWorkspace() {
             </button>
           </div>
         )}
-        <div className="posts-pagination">
+        {!filterDraftOnly && <div className="posts-pagination">
           <button
             disabled={page <= 1 || loading}
             onClick={() => setPage((p) => p - 1)}
@@ -499,9 +508,11 @@ export default function PostsWorkspace() {
           >
             下一页
           </button>
+        </div>}
         </div>
       </aside>
       <main className="posts-main">
+        <div className="posts-editor-scroll">
         <div className="posts-editor-container">
         {result?.warning && (
           <p className="post-warning" role="status">
@@ -729,8 +740,11 @@ export default function PostsWorkspace() {
             {view !== "edit" && <MarkdownPreview content={content} />}
           </div>
         </fieldset>
+        <p className="post-shortcuts">Markdown · ⌘ / Ctrl+B 加粗 · ⌘ / Ctrl+I 斜体 · Tab 缩进</p>
+        </div>
+        </div>
         <footer className="post-footer">
-          <small>Markdown · ⌘ / Ctrl+B 加粗 · ⌘ / Ctrl+I 斜体 · Tab 缩进</small>
+          <div className="post-footer-inner">
           <div>
             <button
               disabled={busy || !ready}
@@ -757,8 +771,8 @@ export default function PostsWorkspace() {
             <UploadCloud size={16} />
             {busy ? "处理中…" : "发布文章"}
           </button>
+          </div>
         </footer>
-      </div>
       </main>
     </Workspace>
   );

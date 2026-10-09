@@ -140,3 +140,14 @@ it('proxies localized content intact with source mapping and all active IDs', as
   expect(payload.articles[0]).toMatchObject({ ...bilingual, sourcePath: 'blog/bilingual.md' });
   expect(payload.activeIds).toEqual([post.id, 'untouched']);
 });
+
+it('applies tag, cover and time filters before pagination across the whole Worker list', async () => {
+  const articles = Array.from({ length: 24 }, (_, i) => ({ ...post, id: `article-${i + 1}`, date: `2026-01-${String(i + 1).padStart(2, '0')}`, tags: (i + 1) % 3 === 0 ? ['topic'] : ['other'], cover: (i + 1) % 2 === 0 ? 'https://example.com/cover.jpg' : '' }));
+  vi.stubGlobal('fetch', vi.fn(async () => Response.json({ articles })));
+  const response = await handlePosts(context('?tag=topic&cover=1&sort=asc&page=2&pageSize=2'), 'list');
+  const data = await response.json();
+  expect(response.status).toBe(200);
+  expect(data.total).toBe(4);
+  expect(data.posts.map((p: BlogPost) => p.id)).toEqual(['article-18', 'article-24']);
+  expect(data.tags).toContainEqual({ tag: 'topic', count: 8 });
+});
