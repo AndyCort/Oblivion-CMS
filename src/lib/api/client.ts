@@ -17,6 +17,8 @@ export interface FetchArticlesResponse {
   isMock: boolean;
   isD1?: boolean;
   d1Mode?: "native" | "http" | "mock";
+  bindingName?: string;
+  envKeys?: string[];
   warning?: string;
   total: number;
   user?: UserSession;

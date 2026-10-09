@@ -991,6 +991,8 @@ export function App() {
         sha={serverData?.sha}
         isMock={serverData?.isMock}
         userEmail={serverData?.user?.email}
+        bindingName={serverData?.bindingName}
+        envKeys={serverData?.envKeys}
       />
     </div>
   );

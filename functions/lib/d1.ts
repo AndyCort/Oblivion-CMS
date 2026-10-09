@@ -139,13 +139,21 @@ export class D1HttpClient implements D1Database {
 export function getD1Database(env: Record<string, any>): {
   db: D1Database | null;
   mode: "native" | "http" | "mock";
+  bindingName?: string;
 } {
-  // 1. Native Cloudflare Pages Functions D1 binding (Variable name: DB)
+  // 1. Check standard uppercase env.DB first
   if (env.DB && typeof env.DB.prepare === "function") {
-    return { db: env.DB, mode: "native" };
+    return { db: env.DB, mode: "native", bindingName: "DB" };
   }
 
-  // 2. Cloudflare D1 REST API direct connection (for local dev or remote direct connection)
+  // 2. Scan all environment keys for any object with .prepare (handles 'db', 'd1', 'D1', custom db names, etc.)
+  for (const [key, val] of Object.entries(env)) {
+    if (val && typeof val === "object" && typeof (val as any).prepare === "function") {
+      return { db: val as D1Database, mode: "native", bindingName: key };
+    }
+  }
+
+  // 3. Cloudflare D1 REST API direct connection (for local dev or remote direct connection)
   const accountId = env.CF_ACCOUNT_ID || env.CLOUDFLARE_ACCOUNT_ID;
   const databaseId = env.CF_D1_DATABASE_ID || env.D1_DATABASE_ID;
   const apiToken = env.CF_API_TOKEN || env.CLOUDFLARE_API_TOKEN;
@@ -154,10 +162,11 @@ export function getD1Database(env: Record<string, any>): {
     return {
       db: new D1HttpClient(accountId, databaseId, apiToken),
       mode: "http",
+      bindingName: "REST API",
     };
   }
 
-  // 3. Fallback mock only for unit testing or when explicitly enabled
+  // 4. Fallback mock only for unit testing or when explicitly enabled
   return { db: null, mode: "mock" };
 }
 
@@ -250,25 +259,26 @@ let schemaInitialized = false;
 export async function ensureD1Schema(db: D1Database): Promise<void> {
   if (schemaInitialized) return;
 
-  const createTableSql = `
-    CREATE TABLE IF NOT EXISTS articles (
-      time INTEGER PRIMARY KEY,
-      content TEXT NOT NULL DEFAULT '',
-      media TEXT NOT NULL DEFAULT '[]',
-      tags TEXT NOT NULL DEFAULT '[]',
-      location TEXT NOT NULL DEFAULT '',
-      music TEXT,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-  `;
-  const createIndexSql = `
-    CREATE INDEX IF NOT EXISTS idx_articles_time ON articles(time DESC);
-  `;
-
   try {
-    await db.exec(createTableSql);
-    await db.exec(createIndexSql);
+    await db
+      .prepare(
+        `CREATE TABLE IF NOT EXISTS articles (
+          time INTEGER PRIMARY KEY,
+          content TEXT NOT NULL DEFAULT '',
+          media TEXT NOT NULL DEFAULT '[]',
+          tags TEXT NOT NULL DEFAULT '[]',
+          location TEXT NOT NULL DEFAULT '',
+          music TEXT,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL
+        )`
+      )
+      .run();
+
+    await db
+      .prepare(`CREATE INDEX IF NOT EXISTS idx_articles_time ON articles(time DESC)`)
+      .run();
+
     schemaInitialized = true;
   } catch (err) {
     console.warn("D1 schema init warning:", err);
@@ -314,9 +324,18 @@ export async function getD1Articles(env: Record<string, any>): Promise<{
   sha: string;
   isD1: boolean;
   d1Mode: "native" | "http" | "mock";
+  bindingName?: string;
   warning?: string;
+  envKeys?: string[];
 }> {
-  const { db, mode } = getD1Database(env);
+  const { db, mode, bindingName } = getD1Database(env);
+
+  const envKeys = Object.keys(env).filter(
+    (k) =>
+      !k.toLowerCase().includes("token") &&
+      !k.toLowerCase().includes("secret") &&
+      !k.toLowerCase().includes("password")
+  );
 
   if (db && typeof db.prepare === "function") {
     await ensureD1Schema(db);
@@ -338,6 +357,7 @@ export async function getD1Articles(env: Record<string, any>): Promise<{
         sha: computeArticlesSha(seeded),
         isD1: true,
         d1Mode: mode,
+        bindingName,
       };
     }
 
@@ -348,6 +368,7 @@ export async function getD1Articles(env: Record<string, any>): Promise<{
       sha: computeArticlesSha(articles),
       isD1: true,
       d1Mode: mode,
+      bindingName,
     };
   }
 
@@ -358,7 +379,9 @@ export async function getD1Articles(env: Record<string, any>): Promise<{
     sha: computeArticlesSha(fallback),
     isD1: false,
     d1Mode: "mock",
-    warning: "未检测到 Cloudflare D1 数据库绑定 (env.DB 缺失)。当前处于只读模拟模式，数据不会写入真实 D1。",
+    bindingName,
+    envKeys,
+    warning: "未检测到 Cloudflare D1 数据库绑定。当前处于只读模拟模式，数据不会写入真实 D1。",
   };
 }
 

@@ -21,6 +21,8 @@ interface ConfigInfoModalProps {
   sha?: string;
   isMock?: boolean;
   userEmail?: string;
+  bindingName?: string;
+  envKeys?: string[];
 }
 
 export const ConfigInfoModal: React.FC<ConfigInfoModalProps> = ({
@@ -29,6 +31,8 @@ export const ConfigInfoModal: React.FC<ConfigInfoModalProps> = ({
   sha,
   isMock,
   userEmail,
+  bindingName,
+  envKeys,
 }) => {
   const [copied, setCopied] = useState(false);
 
@@ -147,7 +151,9 @@ export const ConfigInfoModal: React.FC<ConfigInfoModalProps> = ({
             <div className="space-y-1 font-mono text-stone-600 dark:text-stone-400 text-[11px]">
               <div>数据表: articles (SQLite)</div>
               <div>当前修订: {sha || "初始版本"}</div>
-              <div>绑定名称: env.DB</div>
+              <div>
+                绑定名称: <span className="text-indigo-600 dark:text-indigo-400 font-bold">env.{bindingName || "DB"}</span>
+              </div>
             </div>
 
             {isMock && (
@@ -156,17 +162,32 @@ export const ConfigInfoModal: React.FC<ConfigInfoModalProps> = ({
                   ⚠️ 为什么提示未绑定 D1 数据库？
                 </div>
                 <p className="leading-relaxed">
-                  Cloudflare Pages 项目必须显式绑定 D1 资源。若未配置绑定，系统会自动降级为临时内存模式，不会真正写入云端 D1 数据库。
+                  如果您已经在 Cloudflare 控制台添加了绑定，仍然提示未绑定，<strong>90% 的原因是由于 Cloudflare 尚未重新部署</strong>（添加绑定不会自动应用到已上线的容器）。
                 </p>
-                <div className="space-y-1 pt-1 font-sans">
-                  <div className="font-medium text-amber-900 dark:text-amber-200">
-                    绑定步骤 (1 分钟即可完成)：
+
+                {envKeys && envKeys.length > 0 && (
+                  <div className="p-2 rounded-lg bg-white/60 dark:bg-stone-900/60 font-mono text-[10px] text-stone-600 dark:text-stone-400 border border-amber-500/20">
+                    <div>当前容器读取到的配置键：</div>
+                    <div className="text-indigo-600 dark:text-indigo-400 font-semibold break-all">
+                      [{envKeys.join(", ")}]
+                    </div>
                   </div>
-                  <ol className="list-decimal list-inside space-y-0.5 text-stone-700 dark:text-stone-300">
-                    <li>登录 Cloudflare 控制台 -&gt; <strong>Workers &amp; Pages</strong> -&gt; 点击 <strong>oblivion-cms</strong></li>
-                    <li>进入 <strong>Settings</strong> -&gt; <strong>Functions</strong> -&gt; <strong>D1 database bindings</strong></li>
-                    <li>点击 <strong>Add binding</strong>：变量名输入 <code className="font-mono font-bold text-indigo-600 dark:text-indigo-400">DB</code> (必须全大写)，选择您的 D1 数据库</li>
-                    <li>点击 <strong>Save</strong>，然后在 <strong>Deployments</strong> 页面对最新构建执行 <strong>Retry deployment</strong> (重新部署)</li>
+                )}
+
+                <div className="space-y-1.5 pt-1 font-sans">
+                  <div className="font-medium text-amber-900 dark:text-amber-200">
+                    排查与解决步骤：
+                  </div>
+                  <ol className="list-decimal list-inside space-y-1 text-stone-700 dark:text-stone-300">
+                    <li>
+                      <strong>关键：重新部署（Retry deployment）</strong>：进入 Cloudflare Pages 的 <strong>Deployments</strong> 标签页，点击最新部署右侧的 <strong>...</strong> -&gt; 选择 <strong>Retry deployment</strong>。
+                    </li>
+                    <li>
+                      <strong>检查环境是否匹配</strong>：进入 <strong>Settings</strong> -&gt; <strong>Functions</strong> -&gt; <strong>D1 database bindings</strong>，确保该绑定添加到了 <strong>Production</strong>（生产环境）。
+                    </li>
+                    <li>
+                      <strong>变量名称</strong>：推荐填写 <code className="font-mono font-bold text-indigo-600 dark:text-indigo-400">DB</code>（系统也已支持自动识别其它名称）。
+                    </li>
                   </ol>
                 </div>
               </div>
