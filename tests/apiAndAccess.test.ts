@@ -9,6 +9,7 @@ import {
   onRequestGet as getPublicMoments,
   onRequestOptions as optionsPublicMoments,
 } from "../functions/api/public/moments";
+import { isD1DatabaseInstance, getD1Database } from "../functions/lib/d1";
 
 describe("Base64 UTF-8 encoding & decoding", () => {
   it("correctly encodes and decodes Chinese characters and emojis without data loss", () => {
@@ -313,5 +314,72 @@ describe("API Endpoints & Conflict Detection", () => {
     const verifyData: any = await verifyRes.json();
     expect(verifyData.articles).toHaveLength(1);
     expect(verifyData.articles[0].content).toBe("唯一保留的文章（全量覆盖）");
+  });
+});
+
+describe("D1 Database Binding Safety & RPC Stub Filtering", () => {
+  it("rejects ASSETS and Service Bindings (proxies with .fetch) as D1 databases", () => {
+    // Simulated Pages ASSETS fetcher / Service Binding proxy
+    const fakeAssets = {
+      fetch: () => Promise.resolve(new Response()),
+      prepare: () => {}, // RPC proxies return functions for any property
+    };
+
+    expect(isD1DatabaseInstance("ASSETS", fakeAssets)).toBe(false);
+    expect(isD1DatabaseInstance("CF_PAGES", fakeAssets)).toBe(false);
+    expect(isD1DatabaseInstance("DB", fakeAssets)).toBe(false);
+  });
+
+  it("recognizes actual D1 database instances with .prepare and without .fetch", () => {
+    const realD1 = {
+      prepare: (sql: string) => ({ bind: () => ({ run: () => ({ success: true }) }) }),
+      exec: () => Promise.resolve({ count: 1, duration: 0 }),
+      batch: () => Promise.resolve([]),
+    };
+
+    expect(isD1DatabaseInstance("DB", realD1)).toBe(true);
+    expect(isD1DatabaseInstance("d1", realD1)).toBe(true);
+    expect(isD1DatabaseInstance("custom_db", realD1)).toBe(true);
+  });
+
+  it("getD1Database skips ASSETS and warns if DB is a Service Binding", () => {
+    const envWithOnlyAssets = {
+      ASSETS: {
+        fetch: () => {},
+        prepare: () => {},
+      },
+    };
+
+    const res = getD1Database(envWithOnlyAssets);
+    expect(res.mode).toBe("mock");
+    expect(res.db).toBeNull();
+
+    const envWithServiceBindingDB = {
+      DB: {
+        fetch: () => {},
+        prepare: () => {},
+      },
+    };
+
+    const res2 = getD1Database(envWithServiceBindingDB);
+    expect(res2.mode).toBe("mock");
+    expect(res2.db).toBeNull();
+    expect(res2.serviceBindingWarning).toContain("Service binding");
+  });
+
+  it("getD1Database correctly detects real D1 when bound as lowercase d1 or db", () => {
+    const realD1 = {
+      prepare: () => ({ bind: () => ({ run: () => ({ success: true }) }) }),
+    };
+
+    const env = {
+      ASSETS: { fetch: () => {}, prepare: () => {} },
+      d1: realD1,
+    };
+
+    const res = getD1Database(env);
+    expect(res.mode).toBe("native");
+    expect(res.bindingName).toBe("d1");
+    expect(res.db).toBe(realD1);
   });
 });

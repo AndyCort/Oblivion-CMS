@@ -134,26 +134,98 @@ export class D1HttpClient implements D1Database {
 }
 
 /**
+ * Safely verifies if an object is an actual Cloudflare D1 Database binding
+ * and NOT a Service Binding (Worker RPC Proxy) or ASSETS fetcher.
+ */
+export function isD1DatabaseInstance(key: string, val: any): boolean {
+  if (!val || typeof val !== "object") return false;
+
+  const upperKey = key.toUpperCase();
+  // 1. Never treat internal Cloudflare system bindings as D1
+  if (
+    upperKey === "ASSETS" ||
+    upperKey === "CF_PAGES" ||
+    upperKey === "PAGES" ||
+    upperKey === "STATIC_CONTENT" ||
+    upperKey.startsWith("__")
+  ) {
+    return false;
+  }
+
+  // 2. Cloudflare Service Bindings, Workers, and Asset fetchers ALWAYS have a .fetch method.
+  // Native Cloudflare D1 databases NEVER have a .fetch method.
+  if (typeof (val as any).fetch === "function") {
+    return false;
+  }
+
+  // 3. Must implement .prepare function
+  if (typeof (val as any).prepare !== "function") {
+    return false;
+  }
+
+  // 4. Must not be KV (has .get and .put) or R2 (has .head)
+  if (typeof (val as any).head === "function") {
+    return false;
+  }
+
+  return true;
+}
+
+export function getD1UnboundErrorMessage(
+  env: Record<string, any>,
+  serviceBindingWarning?: string
+): string {
+  if (serviceBindingWarning) {
+    return serviceBindingWarning;
+  }
+  const keys = Object.keys(env).filter(
+    (k) =>
+      !k.toLowerCase().includes("token") &&
+      !k.toLowerCase().includes("secret") &&
+      !k.toLowerCase().includes("password")
+  );
+  return `未检测到 Cloudflare D1 数据库绑定！当前容器检测到的配置键: [${keys.join(", ")}]。请在 Cloudflare Pages 控制台（Settings -> Functions -> D1 database bindings）将 D1 数据库绑定为变量名 'DB'，并重新部署（Deployments -> Retry deployment）。`;
+}
+
+/**
  * Resolves the active D1 database connection (native binding or HTTP REST API direct client)
  */
 export function getD1Database(env: Record<string, any>): {
   db: D1Database | null;
   mode: "native" | "http" | "mock";
   bindingName?: string;
+  serviceBindingWarning?: string;
 } {
+  // Check if user accidentally bound DB or d1 as a Service binding (Worker RPC stub)
+  let serviceBindingWarning: string | undefined = undefined;
+  for (const name of ["DB", "db", "d1", "D1", "database", "DATABASE"]) {
+    if (env[name] && typeof env[name] === "object" && typeof env[name].fetch === "function") {
+      serviceBindingWarning = `检测到环境变量 '${name}' 绑定的是 Service binding (Worker RPC)，而非 D1 数据库绑定！请前往 Cloudflare Pages 设置中的 'D1 database bindings' 区域添加 D1 绑定，并删除该错误的 Service binding。`;
+      break;
+    }
+  }
+
   // 1. Check standard uppercase env.DB first
-  if (env.DB && typeof env.DB.prepare === "function") {
+  if (isD1DatabaseInstance("DB", env.DB)) {
     return { db: env.DB, mode: "native", bindingName: "DB" };
   }
 
-  // 2. Scan all environment keys for any object with .prepare (handles 'db', 'd1', 'D1', custom db names, etc.)
+  // 2. Check common D1 binding names in priority order
+  const commonNames = ["db", "d1", "D1", "database", "DATABASE", "DB_PROD", "d1_db"];
+  for (const name of commonNames) {
+    if (isD1DatabaseInstance(name, env[name])) {
+      return { db: env[name] as D1Database, mode: "native", bindingName: name };
+    }
+  }
+
+  // 3. Scan all remaining environment keys for any valid D1 database
   for (const [key, val] of Object.entries(env)) {
-    if (val && typeof val === "object" && typeof (val as any).prepare === "function") {
+    if (isD1DatabaseInstance(key, val)) {
       return { db: val as D1Database, mode: "native", bindingName: key };
     }
   }
 
-  // 3. Cloudflare D1 REST API direct connection (for local dev or remote direct connection)
+  // 4. Cloudflare D1 REST API direct connection (for local dev or remote direct connection)
   const accountId = env.CF_ACCOUNT_ID || env.CLOUDFLARE_ACCOUNT_ID;
   const databaseId = env.CF_D1_DATABASE_ID || env.D1_DATABASE_ID;
   const apiToken = env.CF_API_TOKEN || env.CLOUDFLARE_API_TOKEN;
@@ -166,8 +238,8 @@ export function getD1Database(env: Record<string, any>): {
     };
   }
 
-  // 4. Fallback mock only for unit testing or when explicitly enabled
-  return { db: null, mode: "mock" };
+  // 5. Fallback mock only for unit testing or when explicitly enabled
+  return { db: null, mode: "mock", serviceBindingWarning };
 }
 
 // In-memory fallback for local development or when D1 is not yet bound
@@ -328,7 +400,7 @@ export async function getD1Articles(env: Record<string, any>): Promise<{
   warning?: string;
   envKeys?: string[];
 }> {
-  const { db, mode, bindingName } = getD1Database(env);
+  const { db, mode, bindingName, serviceBindingWarning } = getD1Database(env);
 
   const envKeys = Object.keys(env).filter(
     (k) =>
@@ -381,7 +453,9 @@ export async function getD1Articles(env: Record<string, any>): Promise<{
     d1Mode: "mock",
     bindingName,
     envKeys,
-    warning: "未检测到 Cloudflare D1 数据库绑定。当前处于只读模拟模式，数据不会写入真实 D1。",
+    warning:
+      serviceBindingWarning ||
+      "未检测到 Cloudflare D1 数据库绑定。当前处于只读模拟模式，数据不会写入真实 D1。",
   };
 }
 
@@ -393,7 +467,7 @@ export async function saveD1Article(
   article: Article,
   isInsert = true
 ): Promise<string> {
-  const { db } = getD1Database(env);
+  const { db, serviceBindingWarning } = getD1Database(env);
   const now = Date.now();
 
   const mediaJson = JSON.stringify(article.media || []);
@@ -446,9 +520,7 @@ export async function saveD1Article(
 
   // If in production mode and D1 is not bound, DO NOT fake success!
   if (env.DEV_MODE !== "true") {
-    throw new Error(
-      "未检测到 Cloudflare D1 数据库绑定！请在 Cloudflare Pages 控制台（Settings -> Functions -> D1 database bindings）将 D1 数据库绑定为变量名 'DB'，或在环境变量中配置 CF_D1_DATABASE_ID，然后重新部署。"
-    );
+    throw new Error(getD1UnboundErrorMessage(env, serviceBindingWarning));
   }
 
   // In-memory fallback ONLY for unit tests
@@ -469,7 +541,7 @@ export async function updateD1Article(
   targetTime: number,
   article: Article
 ): Promise<string> {
-  const { db } = getD1Database(env);
+  const { db, serviceBindingWarning } = getD1Database(env);
   const now = Date.now();
 
   const mediaJson = JSON.stringify(article.media || []);
@@ -509,9 +581,7 @@ export async function updateD1Article(
 
   // If in production mode and D1 is not bound, DO NOT fake success!
   if (env.DEV_MODE !== "true") {
-    throw new Error(
-      "未检测到 Cloudflare D1 数据库绑定！请在 Cloudflare Pages 控制台（Settings -> Functions -> D1 database bindings）将 D1 数据库绑定为变量名 'DB'，或在环境变量中配置 CF_D1_DATABASE_ID，然后重新部署。"
-    );
+    throw new Error(getD1UnboundErrorMessage(env, serviceBindingWarning));
   }
 
   // In-memory fallback ONLY for unit tests
@@ -531,7 +601,7 @@ export async function deleteD1Article(
   env: Record<string, any>,
   targetTime: number
 ): Promise<string> {
-  const { db } = getD1Database(env);
+  const { db, serviceBindingWarning } = getD1Database(env);
 
   if (db && typeof db.prepare === "function") {
     await ensureD1Schema(db);
@@ -547,9 +617,7 @@ export async function deleteD1Article(
 
   // If in production mode and D1 is not bound, DO NOT fake success!
   if (env.DEV_MODE !== "true") {
-    throw new Error(
-      "未检测到 Cloudflare D1 数据库绑定！请在 Cloudflare Pages 控制台（Settings -> Functions -> D1 database bindings）将 D1 数据库绑定为变量名 'DB'，或在环境变量中配置 CF_D1_DATABASE_ID，然后重新部署。"
-    );
+    throw new Error(getD1UnboundErrorMessage(env, serviceBindingWarning));
   }
 
   // In-memory fallback ONLY for unit tests
@@ -580,7 +648,7 @@ export async function batchImportD1Articles(
   articles: Article[],
   mode: "merge" | "overwrite" = "merge"
 ): Promise<{ count: number; total: number; sha: string }> {
-  const { db } = getD1Database(env);
+  const { db, serviceBindingWarning } = getD1Database(env);
 
   // Validate and sanitize articles
   const validArticles = articles.filter(
@@ -667,9 +735,7 @@ export async function batchImportD1Articles(
 
   // If in production mode and D1 is not bound, reject!
   if (env.DEV_MODE !== "true") {
-    throw new Error(
-      "未检测到 Cloudflare D1 数据库绑定！请在 Cloudflare Pages 控制台（Settings -> Functions -> D1 database bindings）将 D1 数据库绑定为变量名 'DB'，或在环境变量中配置 CF_D1_DATABASE_ID，然后重新部署。"
-    );
+    throw new Error(getD1UnboundErrorMessage(env, serviceBindingWarning));
   }
 
   // In-memory fallback ONLY for unit tests
