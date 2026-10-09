@@ -3,6 +3,7 @@ import { verifyCloudflareAccess } from "../functions/lib/access";
 import { encodeBase64Utf8, decodeBase64Utf8 } from "../functions/lib/github";
 import { onRequestGet as getArticles } from "../functions/api/articles";
 import { onRequestPost as publishArticle } from "../functions/api/publish";
+import { onRequestPost as importPost } from "../functions/api/import";
 import { onRequestPost as logoutPost } from "../functions/api/auth/logout";
 import {
   onRequestGet as getPublicMoments,
@@ -220,5 +221,97 @@ describe("API Endpoints & Conflict Detection", () => {
     expect(res.status).toBe(204);
     expect(res.headers.get("Access-Control-Allow-Origin")).toBe("*");
     expect(res.headers.get("Access-Control-Allow-Methods")).toContain("GET");
+  });
+
+  it("POST /api/import rejects empty articles list or invalid mode", async () => {
+    const emptyReq = new Request("http://localhost:5173/api/import", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ articles: [] }),
+    });
+    const res = await importPost({ request: emptyReq, env: localEnv });
+    expect(res.status).toBe(400);
+
+    const invalidModeReq = new Request("http://localhost:5173/api/import", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        articles: [{ time: 1800000000000, content: "test" }],
+        mode: "invalid_mode",
+      }),
+    });
+    const invalidModeRes = await importPost({ request: invalidModeReq, env: localEnv });
+    expect(invalidModeRes.status).toBe(400);
+  });
+
+  it("POST /api/import merges historical articles into database", async () => {
+    const importReq = new Request("http://localhost:5173/api/import", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        articles: [
+          {
+            time: 1999999999000,
+            content: "导入的历史文章 A 🚀",
+            media: [],
+            tags: ["导入", "测试"],
+            location: "北京",
+          },
+          {
+            time: 1999999998000,
+            content: "导入的历史文章 B ✨",
+            media: [],
+            tags: ["导入"],
+            location: "杭州",
+          },
+        ],
+        mode: "merge",
+      }),
+    });
+
+    const res = await importPost({ request: importReq, env: localEnv });
+    expect(res.status).toBe(200);
+    const data: any = await res.json();
+    expect(data.success).toBe(true);
+    expect(data.count).toBe(2);
+    expect(data.newSha).toBeDefined();
+
+    // Verify presence via GET /api/articles
+    const verifyReq = new Request("http://localhost:5173/api/articles");
+    const verifyRes = await getArticles({ request: verifyReq, env: localEnv });
+    const verifyData: any = await verifyRes.json();
+    const foundA = verifyData.articles.find((a: any) => a.time === 1999999999000);
+    expect(foundA?.content).toBe("导入的历史文章 A 🚀");
+  });
+
+  it("POST /api/import overwrites database when mode is overwrite", async () => {
+    const overwriteReq = new Request("http://localhost:5173/api/import", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        articles: [
+          {
+            time: 1777777777000,
+            content: "唯一保留的文章（全量覆盖）",
+            media: [],
+            tags: ["覆盖"],
+            location: "独享",
+          },
+        ],
+        mode: "overwrite",
+      }),
+    });
+
+    const res = await importPost({ request: overwriteReq, env: localEnv });
+    expect(res.status).toBe(200);
+    const data: any = await res.json();
+    expect(data.success).toBe(true);
+    expect(data.total).toBe(1);
+
+    const verifyReq = new Request("http://localhost:5173/api/articles");
+    const verifyRes = await getArticles({ request: verifyReq, env: localEnv });
+    const verifyData: any = await verifyRes.json();
+    expect(verifyData.articles).toHaveLength(1);
+    expect(verifyData.articles[0].content).toBe("唯一保留的文章（全量覆盖）");
   });
 });

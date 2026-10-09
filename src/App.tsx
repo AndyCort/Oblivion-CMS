@@ -9,6 +9,7 @@ import {
   publishArticleToServer,
   checkAuthStatus,
   logoutUser,
+  batchImportArticles,
 } from "./lib/api/client";
 import type { FetchArticlesResponse, UserSession } from "./lib/api/client";
 import { LoginPage } from "./components/auth/LoginPage";
@@ -28,6 +29,7 @@ import { MomentPreview } from "./components/preview/MomentPreview";
 import { DeleteConfirmModal } from "./components/modals/DeleteConfirmModal";
 import { ConflictResolutionModal } from "./components/modals/ConflictResolutionModal";
 import { ConfigInfoModal } from "./components/modals/ConfigInfoModal";
+import { ImportModal } from "./components/modals/ImportModal";
 import {
   PenTool,
   UploadCloud,
@@ -98,6 +100,7 @@ export function App() {
     clientBaseSha?: string;
   }>({ isOpen: false });
   const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [commitMessageInput, setCommitMessageInput] = useState("");
 
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -486,6 +489,17 @@ export function App() {
     }
   };
 
+  const handleBatchImport = async (articles: Article[], mode: "merge" | "overwrite") => {
+    try {
+      const res = await batchImportArticles(articles, mode);
+      showToast("success", res.message || `成功导入 ${res.count} 篇文章`);
+      await loadInitialData();
+    } catch (err: any) {
+      showToast("error", err.message || "批量导入失败");
+      throw err;
+    }
+  };
+
   // Autocomplete tags and locations from all articles
   const availableTags = useMemo(() => {
     const map = new Map<string, number>();
@@ -654,6 +668,17 @@ export function App() {
             )}
           </button>
 
+          {/* Import data button */}
+          <button
+            type="button"
+            onClick={() => setIsImportModalOpen(true)}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium text-stone-700 dark:text-stone-300 bg-stone-100 hover:bg-stone-200 dark:bg-stone-800 dark:hover:bg-stone-700 border border-stone-200/80 dark:border-stone-700/80 transition-colors active:scale-95"
+            title="批量导入历史数据 (moments.ts / JSON)"
+          >
+            <UploadCloud className="w-3.5 h-3.5 text-indigo-500" />
+            <span className="hidden sm:inline">导入数据</span>
+          </button>
+
           {/* System status / config modal button */}
           <button
             type="button"
@@ -717,6 +742,7 @@ export function App() {
             onDeleteArticle={(article, fp) => setDeleteModalArticle({ article, fp })}
             drafts={draftsMap}
             getFingerprint={generateArticleFingerprint}
+            onOpenImport={() => setIsImportModalOpen(true)}
           />
         </aside>
 
@@ -993,6 +1019,13 @@ export function App() {
         userEmail={serverData?.user?.email}
         bindingName={serverData?.bindingName}
         envKeys={serverData?.envKeys}
+      />
+
+      <ImportModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onImport={handleBatchImport}
+        currentTotalArticles={serverData?.articles?.length || 0}
       />
     </div>
   );

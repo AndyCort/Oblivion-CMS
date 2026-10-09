@@ -382,3 +382,92 @@ function handleLocalFallbackPublish(req: PublishRequest): PublishResponse {
     articleCount: localFallbackArticles.length,
   };
 }
+
+export interface ImportArticlesRequest {
+  articles: Article[];
+  mode: "merge" | "overwrite";
+}
+
+export interface ImportArticlesResponse {
+  success: boolean;
+  count: number;
+  total: number;
+  newSha: string;
+  mode: "merge" | "overwrite";
+  message: string;
+}
+
+export async function batchImportArticles(
+  articles: Article[],
+  mode: "merge" | "overwrite"
+): Promise<ImportArticlesResponse> {
+  try {
+    const headers = getAuthHeaders();
+    headers["Content-Type"] = "application/json";
+
+    const res = await fetch("/api/import", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ articles, mode }),
+    });
+
+    if (res.status === 401 || res.status === 403) {
+      const data = await res.json().catch(() => ({}));
+      const err = new Error(data.error || "未通过 Cloudflare Access 验证");
+      (err as any).isAuthError = true;
+      throw err;
+    }
+
+    if (!res.ok) {
+      if (
+        res.status === 404 &&
+        (window.location.hostname === "localhost" ||
+          window.location.hostname === "127.0.0.1")
+      ) {
+        return handleLocalFallbackImport(articles, mode);
+      }
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || `导入失败 (${res.status})`);
+    }
+
+    return await res.json();
+  } catch (err: any) {
+    if (err.isAuthError) throw err;
+    if (
+      window.location.hostname === "localhost" ||
+      window.location.hostname === "127.0.0.1"
+    ) {
+      return handleLocalFallbackImport(articles, mode);
+    }
+    throw err;
+  }
+}
+
+function handleLocalFallbackImport(
+  articles: Article[],
+  mode: "merge" | "overwrite"
+): ImportArticlesResponse {
+  if (mode === "overwrite") {
+    localFallbackArticles = [...articles].sort((a, b) => b.time - a.time);
+  } else {
+    const map = new Map<number, Article>();
+    for (const a of localFallbackArticles) {
+      map.set(a.time, a);
+    }
+    for (const a of articles) {
+      map.set(a.time, a);
+    }
+    localFallbackArticles = Array.from(map.values()).sort((a, b) => b.time - a.time);
+  }
+
+  const newSha = computeClientFallbackSha(localFallbackArticles);
+  const modeLabel = mode === "overwrite" ? "全量覆盖" : "增量合并";
+  return {
+    success: true,
+    count: articles.length,
+    total: localFallbackArticles.length,
+    newSha,
+    mode,
+    message: `成功${modeLabel}导入 ${articles.length} 篇文章（本地开发模拟，共计 ${localFallbackArticles.length} 篇）`,
+  };
+}

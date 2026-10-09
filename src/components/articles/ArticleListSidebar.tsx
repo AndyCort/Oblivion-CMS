@@ -14,6 +14,7 @@ import {
   Sparkles,
   CheckCircle2,
   FileEdit,
+  UploadCloud,
 } from "lucide-react";
 
 interface ArticleListSidebarProps {
@@ -25,6 +26,7 @@ interface ArticleListSidebarProps {
   onDeleteArticle: (article: Article, fingerprint: string) => void;
   drafts: Map<string, ArticleDraft>;
   getFingerprint: (article: Article) => string;
+  onOpenImport?: () => void;
 }
 
 export const ArticleListSidebar: React.FC<ArticleListSidebarProps> = ({
@@ -36,6 +38,7 @@ export const ArticleListSidebar: React.FC<ArticleListSidebarProps> = ({
   onDeleteArticle,
   drafts,
   getFingerprint,
+  onOpenImport,
 }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
@@ -114,14 +117,27 @@ export const ArticleListSidebar: React.FC<ArticleListSidebarProps> = ({
               {filteredArticles.length} / {articles.length}
             </span>
           </div>
-          <button
-            type="button"
-            onClick={onNewArticle}
-            className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium flex items-center gap-1.5 shadow-sm transition-transform active:scale-95"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            发表新说说
-          </button>
+          <div className="flex items-center gap-1.5">
+            {onOpenImport && (
+              <button
+                type="button"
+                onClick={onOpenImport}
+                className="px-2.5 py-1.5 rounded-xl border border-stone-200 dark:border-stone-700/80 bg-stone-50 dark:bg-stone-800 text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-700/80 text-xs font-medium flex items-center gap-1 shadow-2xs transition-colors active:scale-95"
+                title="导入历史数据 (JSON / moments.ts)"
+              >
+                <UploadCloud className="w-3.5 h-3.5 text-indigo-500" />
+                <span>导入</span>
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onNewArticle}
+              className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium flex items-center gap-1.5 shadow-sm transition-transform active:scale-95"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              发表新说说
+            </button>
+          </div>
         </div>
 
         {/* Search input */}

@@ -568,3 +568,97 @@ export function extractTimeFromFingerprint(targetFingerprint: string): number {
   const parsed = Number(targetFingerprint);
   return Number.isNaN(parsed) ? 0 : parsed;
 }
+
+/**
+ * Batch import articles into Cloudflare D1
+ * @param env Cloudflare Pages env
+ * @param articles Array of Article objects to import
+ * @param mode "merge" (insert or update) | "overwrite" (wipe database first)
+ */
+export async function batchImportD1Articles(
+  env: Record<string, any>,
+  articles: Article[],
+  mode: "merge" | "overwrite" = "merge"
+): Promise<{ count: number; total: number; sha: string }> {
+  const { db } = getD1Database(env);
+
+  // Validate and sanitize articles
+  const validArticles = articles.filter(
+    (a) => a && typeof a.time === "number" && !isNaN(a.time) && a.time > 0
+  );
+
+  if (validArticles.length === 0) {
+    throw new Error("没有有效的时间戳文章可供导入");
+  }
+
+  if (db && typeof db.prepare === "function") {
+    await ensureD1Schema(db);
+
+    if (mode === "overwrite") {
+      await db.prepare("DELETE FROM articles").run();
+    }
+
+    // Cloudflare D1 batch has a limit of 100 statements per call. Chunk by 80.
+    const CHUNK_SIZE = 80;
+    const now = Date.now();
+    for (let i = 0; i < validArticles.length; i += CHUNK_SIZE) {
+      const chunk = validArticles.slice(i, i + CHUNK_SIZE);
+      const statements = chunk.map((article) => {
+        const mediaJson = JSON.stringify(article.media || []);
+        const tagsJson = JSON.stringify(article.tags || []);
+        const musicJson = article.music ? JSON.stringify(article.music) : null;
+        return db
+          .prepare(
+            `INSERT OR REPLACE INTO articles 
+             (time, content, media, tags, location, music, created_at, updated_at) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+          )
+          .bind(
+            article.time,
+            article.content || "",
+            mediaJson,
+            tagsJson,
+            article.location || "",
+            musicJson,
+            article.time,
+            now
+          );
+      });
+      await db.batch(statements);
+    }
+
+    const { articles: allArticles, sha } = await getD1Articles(env);
+    return {
+      count: validArticles.length,
+      total: allArticles.length,
+      sha,
+    };
+  }
+
+  // If in production mode and D1 is not bound, reject!
+  if (env.DEV_MODE !== "true") {
+    throw new Error(
+      "未检测到 Cloudflare D1 数据库绑定！请在 Cloudflare Pages 控制台（Settings -> Functions -> D1 database bindings）将 D1 数据库绑定为变量名 'DB'，或在环境变量中配置 CF_D1_DATABASE_ID，然后重新部署。"
+    );
+  }
+
+  // In-memory fallback ONLY for unit tests
+  if (mode === "overwrite") {
+    inMemoryArticles = [...validArticles].sort((a, b) => b.time - a.time);
+  } else {
+    const map = new Map<number, Article>();
+    for (const a of inMemoryArticles) {
+      map.set(a.time, a);
+    }
+    for (const a of validArticles) {
+      map.set(a.time, a);
+    }
+    inMemoryArticles = Array.from(map.values()).sort((a, b) => b.time - a.time);
+  }
+
+  return {
+    count: validArticles.length,
+    total: inMemoryArticles.length,
+    sha: computeArticlesSha(inMemoryArticles),
+  };
+}

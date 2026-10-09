@@ -1,10 +1,10 @@
 import * as babelParser from "@babel/parser";
-import {
+import type {
   Article,
   ArticleMedia,
   ArticleMusic,
-  generateArticleFingerprint,
 } from "../../types/article";
+import { generateArticleFingerprint } from "../../types/article";
 
 export interface ArticleNodeInfo {
   start: number;
@@ -332,11 +332,22 @@ function findArticleArrayNode(ast: any): { arrayNode: any; exportName: string } 
         const init = v.init?.type === "TSAsExpression" ? v.init.expression : v.init;
         if (init?.type === "ArrayExpression") {
           const name = v.id?.name || "";
-          if (name === "moments" || name === "articles" || name === "posts") {
+          if (name === "moments" || name === "articles" || name === "posts" || !candidateArray) {
             candidateArray = init;
             candidateName = name;
           }
         }
+      }
+    }
+
+    // 4. Naked array expression: [ { ... } ]
+    if (statement.type === "ExpressionStatement") {
+      const expr = statement.expression?.type === "TSAsExpression"
+        ? statement.expression.expression
+        : statement.expression;
+      if (expr?.type === "ArrayExpression" && !candidateArray) {
+        candidateArray = expr;
+        candidateName = "moments";
       }
     }
   }
