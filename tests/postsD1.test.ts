@@ -65,3 +65,16 @@ it('round-trips bilingual JSON through D1, editing only one language and retaini
   expect(stored.date).toBe(post.date);
   expect(stored.source_path).toBe('blog/bi.md');
 });
+it('keeps dedicated blog and Moments bindings isolated in direct D1 mode', async () => {
+  const moments = database();
+  const blog = database();
+  const env = { DB: moments.db, BLOG_DB: blog.db, DEV_MODE: 'true' };
+  const post = { id: 'separate', title: 'Blog', summary: '', content: 'Body', date: '2026-10-10', tags: [] };
+  const response = await handlePosts({ env, request: new Request('http://localhost/api/posts/publish', { method: 'POST', body: JSON.stringify({ post }) }) }, 'publish');
+  expect(response.status).toBe(200);
+  expect(blog.sqlite.prepare('SELECT id FROM articles').get()?.id).toBe('separate');
+  expect(moments.sqlite.prepare("SELECT name FROM sqlite_master WHERE name = 'articles'").get()).toBeUndefined();
+  await saveD1Article(env, { time: 456, content: 'Moment', media: [], tags: [], location: '' });
+  expect((await getD1Articles(env)).articles).toHaveLength(1);
+  expect(blog.sqlite.prepare("SELECT name FROM sqlite_master WHERE name = 'oblivion_cms_moments'").get()).toBeUndefined();
+});

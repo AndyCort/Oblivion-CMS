@@ -217,7 +217,7 @@ CMS 的说说数据默认保存在独立表 `oblivion_cms_moments` 中，首次�
 
 - Pages 服务端设置 `BLOG_WORKER_URL` 和 Secret `BLOG_PUBLISH_SECRET`，后者与 `oblivion-content` 的 `PUBLISH_SECRET` 相同。不要使用 `VITE_` 前缀。
 - 博客管理接口严格校验 Access JWT 的签名、issuer 与 audience，配置 `CF_ACCESS_TEAM_DOMAIN`、`CF_ACCESS_AUD`，并用 Access 保护 CMS 域名。
-- **编辑既有 Worker 文章还需将博客的同一 D1 绑定到 Pages**。当前 Worker 隐藏 `source_path`，而 upsert 会覆盖这个字段；CMS 从 D1 读取该映射后原样传回。没有绑定时拒绝更新，以免破坏 Obsidian/原始 Markdown 文件的 ID 映射。创建、读取和删除可仅通过 Worker 工作。
+- **编辑既有 Worker 文章还需将博客的同一 D1 以 `BLOG_DB` 名称绑定到 Pages，并重新部署**。说说继续使用 `DB`；`BLOG_DB` 是数据库绑定，不是文本环境变量。未配置 `BLOG_DB` 时兼容原有 D1 配置。当前 Worker 隐藏 `source_path`，而 upsert 会覆盖这个字段；CMS 从 D1 读取该映射后原样传回。没有绑定时拒绝更新，以免破坏 Obsidian/原始 Markdown 文件的 ID 映射。创建、读取和删除可仅通过 Worker 工作。
 - 不设置 Worker URL 时，复用原有 D1 绑定/REST API 配置，按博客结构创建 `articles`。不会修改 `oblivion_cms_moments`。如果 `articles` 仍为旧动态结构则拒绝操作，不覆盖旧数据。
 - D1 直连不会调用 Worker 的缓存清理，界面会提示这一点。配置了 Worker 后的网络或认证失败不会退回模拟成功。
 - 仅 localhost 显式启用开发认证时使用服务端内存模拟；纯 Vite 本地运行也有明确标记的内存适配器。模拟发布不是上线，刷新/重启可能丢失；IndexedDB 草稿仍保留。

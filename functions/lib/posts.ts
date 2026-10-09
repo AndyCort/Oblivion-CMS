@@ -1,6 +1,6 @@
 import { filterPosts, postTagCounts } from '../../src/lib/postsList';
 import { verifyBlogAccess } from './access';
-import { getD1Database, type D1Database } from './d1';
+import { getD1Database, isD1DatabaseInstance, type D1Database } from './d1';
 import { validatePost, decodePostText, postTextFields, type PostText, type BlogPost } from '../../src/types/post';
 
 type Env = Record<string, any>;
@@ -72,8 +72,29 @@ async function worker(env: Env, path: string, body?: unknown): Promise<any> {
   return data;
 }
 const storeText = (value: PostText) => typeof value === 'string' ? value : JSON.stringify(value);
+function blogDatabase(env: Env): D1Database | null {
+  // A dedicated blog binding must never silently fall back to the Moments DB.
+  if (env.BLOG_DB !== undefined) {
+    if (!isD1DatabaseInstance('BLOG_DB', env.BLOG_DB)) throw new HttpError(503, 'BLOG_DB 必须是 D1 数据库绑定，不能是文本环境变量或 Worker Service binding');
+    return env.BLOG_DB;
+  }
+  return getD1Database(env).db;
+}
+async function originalSourcePath(db: D1Database, id: string): Promise<string | undefined> {
+  let row: { source_path: string | null } | null;
+  try {
+    row = await db.prepare('SELECT source_path FROM articles WHERE id = ?').bind(id).first<{ source_path: string | null }>();
+  } catch (err) {
+    const message = err instanceof Error ? err.message : '';
+    if (/no such table/i.test(message)) throw new HttpError(503, '博客 D1 绑定中没有 articles 表。请在 CMS 的 D1 绑定中添加 BLOG_DB，选择 oblivion-content Worker 实际使用的同一数据库，然后重新部署；不要选择说说数据库');
+    if (/no such column|has no column/i.test(message)) throw new HttpError(503, '博客 D1 的 articles 表缺少 id 或 source_path 字段。请先核对 BLOG_DB 是否指向 Worker 同一数据库；若确为同库，请核对博客 Worker 的表结构迁移。CMS 已停止发布，避免丢失原始文件映射');
+    throw err;
+  }
+  if (!row) throw new HttpError(409, '博客 D1 中找不到 Worker 返回的文章，请确认 BLOG_DB 与 Worker 绑定的是同一数据库');
+  return row.source_path || undefined;
+}
 async function database(env: Env): Promise<D1Database | null> {
-  const { db } = getD1Database(env);
+  const db = blogDatabase(env);
   if (db) {
     await db.prepare(postSchema).run();
     const columns = await db.prepare('PRAGMA table_info(articles)').all<{ name: string }>();
@@ -141,12 +162,10 @@ export async function handlePosts(context: Context, action: 'list' | 'get' | 'pu
       // when available, otherwise block edits of existing posts to avoid breaking raw-file mappings.
       let sourcePath: string | undefined;
       if (post && exists) {
-        const binding = getD1Database(env).db;
-        if (!binding) throw new HttpError(503, '编辑现有文章需要绑定博客同一 D1，以保留 source_path 文件映射');
+        const binding = blogDatabase(env);
+        if (!binding) throw new HttpError(503, '编辑现有文章需要添加 BLOG_DB D1 绑定，选择博客 Worker 同一数据库，以保留 source_path 文件映射');
         stage = '读取 D1 原始文件映射';
-        const row = await binding.prepare('SELECT source_path FROM articles WHERE id = ?').bind(post.id).first<{ source_path: string | null }>();
-        if (!row) throw new HttpError(409, 'D1 绑定与博客 Worker 数据不一致');
-        sourcePath = row.source_path || undefined;
+        sourcePath = await originalSourcePath(binding, post.id);
       }
       stage = '发布到博客 Worker';
       await worker(env, '/api/publish', { articles: post ? [{ ...post, ...(sourcePath ? { sourcePath } : {}) }] : [], activeIds });

@@ -151,3 +151,33 @@ it('applies tag, cover and time filters before pagination across the whole Worke
   expect(data.posts.map((p: BlogPost) => p.id)).toEqual(['article-18', 'article-24']);
   expect(data.tags).toContainEqual({ tag: 'topic', count: 8 });
 });
+
+it('prefers BLOG_DB over the Moments DB when preserving source paths', async () => {
+  const fetcher = vi.fn(async (_url, options) => Response.json(options.method === 'POST' ? { ok: true } : { articles: [post] }));
+  vi.stubGlobal('fetch', fetcher);
+  const wrongDb = { prepare: vi.fn(() => { throw new Error('no such table: articles'); }) };
+  const blogDb = { prepare: () => ({ bind: () => ({ first: async () => ({ source_path: 'blog/original.md' }) }) }) };
+  const response = await handlePosts(context('/publish', { post, originalId: post.id }, { ...env, DB: wrongDb, BLOG_DB: blogDb }), 'publish');
+  expect(response.status).toBe(200);
+  expect(wrongDb.prepare).not.toHaveBeenCalled();
+  expect(JSON.parse(fetcher.mock.calls[1][1].body).articles[0].sourcePath).toBe('blog/original.md');
+});
+
+it.each(['no such table: articles', 'no such column: source_path'])('blocks writes and explains a mismatched blog schema: %s', async message => {
+  const fetcher = vi.fn(async () => Response.json({ articles: [post] }));
+  vi.stubGlobal('fetch', fetcher);
+  const db = { prepare: () => ({ bind: () => ({ first: async () => { throw new Error(message); } }) }) };
+  const response = await handlePosts(context('/publish', { post, originalId: post.id }, { ...env, BLOG_DB: db }), 'publish');
+  expect(response.status).toBe(503);
+  expect((await response.json()).error).toContain('BLOG_DB');
+  expect(fetcher).toHaveBeenCalledTimes(1);
+});
+
+it('rejects a text BLOG_DB value instead of falling back to another database', async () => {
+  const fetcher = vi.fn(async () => Response.json({ articles: [post] }));
+  vi.stubGlobal('fetch', fetcher);
+  const response = await handlePosts(context('/publish', { post, originalId: post.id }, { ...env, BLOG_DB: 'oblivion-content' }), 'publish');
+  expect(response.status).toBe(503);
+  expect((await response.json()).error).toContain('不能是文本环境变量');
+  expect(fetcher).toHaveBeenCalledTimes(1);
+});

@@ -220,6 +220,7 @@ export function getD1Database(env: Record<string, any>): {
 
   // 3. Scan all remaining environment keys for any valid D1 database
   for (const [key, val] of Object.entries(env)) {
+    if (key === "BLOG_DB") continue; // Reserved for Posts; never use it as the Moments database.
     if (isD1DatabaseInstance(key, val)) {
       return { db: val as D1Database, mode: "native", bindingName: key };
     }
