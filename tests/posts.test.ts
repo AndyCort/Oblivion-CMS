@@ -28,7 +28,7 @@ describe('Worker bridge', () => {
     expect(calls[0].url).toContain('_cms=');
     expect(calls[0].options?.headers).not.toHaveProperty('x-publish-secret');
     expect(calls[1].options?.headers).toHaveProperty('x-publish-secret', env.BLOG_PUBLISH_SECRET);
-    expect(calls[1].options?.redirect).toBe('error');
+    expect(calls[1].options?.redirect).toBe('manual');
     expect(await response.text()).not.toContain(env.BLOG_PUBLISH_SECRET);
   });
   it('deletes only the target through publish, including the last article', async () => {
@@ -85,5 +85,46 @@ describe('local mock lifecycle', () => {
     expect(await list.json()).toMatchObject({ total: 1, mode: 'mock' });
     expect((await handlePosts(context('', undefined, settings, post.id), 'delete')).status).toBe(200);
     expect((await handlePosts(context('', undefined, settings, post.id), 'get')).status).toBe(404);
+  });
+});
+
+describe('actionable blog diagnostics', () => {
+  it.each([
+    ['missing-scheme.workers.dev', '格式无效'],
+    ['https://content.example/api/publish', '根地址'],
+    ['https://user:secret@content.example', '根地址'],
+  ])('rejects invalid Worker configuration %s before fetching', async (url, expected) => {
+    const fetcher = vi.fn(); vi.stubGlobal('fetch', fetcher);
+    const res = await handlePosts(context('', undefined, { ...env, BLOG_WORKER_URL: url }), 'list');
+    expect(res.status).toBe(503);
+    expect((await res.json()).error).toContain(expected);
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+  it.each([
+    [() => new Response('<html>Login secret</html>', { headers: { 'Content-Type': 'text/html' } }), '网页而非 JSON'],
+    [() => new Response(null, { status: 302, headers: { Location: 'https://login.example' } }), '重定向'],
+    [() => Response.json({ posts: [] }), '列表格式不兼容'],
+    [() => Response.json({ articles: [{ title: 'missing id' }] }), '字符串 id'],
+    [() => new Response('{broken', { headers: { 'Content-Type': 'application/json' } }), '无效 JSON'],
+  ])('diagnoses incompatible responses without disclosing their contents', async (response, expected) => {
+    vi.stubGlobal('fetch', vi.fn(async () => response()));
+    const res = await handlePosts(context(''), 'list');
+    expect(res.status).toBe(502);
+    const text = await res.text();
+    expect(text).toContain(expected);
+    expect(text).not.toContain('Login secret');
+  });
+  it.each([['TimeoutError', 504, '超时'], ['TypeError', 502, '无法连接']])('diagnoses %s', async (name, status, expected) => {
+    vi.stubGlobal('fetch', vi.fn(async () => { const error = new Error('secret internal URL'); error.name = name; throw error; }));
+    const res = await handlePosts(context(''), 'list');
+    expect(res.status).toBe(status);
+    const text = await res.text(); expect(text).toContain(expected); expect(text).not.toContain('secret internal URL');
+  });
+  it('identifies missing D1 columns without echoing raw database errors', async () => {
+    const db = { prepare: () => { throw new Error('D1_ERROR: no such column: date; private credentials'); }, batch: vi.fn(), exec: vi.fn() };
+    const res = await handlePosts(context('', undefined, { DEV_MODE: 'true', DB: db }), 'list');
+    const text = await res.text();
+    expect(text).toContain('D1 表或字段缺失');
+    expect(text).not.toContain('private credentials');
   });
 });

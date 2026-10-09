@@ -20,16 +20,51 @@ function normalize(row: any): BlogPost {
   for (const key of ['title', 'summary', 'content']) {
     if (row[key] !== undefined && (typeof row[key] !== 'string' || /^\s*\{\s*"(?:zh|en)"\s*:/.test(row[key]))) throw new HttpError(422, '此文章包含多语言字段，请使用博客原有发布工具编辑');
   }
-  return { ...row, content: row.content ?? '', tags: typeof row.tags === 'string' ? JSON.parse(row.tags) : row.tags || [], pinned: !!row.pinned };
+  let tags: unknown = row.tags || [];
+  if (typeof tags === 'string') {
+    try { tags = JSON.parse(tags); } catch { throw new HttpError(422, '文章 tags 字段不是有效 JSON，请修复该文章的标签数据'); }
+  }
+  if (!Array.isArray(tags) || tags.some(t => typeof t !== 'string')) throw new HttpError(422, '文章 tags 字段必须为字符串数组');
+  return { ...row, content: row.content ?? '', tags, pinned: !!row.pinned };
 }
 async function worker(env: Env, path: string, body?: unknown): Promise<any> {
-  const url = new URL(path, String(env.BLOG_WORKER_URL).replace(/\/+$/, '') + '/');
-  if (url.protocol !== 'https:' && !['localhost', '127.0.0.1'].includes(url.hostname)) throw new HttpError(503, 'BLOG_WORKER_URL 必须使用 HTTPS');
+  let url: URL;
+  try {
+    url = new URL(String(env.BLOG_WORKER_URL).trim());
+  } catch {
+    throw new HttpError(503, 'BLOG_WORKER_URL 格式无效，请填写完整的 https:// Worker 根地址');
+  }
+  if (url.username || url.password || url.search || url.hash || !['', '/'].includes(url.pathname)) {
+    throw new HttpError(503, 'BLOG_WORKER_URL 应为 Worker 根地址，不要包含 /api 路径、查询参数或账号密码');
+  }
+  if (url.protocol !== 'https:' && !(url.protocol === 'http:' && ['localhost', '127.0.0.1'].includes(url.hostname))) throw new HttpError(503, 'BLOG_WORKER_URL 必须使用 HTTPS');
+  url.pathname = path;
   // Unique read URLs avoid a stale activeIds snapshot from an edge cache.
   if (!body) url.searchParams.set('_cms', crypto.randomUUID());
-  const res = await fetch(url, { method: body ? 'POST' : 'GET', redirect: 'error', signal: AbortSignal.timeout(20000), headers: { Accept: 'application/json', ...(body ? { 'Content-Type': 'application/json', 'x-publish-secret': env.BLOG_PUBLISH_SECRET } : { 'Cache-Control': 'no-cache' }) }, ...(body ? { body: JSON.stringify(body) } : {}) });
-  if (!res.ok) throw new HttpError(res.status === 404 ? 404 : 502, `博客 Worker 请求失败 (${res.status})`);
-  const data = await res.json() as any;
+  let res: Response;
+  let data: any;
+  try {
+    res = await fetch(url, { method: body ? 'POST' : 'GET', redirect: 'manual', signal: AbortSignal.timeout(20000), headers: { Accept: 'application/json', ...(body ? { 'Content-Type': 'application/json', 'x-publish-secret': env.BLOG_PUBLISH_SECRET } : { 'Cache-Control': 'no-cache' }) }, ...(body ? { body: JSON.stringify(body) } : {}) });
+    if (res.status >= 300 && res.status < 400) throw new HttpError(502, '博客 Worker 返回重定向，请检查 Worker 地址及其 Cloudflare Access 登录保护；CMS 不会将发布密钥转发到重定向地址');
+    if (!res.ok) {
+      const hint = res.status === 401 || res.status === 403
+        ? body ? '请核对 BLOG_PUBLISH_SECRET 与 Worker 的 PUBLISH_SECRET，并检查 Worker 的 Access 策略' : '读取文章不使用发布密钥，请检查 Worker 的 Access 或访问限制'
+        : res.status === 404 ? '请确认地址指向 oblivion-content，且已部署 /api/articles 和 /api/publish 接口'
+        : '请查看 oblivion-content 的运行日志及 D1 绑定';
+      throw new HttpError(res.status === 404 ? 404 : 502, `博客 Worker 请求失败 (${res.status})：${hint}`);
+    }
+    if (!(res.headers.get('Content-Type') || '').toLowerCase().includes('json')) throw new HttpError(502, '博客 Worker 返回了网页而非 JSON，请检查 BLOG_WORKER_URL 是否误填为博客前台或 CMS 地址，以及 Worker 是否要求 Access 登录');
+    try { data = await res.json(); } catch (err) {
+      if (err instanceof Error && ['TimeoutError', 'AbortError'].includes(err.name)) throw err;
+      throw new HttpError(502, '博客 Worker 返回了无效 JSON，请检查已部署的 Worker 接口');
+    }
+  } catch (err) {
+    if (err instanceof HttpError) throw err;
+    if (err instanceof Error && ['TimeoutError', 'AbortError'].includes(err.name)) throw new HttpError(504, '博客 Worker 请求超时（20 秒），请检查 Worker 是否可访问；若正在发布，请先刷新列表确认结果');
+    throw new HttpError(502, '无法连接博客 Worker，请检查 BLOG_WORKER_URL 的域名、DNS、证书和 Worker 是否已部署');
+  }
+  if (!data || typeof data !== 'object') throw new HttpError(502, '博客 Worker 响应格式不兼容：预期 JSON 对象');
+  if (!body && path === '/api/articles' && (!Array.isArray(data.articles) || data.articles.some((p: any) => !p || typeof p.id !== 'string'))) throw new HttpError(502, '博客 Worker 列表格式不兼容：预期 { articles: [...] }，且每篇文章必须包含字符串 id');
   if (body && data.ok !== true && data.success !== true) throw new HttpError(502, '博客 Worker 未确认发布成功');
   return data;
 }
@@ -46,14 +81,20 @@ export async function handlePosts(context: Context, action: 'list' | 'get' | 'pu
   const { request, env } = context;
   const auth = await verifyBlogAccess(request, env);
   if (!auth.user || auth.error) return json({ error: auth.error || 'Unauthorized' }, auth.status);
+  let stage = '读取博客配置';
   try {
     const remote = !!env.BLOG_WORKER_URL;
     if (remote && (action === 'publish' || action === 'delete') && !env.BLOG_PUBLISH_SECRET) throw new HttpError(503, '请配置 BLOG_PUBLISH_SECRET');
+    stage = '检查博客 D1 表结构';
     const db = remote ? null : await database(env);
     const mock = !remote && !db;
     if (mock && !auth.user.isMock) throw new HttpError(503, '请配置博客 Worker 或 D1 数据库');
-    const list = async (): Promise<any[]> => remote ? (await worker(env, '/api/articles')).articles : db ? (await db.prepare('SELECT * FROM articles ORDER BY pinned DESC, date DESC, id ASC').all()).results || [] : [...mockPosts.values()];
+    const list = async (): Promise<any[]> => {
+      stage = remote ? '读取 Worker 文章列表' : '读取 D1 文章列表';
+      return remote ? (await worker(env, '/api/articles')).articles : db ? (await db.prepare('SELECT * FROM articles ORDER BY pinned DESC, date DESC, id ASC').all()).results || [] : [...mockPosts.values()];
+    };
     const detail = async (id: string): Promise<BlogPost> => {
+      stage = remote ? '读取 Worker 文章详情' : '读取 D1 文章详情';
       const row = remote ? await worker(env, `/api/articles/${encodeURIComponent(id)}`) : db ? await db.prepare('SELECT * FROM articles WHERE id = ?').bind(id).first() : mockPosts.get(id);
       if (!row) throw new HttpError(404, '文章不存在');
       return normalize(row);
@@ -93,12 +134,15 @@ export async function handlePosts(context: Context, action: 'list' | 'get' | 'pu
       if (post && exists) {
         const binding = getD1Database(env).db;
         if (!binding) throw new HttpError(503, '编辑现有文章需要绑定博客同一 D1，以保留 source_path 文件映射');
+        stage = '读取 D1 原始文件映射';
         const row = await binding.prepare('SELECT source_path FROM articles WHERE id = ?').bind(post.id).first<{ source_path: string | null }>();
         if (!row) throw new HttpError(409, 'D1 绑定与博客 Worker 数据不一致');
         sourcePath = row.source_path || undefined;
       }
+      stage = '发布到博客 Worker';
       await worker(env, '/api/publish', { articles: post ? [{ ...post, ...(sourcePath ? { sourcePath } : {}) }] : [], activeIds });
     } else if (db) {
+      stage = '写入博客 D1';
       const stmt = post ? db.prepare(`INSERT INTO articles (id,title,summary,content,date,tags,cover,author,pinned,chars,updated_at)
         VALUES (?,?,?,?,?,?,?,?,?,?,datetime('now')) ON CONFLICT(id) DO UPDATE SET title=excluded.title,summary=excluded.summary,content=excluded.content,date=excluded.date,tags=excluded.tags,cover=excluded.cover,author=excluded.author,pinned=excluded.pinned,chars=excluded.chars,updated_at=datetime('now')`).bind(post.id,post.title,post.summary,post.content,post.date,JSON.stringify(post.tags),post.cover,post.author,post.pinned ? 1 : 0,post.chars) : db.prepare('DELETE FROM articles WHERE id = ?').bind(id);
       const result = await stmt.run();
@@ -106,6 +150,16 @@ export async function handlePosts(context: Context, action: 'list' | 'get' | 'pu
     } else if (post) mockPosts.set(post.id, post); else mockPosts.delete(id);
     return json({ success: true, post, mode: remote ? 'worker' : mock ? 'mock' : 'd1' });
   } catch (err) {
-    return json({ error: err instanceof HttpError ? err.message : '博客操作失败，请检查 Worker / D1 配置后重试' }, err instanceof HttpError ? err.status : 500);
+    if (err instanceof HttpError) return json({ error: err.message }, err.status);
+    // Classify known driver errors without exposing upstream bodies, credentials or SQL values.
+    const message = err instanceof Error ? err.message : '';
+    const reason = /no such table|no such column|has no column/i.test(message)
+      ? 'D1 表或字段缺失，请确认绑定的是博客同一数据库，且 articles 为博客表结构（包含 id、title、date、source_path 等字段）'
+      : /unauthorized|forbidden|authentication|authorization|\b401\b|\b403\b/i.test(message)
+      ? 'D1 访问被拒绝，请检查 D1 绑定或 REST API Token 的权限'
+      : /constraint|unique/i.test(message)
+      ? 'D1 数据约束冲突，请检查文章 ID 或原始文件映射是否重复'
+      : '请检查对应 Worker / D1 的配置和运行日志';
+    return json({ error: `${stage}失败：${reason}` }, 500);
   }
 }
