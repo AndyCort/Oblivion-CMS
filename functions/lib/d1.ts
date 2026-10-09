@@ -598,33 +598,63 @@ export async function batchImportD1Articles(
       await db.prepare("DELETE FROM articles").run();
     }
 
-    // Cloudflare D1 batch has a limit of 100 statements per call. Chunk by 80.
-    const CHUNK_SIZE = 80;
+    // In Cloudflare D1 RPC bindings, db.batch(statements) throws:
+    // "Could not serialize object of type 'JsRpcPromise'" because D1PreparedStatement cannot be cloned across RPC.
+    // Instead, we execute multi-row parameterized INSERT OR REPLACE queries (10 rows = 80 params per chunk, safely <= 100 D1 param limit)
+    // with direct .run() execution, with sequential fallback.
+    const CHUNK_SIZE = 10;
     const now = Date.now();
     for (let i = 0; i < validArticles.length; i += CHUNK_SIZE) {
       const chunk = validArticles.slice(i, i + CHUNK_SIZE);
-      const statements = chunk.map((article) => {
-        const mediaJson = JSON.stringify(article.media || []);
-        const tagsJson = JSON.stringify(article.tags || []);
-        const musicJson = article.music ? JSON.stringify(article.music) : null;
-        return db
-          .prepare(
-            `INSERT OR REPLACE INTO articles 
-             (time, content, media, tags, location, music, created_at, updated_at) 
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-          )
-          .bind(
-            article.time,
-            article.content || "",
-            mediaJson,
-            tagsJson,
-            article.location || "",
-            musicJson,
-            article.time,
-            now
-          );
-      });
-      await db.batch(statements);
+      const placeholders = chunk.map(() => "(?, ?, ?, ?, ?, ?, ?, ?)").join(", ");
+      const sql = `INSERT OR REPLACE INTO articles 
+        (time, content, media, tags, location, music, created_at, updated_at) 
+        VALUES ${placeholders}`;
+
+      const params: unknown[] = [];
+      for (const a of chunk) {
+        const mediaJson = JSON.stringify(a.media || []);
+        const tagsJson = JSON.stringify(a.tags || []);
+        const musicJson = a.music ? JSON.stringify(a.music) : null;
+        params.push(
+          a.time,
+          a.content || "",
+          mediaJson,
+          tagsJson,
+          a.location || "",
+          musicJson,
+          a.time,
+          now
+        );
+      }
+
+      try {
+        await db.prepare(sql).bind(...params).run();
+      } catch {
+        // Fallback to sequential individual row insert if multi-row syntax fails on any environment
+        for (const a of chunk) {
+          const mediaJson = JSON.stringify(a.media || []);
+          const tagsJson = JSON.stringify(a.tags || []);
+          const musicJson = a.music ? JSON.stringify(a.music) : null;
+          await db
+            .prepare(
+              `INSERT OR REPLACE INTO articles 
+               (time, content, media, tags, location, music, created_at, updated_at) 
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+            )
+            .bind(
+              a.time,
+              a.content || "",
+              mediaJson,
+              tagsJson,
+              a.location || "",
+              musicJson,
+              a.time,
+              now
+            )
+            .run();
+        }
+      }
     }
 
     const { articles: allArticles, sha } = await getD1Articles(env);
