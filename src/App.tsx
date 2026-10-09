@@ -1,10 +1,7 @@
-import { ContentModeSwitch } from './components/articles/ContentModeSwitch';
-import * as S from './App.styles';
+import { ContentModeSwitch } from "./components/articles/ContentModeSwitch";
+import * as S from "./App.styles";
 import { useState, useEffect, useMemo, useRef, lazy, Suspense } from "react";
-import type {
-  Article,
-  ArticleDraft,
-} from "./types/article";
+import type { Article, ArticleDraft } from "./types/article";
 import { generateArticleFingerprint } from "./types/article";
 import {
   fetchArticles,
@@ -14,11 +11,7 @@ import {
 } from "./lib/api/client";
 import type { FetchArticlesResponse, UserSession } from "./lib/api/client";
 import { LoginPage } from "./components/auth/LoginPage";
-import {
-  saveDraft,
-  getAllDrafts,
-  deleteDraft,
-} from "./lib/storage/draftStore";
+import { saveDraft, getAllDrafts, deleteDraft } from "./lib/storage/draftStore";
 import { ArticleListSidebar } from "./components/articles/ArticleListSidebar";
 import { NineGridMedia } from "./components/media/NineGridMedia";
 import { MusicEditor } from "./components/music/MusicEditor";
@@ -32,22 +25,36 @@ import { ConfigInfoModal } from "./components/modals/ConfigInfoModal";
 
 const PostsWorkspace = lazy(() => import("./components/posts/PostsWorkspace"));
 
-
 export function App() {
   const [contentMode, setContentMode] = useState<"moments" | "posts">(() => {
-    try { return localStorage.getItem("oblivion_content_mode") === "posts" ? "posts" : "moments"; } catch { return "moments"; }
+    try {
+      return localStorage.getItem("oblivion_content_mode") === "posts"
+        ? "posts"
+        : "moments";
+    } catch {
+      return "moments";
+    }
   });
   const [postsOpened, setPostsOpened] = useState(contentMode === "posts");
   function switchContentMode(mode: "moments" | "posts") {
     setContentMode(mode);
     if (mode === "posts") setPostsOpened(true);
-    try { localStorage.setItem("oblivion_content_mode", mode); } catch { /* restricted storage */ }
+    try {
+      localStorage.setItem("oblivion_content_mode", mode);
+    } catch {
+      /* restricted storage */
+    }
   }
   // Server state
-  const [serverData, setServerData] = useState<FetchArticlesResponse | null>(null);
+  const [serverData, setServerData] = useState<FetchArticlesResponse | null>(
+    null,
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [toastMsg, setToastMsg] = useState<{ type: "success" | "error" | "info"; text: string } | null>(null);
+  const [toastMsg, setToastMsg] = useState<{
+    type: "success" | "error" | "info";
+    text: string;
+  } | null>(null);
 
   // Authentication state
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -56,10 +63,14 @@ export function App() {
   const [authError, setAuthError] = useState<string | null>(null);
 
   // Local drafts state (mapped by draft ID)
-  const [draftsMap, setDraftsMap] = useState<Map<string, ArticleDraft>>(new Map());
+  const [draftsMap, setDraftsMap] = useState<Map<string, ArticleDraft>>(
+    new Map(),
+  );
 
   // Active editing state
-  const [selectedFingerprint, setSelectedFingerprint] = useState<string | null>(null);
+  const [selectedFingerprint, setSelectedFingerprint] = useState<string | null>(
+    null,
+  );
   const [isNewArticle, setIsNewArticle] = useState(false);
   const [currentArticle, setCurrentArticle] = useState<Article>({
     time: Date.now(),
@@ -81,7 +92,10 @@ export function App() {
   const [autoSaveStatus, setAutoSaveStatus] = useState<string>("已保存");
 
   // Modals state
-  const [deleteModalArticle, setDeleteModalArticle] = useState<{ article: Article; fp: string } | null>(null);
+  const [deleteModalArticle, setDeleteModalArticle] = useState<{
+    article: Article;
+    fp: string;
+  } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [conflictModalData, setConflictModalData] = useState<{
     isOpen: boolean;
@@ -220,7 +234,9 @@ export function App() {
 
     autoSaveTimerRef.current = setTimeout(async () => {
       try {
-        const draftId = isNewArticle ? "new-draft" : (selectedFingerprint || "new-draft");
+        const draftId = isNewArticle
+          ? "new-draft"
+          : selectedFingerprint || "new-draft";
         const draft: ArticleDraft = {
           id: draftId,
           article: updated,
@@ -297,7 +313,7 @@ export function App() {
       showToast("info", "已载入本地未发布草稿");
     } else {
       const target = serverData?.articles.find(
-        (a) => generateArticleFingerprint(a) === fp
+        (a) => generateArticleFingerprint(a) === fp,
       );
       if (target) {
         setCurrentArticle(target);
@@ -372,7 +388,7 @@ export function App() {
       });
 
       const serverVersion = serverData?.articles.find(
-        (a) => generateArticleFingerprint(a) === selectedFingerprint
+        (a) => generateArticleFingerprint(a) === selectedFingerprint,
       );
       if (serverVersion) {
         setCurrentArticle(serverVersion);
@@ -390,13 +406,17 @@ export function App() {
 
     const isForce = options?.force === true;
     const action = isNewArticle ? "create" : "update";
-    const draftId = isNewArticle ? "new-draft" : (selectedFingerprint || "new-draft");
+    const draftId = isNewArticle
+      ? "new-draft"
+      : selectedFingerprint || "new-draft";
 
     try {
       const res = await publishArticleToServer({
         action,
         article: currentArticle,
-        targetFingerprint: isNewArticle ? undefined : (selectedFingerprint || undefined),
+        targetFingerprint: isNewArticle
+          ? undefined
+          : selectedFingerprint || undefined,
         baseSha: conflictModalData.remoteSha || serverData.sha,
         commitMessage: commitMessageInput.trim() || undefined,
         force: isForce,
@@ -410,7 +430,12 @@ export function App() {
         return next;
       });
 
-      showToast("success", isForce ? `强制覆盖发布成功！${res.commitMessage}` : `发布成功！${res.commitMessage}`);
+      showToast(
+        "success",
+        isForce
+          ? `强制覆盖发布成功！${res.commitMessage}`
+          : `发布成功！${res.commitMessage}`,
+      );
       setCommitMessageInput("");
 
       // Lock on newly published article and exit new mode
@@ -511,7 +536,7 @@ export function App() {
         onLoginSuccess={handleLoginSuccess}
         initialError={authError}
         onRetry={initAuth}
- />
+      />
     );
   }
 
@@ -521,27 +546,26 @@ export function App() {
       <S.TopBar>
         <S.BrandArea>
           {/* Mobile view toggle */}
-          {contentMode === "moments" && (mobileView === "editor" ? (
-            <S.Button
-              type="button"
-              onClick={() => setMobileView("sidebar")}
-
-              title="返回文章列表"
-            >
-              <S.ChevronLeft />
-              <span>列表</span>
-            </S.Button>
-          ) : (
-            <S.Button2
-              type="button"
-              onClick={() => setMobileView("editor")}
-
-              title="前往编辑器"
-            >
-              <S.PenTool />
-              <span>编辑</span>
-            </S.Button2>
-          ))}
+          {contentMode === "moments" &&
+            (mobileView === "editor" ? (
+              <S.Button
+                type="button"
+                onClick={() => setMobileView("sidebar")}
+                title="返回文章列表"
+              >
+                <S.ChevronLeft />
+                <span>列表</span>
+              </S.Button>
+            ) : (
+              <S.Button2
+                type="button"
+                onClick={() => setMobileView("editor")}
+                title="前往编辑器"
+              >
+                <S.PenTool />
+                <span>编辑</span>
+              </S.Button2>
+            ))}
 
           {/* Logo & Brand */}
           <S.InlineGroup>
@@ -550,12 +574,8 @@ export function App() {
             </S.BrandIcon>
             <div>
               <S.InlineGroup>
-                <S.BrandName>
-                  Oblivion-CMS
-                </S.BrandName>
-                <S.VersionBadge>
-                  v1.0
-                </S.VersionBadge>
+                <S.BrandName>Oblivion-CMS</S.BrandName>
+                <S.VersionBadge>v1.0</S.VersionBadge>
               </S.InlineGroup>
             </div>
           </S.InlineGroup>
@@ -573,7 +593,6 @@ export function App() {
                 <S.Button3
                   type="button"
                   onClick={() => setIsConfigModalOpen(true)}
-
                   title="未检测到 Cloudflare D1 绑定，点击查看配置指引"
                 >
                   未绑定 D1
@@ -590,7 +609,7 @@ export function App() {
             <S.LightThemeButton
               type="button"
               onClick={() => setTheme("light")}
-              $variant={((theme === "light")) ? "v0" : "v1"}
+              $variant={theme === "light" ? "v0" : "v1"}
               title="浅色模式"
             >
               <S.Sun />
@@ -598,7 +617,7 @@ export function App() {
             <S.DarkThemeButton
               type="button"
               onClick={() => setTheme("dark")}
-              $variant={((theme === "dark")) ? "v0" : "v1"}
+              $variant={theme === "dark" ? "v0" : "v1"}
               title="深色模式"
             >
               <S.Moon />
@@ -606,7 +625,7 @@ export function App() {
             <S.SystemThemeButton
               type="button"
               onClick={() => setTheme("system")}
-              $variant={((theme === "system")) ? "v0" : "v1"}
+              $variant={theme === "system" ? "v0" : "v1"}
               title="跟随系统"
             >
               <S.Laptop />
@@ -621,7 +640,6 @@ export function App() {
               else if (theme === "dark") setTheme("system");
               else setTheme("light");
             }}
-
             title="切换主题"
           >
             {theme === "light" ? (
@@ -633,42 +651,59 @@ export function App() {
             )}
           </S.MobileThemeButton>
 
-
           {/* System status / config modal button */}
           <S.SettingsButton
             type="button"
             onClick={() => setIsConfigModalOpen(true)}
-
             title="查看连接与鉴权配置"
           >
             <S.Settings />
           </S.SettingsButton>
 
           {/* Logout button */}
-          <S.LogoutButton
-            type="button"
-            onClick={handleLogout}
-
-            title="退出登录"
-          >
+          <S.LogoutButton type="button" onClick={handleLogout} title="退出登录">
             <S.LogOut />
           </S.LogoutButton>
         </S.HeaderActions>
       </S.TopBar>
 
-      {postsOpened && <div hidden={contentMode !== "posts"}><Suspense fallback={<S.P role="status" >正在载入博客编辑器…</S.P>}><PostsWorkspace listNavigation={<ContentModeSwitch mode="posts" onChange={switchContentMode} />} /></Suspense></div>}
-      {contentMode === "moments" && isLoading && <S.LoadingNotice role="status" >正在加载文章…</S.LoadingNotice>}
+      {postsOpened && (
+        <div hidden={contentMode !== "posts"}>
+          <Suspense fallback={<S.P role="status">正在载入博客编辑器…</S.P>}>
+            <PostsWorkspace
+              listNavigation={
+                <ContentModeSwitch mode="posts" onChange={switchContentMode} />
+              }
+            />
+          </Suspense>
+        </div>
+      )}
+      {contentMode === "moments" && isLoading && (
+        <S.LoadingNotice role="status">正在加载文章…</S.LoadingNotice>
+      )}
       {contentMode === "moments" && errorMsg && (
-        <S.ErrorNotice role="alert" >
+        <S.ErrorNotice role="alert">
           <span>{errorMsg}</span>
-          <S.Button12 type="button" onClick={() => loadInitialData()} disabled={isLoading} >重新加载</S.Button12>
+          <S.Button12
+            type="button"
+            onClick={() => loadInitialData()}
+            disabled={isLoading}
+          >
+            重新加载
+          </S.Button12>
         </S.ErrorNotice>
       )}
 
       {/* Toast Alert Banner */}
       {toastMsg && (
         <S.Toast
-          $variant={((toastMsg.type === "success")) ? "v0" : ((toastMsg.type === "error")) ? "v1" : "v2"}
+          $variant={
+            toastMsg.type === "success"
+              ? "v0"
+              : toastMsg.type === "error"
+                ? "v1"
+                : "v2"
+          }
         >
           <S.ToastContent>
             {toastMsg.type === "success" ? (
@@ -684,28 +719,28 @@ export function App() {
       )}
 
       {/* Main Workspace Body */}
-      <S.MomentsWorkspace  $visible={contentMode === "moments"}>
+      <S.MomentsWorkspace $visible={contentMode === "moments"}>
         {/* Left Sidebar: Article List */}
-        <S.MomentsSidebar
-          $variant={((mobileView === "sidebar")) ? "v0" : "v1"}
-        >
+        <S.MomentsSidebar $variant={mobileView === "sidebar" ? "v0" : "v1"}>
           <ArticleListSidebar
-            listNavigation={<ContentModeSwitch mode="moments" onChange={switchContentMode} />}
+            listNavigation={
+              <ContentModeSwitch mode="moments" onChange={switchContentMode} />
+            }
             articles={serverData?.articles || []}
             selectedFingerprint={selectedFingerprint}
             onSelectArticle={handleSelectArticle}
             onNewArticle={handleNewArticle}
             onCloneArticle={handleCloneArticle}
-            onDeleteArticle={(article, fp) => setDeleteModalArticle({ article, fp })}
+            onDeleteArticle={(article, fp) =>
+              setDeleteModalArticle({ article, fp })
+            }
             drafts={draftsMap}
             getFingerprint={generateArticleFingerprint}
- />
+          />
         </S.MomentsSidebar>
 
         {/* Right Content: Editor & Preview */}
-        <S.MomentsEditor
-          $variant={((mobileView === "editor")) ? "v0" : "v1"}
-        >
+        <S.MomentsEditor $variant={mobileView === "editor" ? "v0" : "v1"}>
           <S.EditorContainer>
             {/* D1 Unbound Warning Banner */}
             {serverData && !serverData.isD1 && (
@@ -713,16 +748,19 @@ export function App() {
                 <S.WarningContent>
                   <S.AlertTriangle2 />
                   <div>
-                    <S.Span7>未检测到 Cloudflare D1 数据库绑定（当前为离线模拟模式）</S.Span7>
+                    <S.Span7>
+                      未检测到 Cloudflare D1 数据库绑定（当前为离线模拟模式）
+                    </S.Span7>
                     <S.P2>
-                      您所做的修改当前仅保存在临时内存中，未写入云端 D1 数据库。请在 Cloudflare Pages 绑定 D1 数据库以持久化保存文章。
+                      您所做的修改当前仅保存在临时内存中，未写入云端 D1
+                      数据库。请在 Cloudflare Pages 绑定 D1
+                      数据库以持久化保存文章。
                     </S.P2>
                   </div>
                 </S.WarningContent>
                 <S.Button13
                   type="button"
                   onClick={() => setIsConfigModalOpen(true)}
-
                 >
                   如何绑定 D1
                 </S.Button13>
@@ -732,12 +770,8 @@ export function App() {
             {/* Editor Action Bar / Header */}
             <S.EditorToolbar>
               <S.InlineGroup>
-                <S.Span8>
-                  {isNewArticle ? "撰写新说说" : "编辑说说"}
-                </S.Span8>
-                <S.Span9>
-                  {autoSaveStatus}
-                </S.Span9>
+                <S.Span8>{isNewArticle ? "撰写新说说" : "编辑说说"}</S.Span8>
+                <S.Span9>{autoSaveStatus}</S.Span9>
               </S.InlineGroup>
 
               {/* View Mode Toggle: Edit <-> Preview */}
@@ -746,14 +780,14 @@ export function App() {
                   <S.EditViewButton
                     type="button"
                     onClick={() => setActiveTab("edit")}
-                    $variant={((activeTab === "edit")) ? "v0" : "v1"}
+                    $variant={activeTab === "edit" ? "v0" : "v1"}
                   >
                     编辑
                   </S.EditViewButton>
                   <S.PreviewViewButton
                     type="button"
                     onClick={() => setActiveTab("preview")}
-                    $variant={((activeTab === "preview")) ? "v0" : "v1"}
+                    $variant={activeTab === "preview" ? "v0" : "v1"}
                   >
                     <S.Eye />
                     前台预览
@@ -772,29 +806,26 @@ export function App() {
                     onChange={(newTime) =>
                       updateArticle((prev) => ({ ...prev, time: newTime }))
                     }
- />
+                  />
                   <LocationInput
                     location={currentArticle.location}
                     onChange={(newLoc) =>
                       updateArticle((prev) => ({ ...prev, location: newLoc }))
                     }
                     historicalLocations={historicalLocations}
- />
+                  />
                 </S.MetadataRow>
 
                 {/* Content Textarea with word count & Undo/Redo */}
                 <S.Div23>
                   <S.Div24>
-                    <S.Label>
-                      正文内容 (支持多行与换行)
-                    </S.Label>
+                    <S.Label>正文内容 (支持多行与换行)</S.Label>
                     <S.Div25>
                       <S.Div26>
                         <S.Button16
                           type="button"
                           onClick={handleUndo}
                           disabled={historyIndex <= 0}
-
                           title="撤回 (Undo)"
                         >
                           <S.Undo2 />
@@ -803,15 +834,12 @@ export function App() {
                           type="button"
                           onClick={handleRedo}
                           disabled={historyIndex >= historyStack.length - 1}
-
                           title="重做 (Redo)"
                         >
                           <S.Redo2 />
                         </S.Button16>
                       </S.Div26>
-                      <S.Span10>
-                        {currentArticle.content.length} 字
-                      </S.Span10>
+                      <S.Span10>{currentArticle.content.length} 字</S.Span10>
                     </S.Div25>
                   </S.Div24>
 
@@ -820,8 +848,7 @@ export function App() {
                     onChange={(e) => handleContentChange(e.target.value)}
                     placeholder="分享此刻的所思所想..."
                     rows={6}
-
- />
+                  />
                 </S.Div23>
 
                 {/* 9-Grid Media Manager */}
@@ -831,7 +858,7 @@ export function App() {
                     onChange={(newMedia) =>
                       updateArticle((prev) => ({ ...prev, media: newMedia }))
                     }
- />
+                  />
                 </S.Div27>
 
                 {/* Tags Manager */}
@@ -842,7 +869,7 @@ export function App() {
                       updateArticle((prev) => ({ ...prev, tags: newTags }))
                     }
                     availableTags={availableTags}
- />
+                  />
                 </S.Div27>
 
                 {/* Music Editor */}
@@ -852,7 +879,7 @@ export function App() {
                     onChange={(newMusic) =>
                       updateArticle((prev) => ({ ...prev, music: newMusic }))
                     }
- />
+                  />
                 </S.Div27>
 
                 {/* Commit message custom input */}
@@ -864,23 +891,14 @@ export function App() {
                     type="text"
                     value={commitMessageInput}
                     onChange={(e) => setCommitMessageInput(e.target.value)}
-                    placeholder={
-                      isNewArticle
-                        ? "发表新说说"
-                        : "更新说说内容"
-                    }
-
- />
+                    placeholder={isNewArticle ? "发表新说说" : "更新说说内容"}
+                  />
                 </S.Div28>
 
                 {/* Action Buttons Bar - sticky at bottom on mobile */}
                 <S.Div29>
                   <S.InlineGroup>
-                    <S.Button17
-                      type="button"
-                      onClick={handleRevertChanges}
-
-                    >
+                    <S.Button17 type="button" onClick={handleRevertChanges}>
                       <S.RotateCcw />
                       <span>放弃草稿更改</span>
                     </S.Button17>
@@ -891,10 +909,11 @@ export function App() {
                       type="button"
                       onClick={() => handlePublish()}
                       disabled={isPublishing}
-
                     >
                       <S.UploadCloud2 />
-                      <span>{isPublishing ? "正在发布..." : "发布到数据库"}</span>
+                      <span>
+                        {isPublishing ? "正在发布..." : "发布到数据库"}
+                      </span>
                     </S.Button18>
                   </S.Div30>
                 </S.Div29>
@@ -909,7 +928,6 @@ export function App() {
                   <S.Button19
                     type="button"
                     onClick={() => setActiveTab("edit")}
-
                   >
                     返回编辑
                   </S.Button19>
@@ -917,10 +935,11 @@ export function App() {
                     type="button"
                     onClick={() => handlePublish()}
                     disabled={isPublishing}
-
                   >
                     <S.UploadCloud2 />
-                    <span>{isPublishing ? "正在发布..." : "直接发布此版本"}</span>
+                    <span>
+                      {isPublishing ? "正在发布..." : "直接发布此版本"}
+                    </span>
                   </S.Button20>
                 </S.Div32>
               </S.Div31>
@@ -936,7 +955,7 @@ export function App() {
         onClose={() => setDeleteModalArticle(null)}
         onConfirm={handleConfirmDelete}
         isDeleting={isDeleting}
- />
+      />
 
       <ConflictResolutionModal
         isOpen={conflictModalData.isOpen}
@@ -951,7 +970,7 @@ export function App() {
         remoteSha={conflictModalData.remoteSha}
         clientBaseSha={conflictModalData.clientBaseSha}
         isPublishing={isPublishing}
- />
+      />
 
       <ConfigInfoModal
         isOpen={isConfigModalOpen}
@@ -965,8 +984,7 @@ export function App() {
         userEmail={currentUser?.email || serverData?.user?.email}
         bindingName={serverData?.bindingName}
         envKeys={serverData?.envKeys}
- />
-
+      />
     </S.AppShell>
   );
 }
