@@ -1,4 +1,4 @@
-import { css } from 'styled-components';
+import { css } from "styled-components";
 
 // Shared by both content modes: changing one surface updates the whole CMS.
 export const sidebarSurface = css`
@@ -14,8 +14,12 @@ export const workspaceSidebar = css`
   width: 100%;
   height: calc(100dvh - 56px);
   flex-shrink: 0;
-  @media (min-width: 768px) { width: 320px; }
-  @media (min-width: 1024px) { width: 384px; }
+  @media (min-width: 768px) {
+    width: 320px;
+  }
+  @media (min-width: 1024px) {
+    width: 384px;
+  }
 `;
 
 export const editorSurface = css`
@@ -25,9 +29,15 @@ export const editorSurface = css`
   overflow-y: auto;
   padding: 12px;
   background: color-mix(in oklab, var(--color-stone-50) 50%, transparent);
-  @media (min-width: 640px) { padding: 20px; }
-  @media (min-width: 768px) { padding: 24px; }
-  @media (min-width: 1024px) { padding: 32px; }
+  @media (min-width: 640px) {
+    padding: 20px;
+  }
+  @media (min-width: 768px) {
+    padding: 24px;
+  }
+  @media (min-width: 1024px) {
+    padding: 32px;
+  }
   padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
   &:where(.dark, .dark *) {
     background: color-mix(in oklab, var(--color-stone-950) 50%, transparent);
@@ -41,8 +51,12 @@ export const editorCard = css`
   background: var(--color-white);
   padding: 16px;
   box-shadow: 0 1px 3px rgb(0 0 0 / 0.08);
-  @media (min-width: 640px) { padding: 24px; }
-  @media (min-width: 768px) { padding: 28px; }
+  @media (min-width: 640px) {
+    padding: 24px;
+  }
+  @media (min-width: 768px) {
+    padding: 28px;
+  }
   &:where(.dark, .dark *) {
     border-color: var(--color-stone-800);
     background: var(--color-stone-900);
@@ -57,7 +71,9 @@ export const editorToolbar = css`
   min-height: 40px;
   padding-bottom: 12px;
   border-bottom: 1px solid var(--color-stone-200);
-  &:where(.dark, .dark *) { border-color: var(--color-stone-800); }
+  &:where(.dark, .dark *) {
+    border-color: var(--color-stone-800);
+  }
 `;
 
 export const primaryButton = css`
@@ -74,8 +90,17 @@ export const primaryButton = css`
   white-space: nowrap;
   cursor: pointer;
   box-shadow: 0 1px 3px rgb(0 0 0 / 0.1);
-  transition: background 150ms, transform 150ms;
-  &:hover { background: var(--color-indigo-500); }
-  &:active { transform: scale(.97); }
-  &:disabled { opacity: .5; cursor: not-allowed; }
+  transition:
+    background 150ms,
+    transform 150ms;
+  &:hover {
+    background: var(--color-indigo-500);
+  }
+  &:active {
+    transform: scale(0.97);
+  }
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 `;
