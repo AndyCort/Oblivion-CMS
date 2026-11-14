@@ -302,6 +302,12 @@ export const Div13 = styled.div`
 }
 `;
 
+export const PasskeyHint = styled.p`
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--color-stone-300);
+`;
+
 export const Button = styled.button`
 display: flex;
 width: 100%;

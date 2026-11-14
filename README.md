@@ -28,6 +28,7 @@
   - 当远程仓库在编辑期间被其他人或进程修改时，触发 **409 Conflict** 冲突保护，阻止静默覆盖，并提供本地草稿备份导出与远程最新数据合并指引。
 - **Cloudflare Access 零信任服务端验签**：
   - 后端 Pages Functions 通过 Web Crypto 原生校验 `Cf-Access-Jwt-Assertion` 的 JWKS 签名、Audience、Issuer 与有效期。
+  - 支持 Cloudflare Access 原生 Passkey 登录，绑定与管理在 Access 完成，CMS 沿用现有 JWT 鉴权。
   - GitHub Token 仅保存在 Cloudflare Secrets 中，严禁泄漏至前端 Bundle、Git 或接口响应。
 - **全平台 Safari 与移动端体验优化**：
   - 适配 Mac、iPad、iPhone，支持 iOS 虚拟键盘与 `safe-area-inset` 安全区域。
@@ -178,6 +179,21 @@ npm run build
 #### 保护预览部署域名（防止绕开 Access 规则）
 Cloudflare Pages 默认会为每次提交生成类似 `<hash>.pages.dev` 的预览域名。为了防止未经授权的访问通过默认 Pages 域名绕开 Access：
 - 在 Cloudflare Pages 项目的 **Settings -> Access control** 中直接启用 Access 策略，或者将 Access Application 的域名通配设置为 `*.pages.dev`。
+
+### 可选：通过 Cloudflare Access 启用 Passkey 登录
+
+Cloudflare Access 原生支持 Passkeys，可在 Access 中验证现有身份后绑定通行密钥。CMS 继续使用原有 Access JWT 鉴权，无需新增账号系统、数据库表或环境变量，也无需放开 CMS 域名的 Access 保护。
+
+1. 在 Cloudflare Zero Trust 打开 **Integrations → Identity providers → Add an identity provider**，选择 **Passkeys** 并保存。若已存在，直接检查其设置。可选开启 **Automatically prompt on the login page**。
+2. 打开 **Access controls → Applications → CMS 应用 → Edit → Login methods**。若未启用 **Accept all available identity providers**，将 **Passkeys** 加入允许的登录方式，然后保存。保留现有邮箱/SSO 登录方式以便恢复账号。
+3. 进入 CMS 的 Access 登录页，选择 **Sign in with a passkey → Don't have a passkey? Set one up**。使用已有登录方式验证身份，输入密钥名称，点击 **Add passkey**，按浏览器或系统提示完成绑定。
+4. 后续选择 **Sign in with a passkey**，使用设备指纹、面容、PIN 或支持用户验证的安全密钥登录。使用 **Manage passkeys** 可添加、重命名与删除通行密钥。
+
+绑定 Passkey 不会自动授予 CMS 权限，仍需满足 Access 的允许策略。Passkey 登录不会从其他身份提供商获取用户组或自定义属性；若策略依赖这些属性，需要检查兼容性。删除密钥会阻止后续登录；若还要终止既有 Access 会话，需要另行撤销会话。
+
+上述开关需在 Cloudflare 控制台配置，仅更新 CMS 代码不会启用它。配置后可退出当前 Access 会话或用无痕窗口验证；本地模拟登录不创建真实 Passkey。浏览器中的密钥绑定操作由用户本人完成。
+
+参考：[Cloudflare Access Passkeys 官方文档](https://developers.cloudflare.com/cloudflare-one/integrations/identity-providers/passkeys/)。
 
 ---
 

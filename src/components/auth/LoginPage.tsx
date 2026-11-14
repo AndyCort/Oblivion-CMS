@@ -105,13 +105,13 @@ export const LoginPage: React.FC<LoginPageProps> = ({
               <span>当前状态：等待身份凭证验证</span>
             </S.Div9>
             <S.P2>
-              需通过 Cloudflare Access（邮箱验证码或 SSO 登录）验证身份后方可进入 CMS 编辑器。
+              请通过 Cloudflare Access 验证身份。可在 Access 登录页选择已启用的邮箱验证码、SSO 或 Passkey 通行密钥。
             </S.P2>
           </S.Div8>
 
           {/* Error Banner */}
           {errorMsg && (
-            <S.Div10>
+            <S.Div10 role="alert">
               <S.Div11>
                 <S.AlertCircle />
                 <S.Span2>{errorMsg}</S.Span2>
@@ -150,6 +150,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({
               </span>
               <S.ArrowRight />
             </S.Button>
+
+            {!isLocalHost && (
+              <S.PasskeyHint>
+                使用 Passkey：进入 Access 登录页后选择「Sign in with a passkey」。
+                首次使用可选择「Don't have a passkey? Set one up」，验证身份后绑定。
+                若未显示该选项，需要管理员在 Access 中启用 Passkeys 登录方式。
+              </S.PasskeyHint>
+            )}
 
             {!isLocalHost && (
               <S.Button2

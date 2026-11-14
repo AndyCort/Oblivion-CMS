@@ -5,7 +5,10 @@ import type { Article } from "../../types/article";
 
 interface DeleteConfirmModalProps {
   isOpen: boolean;
-  article: Article | null;
+  article?: Article | null;
+  title?: string;
+  description?: string;
+  previewText?: string;
   onClose: () => void;
   onConfirm: () => void;
   isDeleting: boolean;
@@ -14,11 +17,14 @@ interface DeleteConfirmModalProps {
 export const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({
   isOpen,
   article,
+  title,
+  description,
+  previewText,
   onClose,
   onConfirm,
   isDeleting,
 }) => {
-  if (!isOpen || !article) return null;
+  if (!isOpen || (!article && !previewText)) return null;
 
   return (
     <S.Div>
@@ -29,10 +35,10 @@ export const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({
           </S.Div4>
           <S.Div5>
             <S.H3>
-              确认删除该文章？
+              {title || "确认删除该文章？"}
             </S.H3>
             <S.P>
-              此操作将直接从 Cloudflare D1 数据库中删除该文章记录。
+              {description || "此操作将直接从 Cloudflare D1 数据库中删除该文章记录。"}
             </S.P>
           </S.Div5>
           <S.Button
@@ -46,7 +52,7 @@ export const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({
 
         {/* Content Preview */}
         <S.Div6>
-          {article.content || "（无文本内容）"}
+          {previewText ?? article?.content ?? "（无文本内容）"}
         </S.Div6>
 
         <S.Div7>

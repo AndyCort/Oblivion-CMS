@@ -1,6 +1,29 @@
-import { ContentModeSwitch } from "./components/articles/ContentModeSwitch";
 import * as S from "./App.styles";
 import { useState, useEffect, useMemo, useRef, lazy, Suspense } from "react";
+import {
+  PanelLeft,
+  MessageCircle,
+  FileText,
+  Plus,
+  Sun,
+  Moon,
+  Laptop,
+  Settings,
+  LogOut,
+  PenLine,
+  Columns2,
+  Eye,
+  RotateCcw,
+  Trash2,
+  UploadCloud,
+  Undo2,
+  Redo2,
+  Clock,
+  MapPin,
+  Hash,
+  Music,
+  GitCommitHorizontal,
+} from "lucide-react";
 import type { Article, ArticleDraft } from "./types/article";
 import { generateArticleFingerprint } from "./types/article";
 import {
@@ -14,16 +37,20 @@ import { LoginPage } from "./components/auth/LoginPage";
 import { saveDraft, getAllDrafts, deleteDraft } from "./lib/storage/draftStore";
 import { ArticleListSidebar } from "./components/articles/ArticleListSidebar";
 import { NineGridMedia } from "./components/media/NineGridMedia";
-import { MusicEditor } from "./components/music/MusicEditor";
-import { TagManager } from "./components/tags/TagManager";
-import { LocationInput } from "./components/location/LocationInput";
-import { DateTimePicker } from "./components/time/DateTimePicker";
 import { MomentPreview } from "./components/preview/MomentPreview";
 import { DeleteConfirmModal } from "./components/modals/DeleteConfirmModal";
 import { ConflictResolutionModal } from "./components/modals/ConflictResolutionModal";
 import { ConfigInfoModal } from "./components/modals/ConfigInfoModal";
+import { handleDockWheel, parseTagList } from "./styles/workspace";
 
 const PostsWorkspace = lazy(() => import("./components/posts/PostsWorkspace"));
+
+function formatLocalDateTime(ts: number): string {
+  const d = new Date(ts);
+  if (Number.isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
 
 export function App() {
   const [contentMode, setContentMode] = useState<"moments" | "posts">(() => {
@@ -36,6 +63,9 @@ export function App() {
     }
   });
   const [postsOpened, setPostsOpened] = useState(contentMode === "posts");
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [newPostTrigger, setNewPostTrigger] = useState(0);
+
   function switchContentMode(mode: "moments" | "posts") {
     setContentMode(mode);
     if (mode === "posts") setPostsOpened(true);
@@ -45,6 +75,7 @@ export function App() {
       /* restricted storage */
     }
   }
+
   // Server state
   const [serverData, setServerData] = useState<FetchArticlesResponse | null>(
     null,
@@ -79,6 +110,7 @@ export function App() {
     tags: [],
     location: "",
   });
+  const [tagsInput, setTagsInput] = useState("");
 
   // Undo / Redo history for content
   const [historyStack, setHistoryStack] = useState<string[]>([]);
@@ -86,8 +118,9 @@ export function App() {
 
   // UI state
   const [theme, setTheme] = useState<"light" | "dark" | "system">("system");
-  const [activeTab, setActiveTab] = useState<"edit" | "preview">("edit");
-  const [mobileView, setMobileView] = useState<"sidebar" | "editor">("sidebar");
+  const [momentsView, setMomentsView] = useState<"edit" | "split" | "preview">(
+    "split",
+  );
   const [isPublishing, setIsPublishing] = useState(false);
   const [autoSaveStatus, setAutoSaveStatus] = useState<string>("已保存");
 
@@ -107,6 +140,13 @@ export function App() {
 
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Keep raw tags input synchronized when switching/reverting articles without clobbering trailing commas while typing
+  useEffect(() => {
+    if (parseTagList(tagsInput).join(",") !== currentArticle.tags.join(",")) {
+      setTagsInput(currentArticle.tags.join(", "));
+    }
+  }, [currentArticle.tags]);
+
   // Apply theme
   useEffect(() => {
     const root = document.documentElement;
@@ -122,6 +162,18 @@ export function App() {
       }
     }
   }, [theme]);
+
+  // Keyboard shortcut Ctrl/Cmd + B to toggle list sidebar
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "b") {
+        e.preventDefault();
+        setSidebarOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   // Show auto-dismissing toast
   const showToast = (type: "success" | "error" | "info", text: string) => {
@@ -190,14 +242,12 @@ export function App() {
 
       setServerData(remote);
 
-      // Build drafts map
       const dMap = new Map<string, ArticleDraft>();
       for (const d of localDrafts) {
         dMap.set(d.id, d);
       }
       setDraftsMap(dMap);
 
-      // Select first article by default if none selected
       if (remote.articles.length > 0 && !selectedFingerprint && !isNewArticle) {
         const first = remote.articles[0];
         const fp = generateArticleFingerprint(first);
@@ -206,11 +256,12 @@ export function App() {
         const existingDraft = dMap.get(fp);
         if (existingDraft) {
           setCurrentArticle(existingDraft.article);
+          setHistoryStack([existingDraft.article.content]);
           showToast("info", "已自动恢复该文章的本地未发布草稿");
         } else {
           setCurrentArticle(first);
+          setHistoryStack([first.content]);
         }
-        setHistoryStack([first.content]);
         setHistoryIndex(0);
       }
     } catch (err: any) {
@@ -227,7 +278,7 @@ export function App() {
 
   // Debounced auto-save draft to IndexedDB
   const triggerAutoSave = (updated: Article) => {
-    setAutoSaveStatus("正在保存草稿...");
+    setAutoSaveStatus("保存中…");
     if (autoSaveTimerRef.current) {
       clearTimeout(autoSaveTimerRef.current);
     }
@@ -252,15 +303,17 @@ export function App() {
           return next;
         });
 
-        const timeStr = new Date().toLocaleTimeString();
-        setAutoSaveStatus(`本地已自动保存于 ${timeStr}`);
-      } catch (err) {
-        setAutoSaveStatus("本地保存失败");
+        const timeStr = new Date().toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+        setAutoSaveStatus(`已存 ${timeStr}`);
+      } catch {
+        setAutoSaveStatus("保存失败");
       }
     }, 700);
   };
 
-  // Update current article and trigger draft save
   const updateArticle = (updater: (prev: Article) => Article) => {
     setCurrentArticle((prev) => {
       const next = updater(prev);
@@ -269,11 +322,29 @@ export function App() {
     });
   };
 
+  const updateMusicField = (
+    field: "title" | "artist" | "url",
+    value: string,
+  ) => {
+    updateArticle((prev) => {
+      const merged = {
+        title: prev.music?.title || "",
+        artist: prev.music?.artist || "",
+        url: prev.music?.url || "",
+        [field]: value,
+      };
+      const hasAny =
+        merged.title.trim() || merged.artist.trim() || merged.url.trim();
+      return {
+        ...prev,
+        music: hasAny ? merged : undefined,
+      };
+    });
+  };
+
   // Content change with Undo/Redo tracking
   const handleContentChange = (newContent: string) => {
     updateArticle((prev) => ({ ...prev, content: newContent }));
-
-    // Record history (debounce history points)
     setHistoryStack((prev) => {
       const trimmed = prev.slice(0, historyIndex + 1);
       return [...trimmed, newContent];
@@ -302,9 +373,7 @@ export function App() {
     if (!fp) return;
     setSelectedFingerprint(fp);
     setIsNewArticle(false);
-    setMobileView("editor");
 
-    // Check if draft exists
     const draft = draftsMap.get(fp);
     if (draft) {
       setCurrentArticle(draft.article);
@@ -327,9 +396,7 @@ export function App() {
   const handleNewArticle = () => {
     setIsNewArticle(true);
     setSelectedFingerprint(null);
-    setMobileView("editor");
 
-    // Check if unsaved new draft exists
     const newDraft = draftsMap.get("new-draft");
     if (newDraft) {
       setCurrentArticle(newDraft.article);
@@ -354,7 +421,6 @@ export function App() {
   const handleCloneArticle = (source: Article) => {
     setIsNewArticle(true);
     setSelectedFingerprint(null);
-    setMobileView("editor");
 
     const cloned: Article = {
       ...source,
@@ -422,7 +488,6 @@ export function App() {
         force: isForce,
       });
 
-      // Clear draft on successful publish
       await deleteDraft(draftId);
       setDraftsMap((prev) => {
         const next = new Map(prev);
@@ -438,15 +503,11 @@ export function App() {
       );
       setCommitMessageInput("");
 
-      // Lock on newly published article and exit new mode
       const newFp = generateArticleFingerprint(currentArticle);
       setSelectedFingerprint(newFp);
       setIsNewArticle(false);
 
-      // Close conflict modal if open
       setConflictModalData({ isOpen: false });
-
-      // Refresh articles from server
       await loadInitialData();
     } catch (err: any) {
       if (err.isConflict) {
@@ -476,7 +537,6 @@ export function App() {
         commitMessage: `content: delete article (${deleteModalArticle.fp})`,
       });
 
-      // Delete draft if exists
       await deleteDraft(deleteModalArticle.fp);
       setDraftsMap((prev) => {
         const next = new Map(prev);
@@ -493,7 +553,6 @@ export function App() {
         setIsNewArticle(true);
       }
 
-      // Reload
       await loadInitialData();
     } catch (err: any) {
       showToast("error", `删除失败: ${err.message}`);
@@ -502,7 +561,6 @@ export function App() {
     }
   };
 
-  // Autocomplete tags and locations from all articles
   const availableTags = useMemo(() => {
     const map = new Map<string, number>();
     for (const a of serverData?.articles || []) {
@@ -520,6 +578,45 @@ export function App() {
     }
     return Array.from(set);
   }, [serverData]);
+
+  const isMomentsDirty = useMemo(() => {
+    if (isNewArticle) {
+      return (
+        draftsMap.has("new-draft") ||
+        currentArticle.content.trim().length > 0 ||
+        currentArticle.media.length > 0 ||
+        Boolean(currentArticle.location) ||
+        Boolean(
+          currentArticle.music?.title ||
+            currentArticle.music?.artist ||
+            currentArticle.music?.url,
+        )
+      );
+    }
+    if (!selectedFingerprint) return false;
+    if (draftsMap.has(selectedFingerprint)) return true;
+    const serverArticle = serverData?.articles.find(
+      (a) => generateArticleFingerprint(a) === selectedFingerprint,
+    );
+    return serverArticle
+      ? JSON.stringify(currentArticle) !== JSON.stringify(serverArticle)
+      : false;
+  }, [isNewArticle, selectedFingerprint, draftsMap, currentArticle, serverData]);
+
+  const handleCycleTheme = () => {
+    setTheme((prev) =>
+      prev === "light" ? "dark" : prev === "dark" ? "system" : "light",
+    );
+  };
+
+  const handleRailCreate = () => {
+    if (contentMode === "moments") {
+      handleNewArticle();
+    } else {
+      setPostsOpened(true);
+      setNewPostTrigger((c) => c + 1);
+    }
+  };
 
   if (isCheckingAuth) {
     return (
@@ -542,411 +639,461 @@ export function App() {
 
   return (
     <S.AppShell>
-      {/* Top Navbar */}
-      <S.TopBar>
-        <S.BrandArea>
-          {/* Mobile view toggle */}
-          {contentMode === "moments" &&
-            (mobileView === "editor" ? (
-              <S.Button
-                type="button"
-                onClick={() => setMobileView("sidebar")}
-                title="返回文章列表"
-              >
-                <S.ChevronLeft />
-                <span>列表</span>
-              </S.Button>
-            ) : (
-              <S.Button2
-                type="button"
-                onClick={() => setMobileView("editor")}
-                title="前往编辑器"
-              >
-                <S.PenTool />
-                <span>编辑</span>
-              </S.Button2>
-            ))}
-
-          {/* Logo & Brand */}
-          <S.InlineGroup>
-            <S.BrandIcon>
-              <S.PenTool2 />
-            </S.BrandIcon>
-            <div>
-              <S.InlineGroup>
-                <S.BrandName>Oblivion-CMS</S.BrandName>
-                <S.VersionBadge>v1.0</S.VersionBadge>
-              </S.InlineGroup>
-            </div>
-          </S.InlineGroup>
-
-          {/* D1 Storage status badge */}
-          {contentMode === "moments" && serverData && (
-            <S.DatabaseStatus>
-              <S.Database />
-              <span>Cloudflare D1</span>
-              {serverData.isD1 ? (
-                <S.Span4>
-                  {serverData.d1Mode === "http" ? "REST 直连" : "已联机 (生产)"}
-                </S.Span4>
-              ) : (
-                <S.Button3
-                  type="button"
-                  onClick={() => setIsConfigModalOpen(true)}
-                  title="未检测到 Cloudflare D1 绑定，点击查看配置指引"
-                >
-                  未绑定 D1
-                </S.Button3>
-              )}
-            </S.DatabaseStatus>
-          )}
-        </S.BrandArea>
-
-        {/* Right action controls */}
-        <S.HeaderActions>
-          {/* Desktop 3-option theme switcher */}
-          <S.ThemeSwitcher>
-            <S.LightThemeButton
-              type="button"
-              onClick={() => setTheme("light")}
-              $variant={theme === "light" ? "v0" : "v1"}
-              title="浅色模式"
-            >
-              <S.Sun />
-            </S.LightThemeButton>
-            <S.DarkThemeButton
-              type="button"
-              onClick={() => setTheme("dark")}
-              $variant={theme === "dark" ? "v0" : "v1"}
-              title="深色模式"
-            >
-              <S.Moon />
-            </S.DarkThemeButton>
-            <S.SystemThemeButton
-              type="button"
-              onClick={() => setTheme("system")}
-              $variant={theme === "system" ? "v0" : "v1"}
-              title="跟随系统"
-            >
-              <S.Laptop />
-            </S.SystemThemeButton>
-          </S.ThemeSwitcher>
-
-          {/* Mobile compact single theme cycle button */}
-          <S.MobileThemeButton
+      {/* Left 44px Icon Rail with aligned top-left single-icon list toggle */}
+      <S.LeftRailColumn>
+        <S.RailTopToggleSlot>
+          <S.RailIconButton
             type="button"
-            onClick={() => {
-              if (theme === "light") setTheme("dark");
-              else if (theme === "dark") setTheme("system");
-              else setTheme("light");
-            }}
-            title="切换主题"
+            $active={sidebarOpen}
+            onClick={() => setSidebarOpen((prev) => !prev)}
+            aria-label={sidebarOpen ? "收起列表" : "展开列表"}
+            title={sidebarOpen ? "收起列表 (Ctrl+B)" : "展开列表 (Ctrl+B)"}
           >
-            {theme === "light" ? (
-              <S.Sun2 />
-            ) : theme === "dark" ? (
-              <S.Moon2 />
-            ) : (
-              <S.Laptop2 />
-            )}
-          </S.MobileThemeButton>
+            <PanelLeft size={15} />
+          </S.RailIconButton>
+        </S.RailTopToggleSlot>
 
-          {/* System status / config modal button */}
-          <S.SettingsButton
-            type="button"
-            onClick={() => setIsConfigModalOpen(true)}
-            title="查看连接与鉴权配置"
-          >
-            <S.Settings />
-          </S.SettingsButton>
+        <S.RailNav>
+          <S.RailGroup>
+            <S.RailIconButton
+              type="button"
+              $active={contentMode === "moments"}
+              onClick={() => switchContentMode("moments")}
+              aria-label="说说动态"
+              title="说说动态"
+            >
+              <MessageCircle size={15} />
+            </S.RailIconButton>
+            <S.RailIconButton
+              type="button"
+              $active={contentMode === "posts"}
+              onClick={() => switchContentMode("posts")}
+              aria-label="博客长文"
+              title="博客长文"
+            >
+              <FileText size={15} />
+            </S.RailIconButton>
+            <S.RailMiniDivider />
+            <S.RailIconButton
+              type="button"
+              $primary
+              onClick={handleRailCreate}
+              aria-label={contentMode === "moments" ? "新建说说" : "新建文章"}
+              title={contentMode === "moments" ? "新建说说" : "新建文章"}
+            >
+              <Plus size={15} />
+            </S.RailIconButton>
+          </S.RailGroup>
 
-          {/* Logout button */}
-          <S.LogoutButton type="button" onClick={handleLogout} title="退出登录">
-            <S.LogOut />
-          </S.LogoutButton>
-        </S.HeaderActions>
-      </S.TopBar>
-
-      {postsOpened && (
-        <div hidden={contentMode !== "posts"}>
-          <Suspense fallback={<S.P role="status">正在载入博客编辑器…</S.P>}>
-            <PostsWorkspace
-              listNavigation={
-                <ContentModeSwitch mode="posts" onChange={switchContentMode} />
+          <S.RailGroup>
+            <S.RailIconButton
+              type="button"
+              onClick={() => setIsConfigModalOpen(true)}
+              aria-label="存储状态"
+              title={
+                serverData?.isD1
+                  ? serverData.d1Mode === "http"
+                    ? "Cloudflare D1 (REST 直连)"
+                    : "Cloudflare D1 已联机"
+                  : "未绑定 D1 (离线模拟模式)"
               }
-            />
-          </Suspense>
-        </div>
-      )}
-      {contentMode === "moments" && isLoading && (
-        <S.LoadingNotice role="status">正在加载文章…</S.LoadingNotice>
-      )}
-      {contentMode === "moments" && errorMsg && (
-        <S.ErrorNotice role="alert">
-          <span>{errorMsg}</span>
-          <S.Button12
-            type="button"
-            onClick={() => loadInitialData()}
-            disabled={isLoading}
+            >
+              <S.StatusDot $connected={Boolean(serverData?.isD1)} />
+            </S.RailIconButton>
+            <S.RailIconButton
+              type="button"
+              onClick={handleCycleTheme}
+              aria-label="切换主题"
+              title={
+                theme === "light"
+                  ? "主题：浅色"
+                  : theme === "dark"
+                    ? "主题：深色"
+                    : "主题：跟随系统"
+              }
+            >
+              {theme === "light" ? (
+                <Sun size={15} />
+              ) : theme === "dark" ? (
+                <Moon size={15} />
+              ) : (
+                <Laptop size={15} />
+              )}
+            </S.RailIconButton>
+            <S.RailIconButton
+              type="button"
+              onClick={() => setIsConfigModalOpen(true)}
+              aria-label="系统设置"
+              title="查看连接与鉴权配置"
+            >
+              <Settings size={15} />
+            </S.RailIconButton>
+            <S.RailIconButton
+              type="button"
+              $danger
+              onClick={handleLogout}
+              aria-label="退出登录"
+              title="退出登录"
+            >
+              <LogOut size={15} />
+            </S.RailIconButton>
+          </S.RailGroup>
+        </S.RailNav>
+      </S.LeftRailColumn>
+
+      {/* Main Content Column */}
+      <S.WorkspaceColumn>
+        {toastMsg && (
+          <S.Toast
+            $variant={
+              toastMsg.type === "success"
+                ? "v0"
+                : toastMsg.type === "error"
+                  ? "v1"
+                  : "v2"
+            }
           >
-            重新加载
-          </S.Button12>
-        </S.ErrorNotice>
-      )}
+            <S.ToastContent>
+              {toastMsg.type === "success" ? (
+                <S.CheckCircle />
+              ) : toastMsg.type === "error" ? (
+                <S.AlertTriangle />
+              ) : (
+                <S.Sparkles />
+              )}
+              <S.ToastText>{toastMsg.text}</S.ToastText>
+            </S.ToastContent>
+          </S.Toast>
+        )}
 
-      {/* Toast Alert Banner */}
-      {toastMsg && (
-        <S.Toast
-          $variant={
-            toastMsg.type === "success"
-              ? "v0"
-              : toastMsg.type === "error"
-                ? "v1"
-                : "v2"
-          }
-        >
-          <S.ToastContent>
-            {toastMsg.type === "success" ? (
-              <S.CheckCircle />
-            ) : toastMsg.type === "error" ? (
-              <S.AlertTriangle />
-            ) : (
-              <S.Sparkles />
-            )}
-            <S.ToastText>{toastMsg.text}</S.ToastText>
-          </S.ToastContent>
-        </S.Toast>
-      )}
+        {postsOpened && (
+          <S.PostsSlot $visible={contentMode === "posts"}>
+            <Suspense fallback={<S.P role="status">正在载入博客编辑器…</S.P>}>
+              <PostsWorkspace
+                sidebarOpen={sidebarOpen}
+                newPostTrigger={newPostTrigger}
+                onToast={showToast}
+              />
+            </Suspense>
+          </S.PostsSlot>
+        )}
 
-      {/* Main Workspace Body */}
-      <S.MomentsWorkspace $visible={contentMode === "moments"}>
-        {/* Left Sidebar: Article List */}
-        <S.MomentsSidebar $variant={mobileView === "sidebar" ? "v0" : "v1"}>
-          <ArticleListSidebar
-            listNavigation={
-              <ContentModeSwitch mode="moments" onChange={switchContentMode} />
-            }
-            articles={serverData?.articles || []}
-            selectedFingerprint={selectedFingerprint}
-            onSelectArticle={handleSelectArticle}
-            onNewArticle={handleNewArticle}
-            onCloneArticle={handleCloneArticle}
-            onDeleteArticle={(article, fp) =>
-              setDeleteModalArticle({ article, fp })
-            }
-            drafts={draftsMap}
-            getFingerprint={generateArticleFingerprint}
-          />
-        </S.MomentsSidebar>
-
-        {/* Right Content: Editor & Preview */}
-        <S.MomentsEditor $variant={mobileView === "editor" ? "v0" : "v1"}>
-          <S.EditorContainer>
-            {/* D1 Unbound Warning Banner */}
-            {serverData && !serverData.isD1 && (
-              <S.DatabaseWarning>
-                <S.WarningContent>
-                  <S.AlertTriangle2 />
-                  <div>
-                    <S.Span7>
-                      未检测到 Cloudflare D1 数据库绑定（当前为离线模拟模式）
-                    </S.Span7>
-                    <S.P2>
-                      您所做的修改当前仅保存在临时内存中，未写入云端 D1
-                      数据库。请在 Cloudflare Pages 绑定 D1
-                      数据库以持久化保存文章。
-                    </S.P2>
-                  </div>
-                </S.WarningContent>
-                <S.Button13
+        {/* Moments Workspace */}
+        <S.MomentsWorkspace $visible={contentMode === "moments"}>
+          <S.WorkspaceHeader>
+            <S.HeaderLeft>
+              <S.BrandTitle>Oblivion-CMS</S.BrandTitle>
+              <S.ModePill>{isNewArticle ? "新说说" : "说说动态"}</S.ModePill>
+              <S.StatusTextPill>
+                {autoSaveStatus} · {currentArticle.content.length} 字
+              </S.StatusTextPill>
+              {isMomentsDirty && <S.DirtyBadge>未发布修改</S.DirtyBadge>}
+              {serverData && !serverData.isD1 && (
+                <S.HeaderModeButton
                   type="button"
                   onClick={() => setIsConfigModalOpen(true)}
+                  title="未检测到 Cloudflare D1 绑定，点击查看配置"
                 >
-                  如何绑定 D1
-                </S.Button13>
-              </S.DatabaseWarning>
-            )}
+                  离线模拟
+                </S.HeaderModeButton>
+              )}
+            </S.HeaderLeft>
 
-            {/* Editor Action Bar / Header */}
-            <S.EditorToolbar>
-              <S.InlineGroup>
-                <S.Span8>{isNewArticle ? "撰写新说说" : "编辑说说"}</S.Span8>
-                <S.Span9>{autoSaveStatus}</S.Span9>
-              </S.InlineGroup>
+            <S.HeaderRight>
+              <S.ViewGroup>
+                <S.ViewButton
+                  type="button"
+                  data-active={momentsView === "edit"}
+                  onClick={() => setMomentsView("edit")}
+                >
+                  <PenLine size={12} />
+                  编辑
+                </S.ViewButton>
+                <S.ViewButton
+                  type="button"
+                  data-active={momentsView === "split"}
+                  onClick={() => setMomentsView("split")}
+                >
+                  <Columns2 size={12} />
+                  分屏
+                </S.ViewButton>
+                <S.ViewButton
+                  type="button"
+                  data-active={momentsView === "preview"}
+                  onClick={() => setMomentsView("preview")}
+                >
+                  <Eye size={12} />
+                  预览
+                </S.ViewButton>
+              </S.ViewGroup>
 
-              {/* View Mode Toggle: Edit <-> Preview */}
-              <S.EditorActions>
-                <S.EditorViewSwitcher>
-                  <S.EditViewButton
-                    type="button"
-                    onClick={() => setActiveTab("edit")}
-                    $variant={activeTab === "edit" ? "v0" : "v1"}
-                  >
-                    编辑
-                  </S.EditViewButton>
-                  <S.PreviewViewButton
-                    type="button"
-                    onClick={() => setActiveTab("preview")}
-                    $variant={activeTab === "preview" ? "v0" : "v1"}
-                  >
-                    <S.Eye />
-                    前台预览
-                  </S.PreviewViewButton>
-                </S.EditorViewSwitcher>
-              </S.EditorActions>
-            </S.EditorToolbar>
+              <S.GhostButton
+                type="button"
+                onClick={handleRevertChanges}
+                disabled={!isMomentsDirty}
+                title="放弃未发布的本地修改"
+              >
+                <RotateCcw size={12} />
+                放弃
+              </S.GhostButton>
 
-            {/* Editor Mode */}
-            {activeTab === "edit" ? (
-              <S.EditorCard>
-                {/* Meta details row: Time & Location */}
-                <S.MetadataRow>
-                  <DateTimePicker
-                    time={currentArticle.time}
-                    onChange={(newTime) =>
-                      updateArticle((prev) => ({ ...prev, time: newTime }))
-                    }
-                  />
-                  <LocationInput
-                    location={currentArticle.location}
-                    onChange={(newLoc) =>
-                      updateArticle((prev) => ({ ...prev, location: newLoc }))
-                    }
-                    historicalLocations={historicalLocations}
-                  />
-                </S.MetadataRow>
+              <S.DangerIconButton
+                type="button"
+                onClick={() => {
+                  if (selectedFingerprint) {
+                    setDeleteModalArticle({
+                      article: currentArticle,
+                      fp: selectedFingerprint,
+                    });
+                  }
+                }}
+                disabled={isNewArticle || !selectedFingerprint}
+                aria-label="删除当前说说"
+                title="删除当前说说"
+              >
+                <Trash2 size={13} />
+              </S.DangerIconButton>
 
-                {/* Content Textarea with word count & Undo/Redo */}
-                <S.Div23>
-                  <S.Div24>
-                    <S.Label>正文内容 (支持多行与换行)</S.Label>
-                    <S.Div25>
-                      <S.Div26>
-                        <S.Button16
-                          type="button"
-                          onClick={handleUndo}
-                          disabled={historyIndex <= 0}
-                          title="撤回 (Undo)"
-                        >
-                          <S.Undo2 />
-                        </S.Button16>
-                        <S.Button16
-                          type="button"
-                          onClick={handleRedo}
-                          disabled={historyIndex >= historyStack.length - 1}
-                          title="重做 (Redo)"
-                        >
-                          <S.Redo2 />
-                        </S.Button16>
-                      </S.Div26>
-                      <S.Span10>{currentArticle.content.length} 字</S.Span10>
-                    </S.Div25>
-                  </S.Div24>
+              <S.PublishButton
+                type="button"
+                onClick={() => handlePublish()}
+                disabled={isPublishing || !serverData}
+              >
+                <UploadCloud size={13} />
+                {isPublishing ? "发布中…" : "发布"}
+              </S.PublishButton>
+            </S.HeaderRight>
+          </S.WorkspaceHeader>
 
-                  <S.Textarea
-                    value={currentArticle.content}
-                    onChange={(e) => handleContentChange(e.target.value)}
-                    placeholder="分享此刻的所思所想..."
-                    rows={6}
-                  />
-                </S.Div23>
+          {isLoading && (
+            <S.LoadingNotice role="status">正在加载文章…</S.LoadingNotice>
+          )}
+          {errorMsg && (
+            <S.ErrorNotice role="alert">
+              <span>{errorMsg}</span>
+              <S.RetryButton
+                type="button"
+                onClick={() => loadInitialData()}
+                disabled={isLoading}
+              >
+                重新加载
+              </S.RetryButton>
+            </S.ErrorNotice>
+          )}
 
-                {/* 9-Grid Media Manager */}
-                <S.Div27>
-                  <NineGridMedia
-                    media={currentArticle.media}
-                    onChange={(newMedia) =>
-                      updateArticle((prev) => ({ ...prev, media: newMedia }))
-                    }
-                  />
-                </S.Div27>
+          <S.MomentsBody>
+            <S.MomentsSidebarWrap $open={sidebarOpen}>
+              <ArticleListSidebar
+                articles={serverData?.articles || []}
+                selectedFingerprint={selectedFingerprint}
+                onSelectArticle={handleSelectArticle}
+                onNewArticle={handleNewArticle}
+                onCloneArticle={handleCloneArticle}
+                onDeleteArticle={(article, fp) =>
+                  setDeleteModalArticle({ article, fp })
+                }
+                drafts={draftsMap}
+                getFingerprint={generateArticleFingerprint}
+              />
+            </S.MomentsSidebarWrap>
 
-                {/* Tags Manager */}
-                <S.Div27>
-                  <TagManager
-                    tags={currentArticle.tags}
-                    onChange={(newTags) =>
-                      updateArticle((prev) => ({ ...prev, tags: newTags }))
-                    }
-                    availableTags={availableTags}
-                  />
-                </S.Div27>
+            <S.MomentsCanvasWrap>
+              <S.MomentsSplitGrid data-single={momentsView !== "split"}>
+                {momentsView !== "preview" && (
+                  <S.CanvasPaneCard>
+                    <S.PaneHeader>
+                      <S.PaneTitle>
+                        {isNewArticle ? "撰写新说说" : "正文内容"}
+                      </S.PaneTitle>
+                      <S.PaneMetaGroup>
+                        <S.UndoRedoGroup>
+                          <S.SmallIconButton
+                            type="button"
+                            onClick={handleUndo}
+                            disabled={historyIndex <= 0}
+                            title="撤回 (Undo)"
+                          >
+                            <Undo2 size={13} />
+                          </S.SmallIconButton>
+                          <S.SmallIconButton
+                            type="button"
+                            onClick={handleRedo}
+                            disabled={historyIndex >= historyStack.length - 1}
+                            title="重做 (Redo)"
+                          >
+                            <Redo2 size={13} />
+                          </S.SmallIconButton>
+                        </S.UndoRedoGroup>
+                        <span>{currentArticle.content.length} 字</span>
+                      </S.PaneMetaGroup>
+                    </S.PaneHeader>
 
-                {/* Music Editor */}
-                <S.Div27>
-                  <MusicEditor
-                    music={currentArticle.music}
-                    onChange={(newMusic) =>
-                      updateArticle((prev) => ({ ...prev, music: newMusic }))
-                    }
-                  />
-                </S.Div27>
+                    <S.EditorScrollBody>
+                      <S.Textarea
+                        value={currentArticle.content}
+                        onChange={(e) => handleContentChange(e.target.value)}
+                        placeholder="分享此刻的所思所想..."
+                        rows={8}
+                      />
+                      <S.MediaSection>
+                        <NineGridMedia
+                          media={currentArticle.media}
+                          onChange={(newMedia) =>
+                            updateArticle((prev) => ({
+                              ...prev,
+                              media: newMedia,
+                            }))
+                          }
+                        />
+                      </S.MediaSection>
+                    </S.EditorScrollBody>
+                  </S.CanvasPaneCard>
+                )}
 
-                {/* Commit message custom input */}
-                <S.Div28>
-                  <S.Label2>
-                    自定义发布备注 / 变更说明 (留空将使用默认)
-                  </S.Label2>
-                  <S.Input
-                    type="text"
-                    value={commitMessageInput}
-                    onChange={(e) => setCommitMessageInput(e.target.value)}
-                    placeholder={isNewArticle ? "发表新说说" : "更新说说内容"}
-                  />
-                </S.Div28>
+                {momentsView !== "edit" && (
+                  <S.CanvasPaneCard>
+                    <S.PaneHeader>
+                      <S.PaneTitle>实时前台预览</S.PaneTitle>
+                      <S.PaneMetaGroup>Moments</S.PaneMetaGroup>
+                    </S.PaneHeader>
+                    <S.PreviewScrollBody>
+                      <MomentPreview article={currentArticle} />
+                    </S.PreviewScrollBody>
+                  </S.CanvasPaneCard>
+                )}
+              </S.MomentsSplitGrid>
 
-                {/* Action Buttons Bar - sticky at bottom on mobile */}
-                <S.Div29>
-                  <S.InlineGroup>
-                    <S.Button17 type="button" onClick={handleRevertChanges}>
-                      <S.RotateCcw />
-                      <span>放弃草稿更改</span>
-                    </S.Button17>
-                  </S.InlineGroup>
-
-                  <S.Div30>
-                    <S.Button18
+              {/* Single-line horizontally scrollable always-editable Floating Meta Dock */}
+              <S.FloatingDockWrap>
+                <S.FloatingDockScroll onWheel={handleDockWheel}>
+                  <S.DockPill>
+                    <Clock size={12} />
+                    <input
+                      type="datetime-local"
+                      value={formatLocalDateTime(currentArticle.time)}
+                      onChange={(e) => {
+                        const parsed = new Date(e.target.value).getTime();
+                        if (!Number.isNaN(parsed)) {
+                          updateArticle((prev) => ({ ...prev, time: parsed }));
+                        }
+                      }}
+                      aria-label="发布时间"
+                      style={{ width: "138px" }}
+                    />
+                    <S.DockNowButton
                       type="button"
-                      onClick={() => handlePublish()}
-                      disabled={isPublishing}
+                      onClick={() =>
+                        updateArticle((prev) => ({ ...prev, time: Date.now() }))
+                      }
                     >
-                      <S.UploadCloud2 />
-                      <span>
-                        {isPublishing ? "正在发布..." : "发布到数据库"}
-                      </span>
-                    </S.Button18>
-                  </S.Div30>
-                </S.Div29>
-              </S.EditorCard>
-            ) : (
-              /* Live Preview Mode */
-              <S.Div31>
-                <MomentPreview article={currentArticle} />
+                      此刻
+                    </S.DockNowButton>
+                  </S.DockPill>
 
-                {/* Quick publish bar under preview */}
-                <S.Div32>
-                  <S.Button19
-                    type="button"
-                    onClick={() => setActiveTab("edit")}
-                  >
-                    返回编辑
-                  </S.Button19>
-                  <S.Button20
-                    type="button"
-                    onClick={() => handlePublish()}
-                    disabled={isPublishing}
-                  >
-                    <S.UploadCloud2 />
-                    <span>
-                      {isPublishing ? "正在发布..." : "直接发布此版本"}
-                    </span>
-                  </S.Button20>
-                </S.Div32>
-              </S.Div31>
-            )}
-          </S.EditorContainer>
-        </S.MomentsEditor>
-      </S.MomentsWorkspace>
+                  <S.DockDivider />
+
+                  <S.DockPill>
+                    <MapPin size={12} />
+                    <input
+                      type="text"
+                      list="moments-location-list"
+                      value={currentArticle.location || ""}
+                      onChange={(e) =>
+                        updateArticle((prev) => ({
+                          ...prev,
+                          location: e.target.value,
+                        }))
+                      }
+                      placeholder="地点"
+                      aria-label="发布地点"
+                      style={{ width: "84px" }}
+                    />
+                  </S.DockPill>
+
+                  <S.DockPill>
+                    <Hash size={12} />
+                    <input
+                      type="text"
+                      list="moments-tag-list"
+                      value={tagsInput}
+                      onChange={(e) => {
+                        const raw = e.target.value;
+                        setTagsInput(raw);
+                        updateArticle((prev) => ({
+                          ...prev,
+                          tags: parseTagList(raw),
+                        }));
+                      }}
+                      placeholder="标签 (逗号分隔)"
+                      aria-label="说说标签"
+                      style={{ width: "120px" }}
+                    />
+                  </S.DockPill>
+
+                  <S.DockDivider />
+
+                  <S.DockPill>
+                    <Music size={12} />
+                    <input
+                      type="text"
+                      value={currentArticle.music?.title || ""}
+                      onChange={(e) => updateMusicField("title", e.target.value)}
+                      placeholder="歌名"
+                      aria-label="音乐名称"
+                      style={{ width: "86px" }}
+                    />
+                    <span>·</span>
+                    <input
+                      type="text"
+                      value={currentArticle.music?.artist || ""}
+                      onChange={(e) =>
+                        updateMusicField("artist", e.target.value)
+                      }
+                      placeholder="歌手"
+                      aria-label="歌手"
+                      style={{ width: "68px" }}
+                    />
+                    <span>·</span>
+                    <input
+                      type="url"
+                      value={currentArticle.music?.url || ""}
+                      onChange={(e) => updateMusicField("url", e.target.value)}
+                      placeholder="音频 URL"
+                      aria-label="音频链接"
+                      style={{ width: "120px" }}
+                    />
+                  </S.DockPill>
+
+                  <S.DockDivider />
+
+                  <S.DockPill>
+                    <GitCommitHorizontal size={12} />
+                    <input
+                      type="text"
+                      value={commitMessageInput}
+                      onChange={(e) => setCommitMessageInput(e.target.value)}
+                      placeholder={isNewArticle ? "发布备注 (新说说)" : "发布备注 (可选)"}
+                      aria-label="发布备注"
+                      style={{ width: "128px" }}
+                    />
+                  </S.DockPill>
+                </S.FloatingDockScroll>
+              </S.FloatingDockWrap>
+
+              <datalist id="moments-location-list">
+                {historicalLocations.map((loc) => (
+                  <option key={loc} value={loc} />
+                ))}
+              </datalist>
+              <datalist id="moments-tag-list">
+                {availableTags.map(({ tag }) => (
+                  <option key={tag} value={tag} />
+                ))}
+              </datalist>
+            </S.MomentsCanvasWrap>
+          </S.MomentsBody>
+        </S.MomentsWorkspace>
+      </S.WorkspaceColumn>
 
       {/* Modals */}
       <DeleteConfirmModal
@@ -988,4 +1135,5 @@ export function App() {
     </S.AppShell>
   );
 }
+
 export default App;

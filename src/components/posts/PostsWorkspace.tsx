@@ -8,8 +8,19 @@ import {
   UploadCloud,
   Trash2,
   ArrowLeft,
-  Settings2,
   RefreshCw,
+  PenLine,
+  Columns2,
+  Eye,
+  RotateCcw,
+  Globe,
+  Link2,
+  Calendar,
+  Pin,
+  AlignLeft,
+  Hash,
+  Image as ImageIcon,
+  User,
 } from "lucide-react";
 import {
   emptyPost,
@@ -37,9 +48,11 @@ import {
   savePostDraft,
   deletePostDraft,
 } from "../../lib/storage/draftStore";
-import { TagManager } from "../tags/TagManager";
+import { DeleteConfirmModal } from "../modals/DeleteConfirmModal";
 import { MarkdownPreview } from "./MarkdownPreview";
 import { Workspace } from "./PostsWorkspace.styles";
+import { handleDockWheel, parseTagList } from "../../styles/workspace";
+
 export function slugFromTitle(title: string) {
   return pinyin(title, {
     toneType: "none",
@@ -55,9 +68,20 @@ export function slugFromTitle(title: string) {
     .slice(0, 150)
     .replace(/-$/, "");
 }
+
+interface PostsWorkspaceProps {
+  listNavigation?: ReactNode;
+  sidebarOpen?: boolean;
+  newPostTrigger?: number;
+  onToast?: (type: "success" | "error" | "info", text: string) => void;
+}
+
 export default function PostsWorkspace({
   listNavigation,
-}: { listNavigation?: ReactNode } = {}) {
+  sidebarOpen = true,
+  newPostTrigger = 0,
+  onToast,
+}: PostsWorkspaceProps = {}) {
   const [result, setResult] = useState<PostList>();
   const [query, setQuery] = useState("");
   const [filterDraftOnly, setFilterDraftOnly] = useState(false);
@@ -77,6 +101,8 @@ export default function PostsWorkspace({
   const queue = useRef<Promise<void>>(Promise.resolve());
   const saving = useRef(0);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const prevNewTrigger = useRef(newPostTrigger);
+
   const [ready, setReady] = useState(false);
   const [status, setStatus] = useState("尚未修改");
   const [error, setError] = useState("");
@@ -85,11 +111,14 @@ export default function PostsWorkspace({
   const [loading, setLoading] = useState(false);
   const [mobileEditor, setMobileEditor] = useState(false);
   const [view, setView] = useState<"edit" | "split" | "preview">("split");
-  const [metadata, setMetadata] = useState(true);
   const [language, setLanguage] = useState("zh");
-  const [newLanguage, setNewLanguage] = useState("en");
+  const [newLanguage, setNewLanguage] = useState("");
+  const [tagsInput, setTagsInput] = useState("");
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+
   const textarea = useRef<HTMLTextAreaElement>(null);
   const gutter = useRef<HTMLDivElement>(null);
+
   const post = editor.post;
   const dirty = JSON.stringify(post) !== JSON.stringify(editor.baseline);
   const languages = postLanguages(post);
@@ -97,6 +126,7 @@ export default function PostsWorkspace({
   const summary = textForLanguage(post.summary, language);
   const content = textForLanguage(post.content, language);
   const chars = countChars(content);
+
   const languageLabel = (code: string) =>
     ({
       zh: "中文",
@@ -105,6 +135,19 @@ export default function PostsWorkspace({
       "zh-CN": "简体中文",
       "zh-TW": "繁體中文",
     })[code] || code;
+
+  useEffect(() => {
+    if (parseTagList(tagsInput).join(",") !== post.tags.join(",")) {
+      setTagsInput(post.tags.join(", "));
+    }
+  }, [post.tags]);
+
+  useEffect(() => {
+    if (newPostTrigger > 0 && newPostTrigger !== prevNewTrigger.current) {
+      prevNewTrigger.current = newPostTrigger;
+      void switchEditor();
+    }
+  }, [newPostTrigger]);
 
   function persist(draft: PostDraft): Promise<void> {
     saving.current += 1;
@@ -129,6 +172,7 @@ export default function PostsWorkspace({
     queue.current = operation;
     return operation;
   }
+
   async function flush() {
     clearTimeout(timer.current);
     const draft = pending.current;
@@ -143,6 +187,7 @@ export default function PostsWorkspace({
       throw err;
     }
   }
+
   useEffect(() => {
     let cancelled = false;
     getPostDrafts()
@@ -167,6 +212,7 @@ export default function PostsWorkspace({
       cancelled = true;
     };
   }, []);
+
   useEffect(() => {
     const save = () => {
       if (pending.current) void flush().catch(() => {});
@@ -190,6 +236,7 @@ export default function PostsWorkspace({
       document.removeEventListener("visibilitychange", visibility);
     };
   }, []);
+
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
@@ -214,6 +261,7 @@ export default function PostsWorkspace({
       cancelled = true;
     };
   }, [page, search, revision, selectedTag, coverOnly, sortOrder]);
+
   function change(patch: Partial<BlogPost>) {
     const next = {
       ...current.current,
@@ -233,6 +281,7 @@ export default function PostsWorkspace({
       });
     }, 700);
   }
+
   function activate(next: PostDraft) {
     setLanguage(preferredPostLanguage(next.post));
     current.current = next;
@@ -246,11 +295,13 @@ export default function PostsWorkspace({
     setError("");
     setNotice("");
   }
+
   function editText(field: PostTextField, value: string) {
     change({
       [field]: updatePostText(current.current.post[field], language, value),
     });
   }
+
   function addLanguage(requested = newLanguage) {
     const code = requested.trim();
     try {
@@ -262,6 +313,7 @@ export default function PostsWorkspace({
       setError((err as Error).message);
     }
   }
+
   async function switchEditor(id?: string, draft?: PostDraft) {
     setBusy(true);
     try {
@@ -298,6 +350,7 @@ export default function PostsWorkspace({
       setBusy(false);
     }
   }
+
   async function removeDraft() {
     if (!window.confirm("清空当前本地草稿并放弃未发布修改？")) return;
     setBusy(true);
@@ -310,12 +363,16 @@ export default function PostsWorkspace({
         : emptyPost();
       activate({ ...editor, post: p, baseline: p, updatedAt: 0 });
       setStatus("草稿已清空");
+      onToast?.("info", "已清空本地草稿并恢复原版本");
     } catch (err) {
-      setError((err as Error).message);
+      const msg = (err as Error).message;
+      setError(msg);
+      onToast?.("error", msg);
     } finally {
       setBusy(false);
     }
   }
+
   async function publish() {
     setBusy(true);
     setError("");
@@ -335,32 +392,28 @@ export default function PostsWorkspace({
       current.current = next;
       setEditor(next);
       setRevision((v) => v + 1);
-      setNotice(
+      const msg =
         response.mode === "worker"
           ? "发布成功，Worker 已执行缓存清理流程。"
           : response.mode === "mock"
             ? "已发布到本地临时内存（未上线）。"
-            : "已写入 D1，边缘缓存可能仍需等待过期。",
-      );
+            : "已写入 D1，边缘缓存可能仍需等待过期。";
+      setNotice(msg);
+      onToast?.("success", msg);
       await deletePostDraft(editor.id);
       setDrafts((prev) => prev.filter((d) => d.id !== editor.id));
       setStatus("已发布");
     } catch (err) {
-      setError(
-        `${published ? "文章已发布，但本地草稿清理失败：" : ""}${(err as Error).message}`,
-      );
+      const msg = `${published ? "文章已发布，但本地草稿清理失败：" : ""}${(err as Error).message}`;
+      setError(msg);
+      onToast?.("error", msg);
     } finally {
       setBusy(false);
     }
   }
-  async function remove() {
-    if (
-      !editor.originalId ||
-      !window.confirm(
-        `确定删除「${displayPostText(post.title)}」？此操作会删除线上文章。`,
-      )
-    )
-      return;
+
+  async function confirmRemove() {
+    if (!editor.originalId) return;
     setBusy(true);
     setError("");
     try {
@@ -371,13 +424,18 @@ export default function PostsWorkspace({
       const p = emptyPost();
       activate({ id: crypto.randomUUID(), post: p, baseline: p, updatedAt: 0 });
       setRevision((v) => v + 1);
+      setDeleteConfirmOpen(false);
       setNotice("文章已删除");
+      onToast?.("success", "博客文章已删除");
     } catch (err) {
-      setError((err as Error).message);
+      const msg = (err as Error).message;
+      setError(msg);
+      onToast?.("error", msg);
     } finally {
       setBusy(false);
     }
   }
+
   function shortcut(e: KeyboardEvent<HTMLTextAreaElement>) {
     if (e.nativeEvent.isComposing) return;
     const key = e.key.toLowerCase();
@@ -387,9 +445,9 @@ export default function PostsWorkspace({
     )
       return;
     e.preventDefault();
-    const el = e.currentTarget,
-      start = el.selectionStart,
-      end = el.selectionEnd;
+    const el = e.currentTarget;
+    const start = el.selectionStart;
+    const end = el.selectionEnd;
     const wrap = key === "b" ? "**" : "*";
     const selected = content.slice(start, end);
     const insert =
@@ -405,6 +463,7 @@ export default function PostsWorkspace({
       );
     });
   }
+
   const titleText = displayPostText;
   const visibleDrafts = drafts
     .filter((d) =>
@@ -422,456 +481,344 @@ export default function PostsWorkspace({
     ]),
   ];
   const visiblePosts = filterDraftOnly ? [] : result?.posts || [];
+  const activeLanguages = languages.length ? languages : [language];
+
   return (
     <Workspace className={mobileEditor ? "posts-mobile-editor" : undefined}>
-      <aside className="posts-sidebar">
-        {listNavigation}
-        {error && (
-          <p className="post-error" role="alert">
-            {error}
-          </p>
-        )}
-        <ListUI.Div2>
-          <ListUI.Div3>
-            <ListUI.Div4>
-              <ListUI.H2>文章列表</ListUI.H2>
-              <ListUI.Span>
-                {filterDraftOnly ? visibleDrafts.length : (result?.total ?? 0)}
-              </ListUI.Span>
-            </ListUI.Div4>
-            <ListUI.Button2
-              aria-label="新建文章"
-              disabled={busy || !ready}
-              onClick={() => void switchEditor()}
-            >
-              <Plus size={14} />
-              新建文章
-            </ListUI.Button2>
-          </ListUI.Div3>
-          <ListUI.Div6>
-            <ListUI.Search />
-            <ListUI.Input
-              aria-label="搜索博客"
-              placeholder="搜索标题、摘要、标签…"
-              value={query}
-              onChange={(e) => {
-                setQuery(e.target.value);
-                setPage(1);
-              }}
-            />
-          </ListUI.Div6>
-          <ListUI.Div7>
-            <ListUI.Div8>
-              <ListUI.Button3
-                type="button"
-                aria-pressed={filterDraftOnly}
-                $variant={filterDraftOnly ? "v0" : "v1"}
-                onClick={() => {
-                  setFilterDraftOnly((v) => !v);
-                  setPage(1);
-                }}
-              >
-                草稿 ({drafts.length})
-              </ListUI.Button3>
-              <ListUI.Button4
-                type="button"
-                aria-pressed={coverOnly}
-                $variant={coverOnly ? "v0" : "v1"}
-                onClick={() => {
-                  setCoverOnly((v) => !v);
-                  setPage(1);
-                }}
-              >
-                带封面
-              </ListUI.Button4>
-              {selectedTag && (
-                <ListUI.Button5
-                  type="button"
-                  onClick={() => {
-                    setSelectedTag(null);
-                    setPage(1);
-                  }}
-                >
-                  #{selectedTag} ×
-                </ListUI.Button5>
-              )}
-            </ListUI.Div8>
-            <ListUI.Button6
-              type="button"
-              title="切换时间排序"
-              onClick={() => {
-                setSortOrder((v) => (v === "desc" ? "asc" : "desc"));
-                setPage(1);
-              }}
-            >
-              <ListUI.ArrowUpDown />
-              {sortOrder === "desc" ? "最新优先" : "最早优先"}
-            </ListUI.Button6>
-          </ListUI.Div7>
-          {tags.length > 0 && !selectedTag && (
-            <ListUI.Div8>
-              {tags.slice(0, 6).map((tag) => (
-                <ListUI.Button7
-                  key={tag}
-                  type="button"
-                  onClick={() => {
-                    setSelectedTag(tag);
-                    setPage(1);
-                  }}
-                >
-                  #{tag}
-                </ListUI.Button7>
-              ))}
-            </ListUI.Div8>
+      {/* Unified Top Bar */}
+      <header className="posts-top-header">
+        <div className="posts-header-left">
+          <button
+            type="button"
+            className="posts-back post-ghost-btn"
+            onClick={() => setMobileEditor(false)}
+          >
+            <ArrowLeft size={13} />
+            列表
+          </button>
+          <span className="posts-header-brand">Oblivion-CMS</span>
+          <span className="posts-mode-pill">
+            {editor.originalId ? "博客长文" : "新文章"}
+          </span>
+          <span className="posts-status-pill" role="status">
+            {ready ? status : "恢复草稿中…"} · {chars} 字
+          </span>
+          {dirty && <span className="posts-dirty-pill">未发布修改</span>}
+          {result?.warning && (
+            <span className="posts-warning-pill" role="status">
+              {result.warning}
+            </span>
           )}
-          <div className="posts-list-status">
-            <span role="status">{loading ? "加载中…" : "文章库"}</span>
-            <button
-              type="button"
-              aria-label="刷新文章列表"
-              onClick={() => setRevision((v) => v + 1)}
-            >
-              <RefreshCw size={13} />
-            </button>
+        </div>
+
+        <div className="posts-header-right">
+          <div className="post-view-switch" aria-label="编辑器视图">
+            {(["edit", "split", "preview"] as const).map((v) => (
+              <button
+                key={v}
+                type="button"
+                disabled={busy || !ready}
+                aria-pressed={view === v}
+                data-active={view === v}
+                onClick={() => setView(v)}
+              >
+                {v === "edit" ? (
+                  <PenLine size={12} />
+                ) : v === "split" ? (
+                  <Columns2 size={12} />
+                ) : (
+                  <Eye size={12} />
+                )}
+                {v === "edit" ? "编辑" : v === "split" ? "分屏" : "预览"}
+              </button>
+            ))}
           </div>
-        </ListUI.Div2>
-        <div className="posts-list-scroll">
-          {visibleDrafts.length > 0 && (
-            <details open>
-              <summary>本地草稿 · {visibleDrafts.length}</summary>
-              {visibleDrafts.map((d) => (
-                <button
-                  disabled={busy || !ready}
-                  className={`post-list-card ${editor.id === d.id ? "selected" : ""}`}
-                  key={d.id}
-                  onClick={() => void switchEditor(undefined, d)}
+
+          <button
+            type="button"
+            className="post-ghost-btn"
+            disabled={busy || !ready || !dirty}
+            onClick={() => void removeDraft()}
+            title="清空本地草稿并放弃更改"
+          >
+            <RotateCcw size={12} />
+            放弃
+          </button>
+
+          <button
+            type="button"
+            className="post-danger-btn"
+            disabled={busy || !editor.originalId}
+            onClick={() => setDeleteConfirmOpen(true)}
+            aria-label="删除文章"
+            title="删除文章"
+          >
+            <Trash2 size={13} />
+          </button>
+
+          <button
+            type="button"
+            disabled={busy || !ready}
+            className="post-primary"
+            aria-label="发布文章"
+            onClick={() => void publish()}
+          >
+            <UploadCloud size={13} />
+            {busy ? "处理中…" : "发布"}
+          </button>
+        </div>
+      </header>
+
+      <div className="posts-body">
+        <aside className={`posts-sidebar${sidebarOpen ? "" : " collapsed"}`}>
+          {listNavigation && (
+            <div className="posts-nav-slot">{listNavigation}</div>
+          )}
+          <ListUI.Div2>
+            <ListUI.Div3>
+              <ListUI.Div4>
+                <ListUI.H2>文章列表</ListUI.H2>
+                <ListUI.Span>
+                  {filterDraftOnly ? visibleDrafts.length : (result?.total ?? 0)}
+                </ListUI.Span>
+              </ListUI.Div4>
+              <ListUI.Button2
+                type="button"
+                aria-label="新建文章"
+                disabled={busy || !ready}
+                onClick={() => void switchEditor()}
+              >
+                <Plus size={14} />
+                新建文章
+              </ListUI.Button2>
+            </ListUI.Div3>
+            <ListUI.Div6>
+              <ListUI.Search />
+              <ListUI.Input
+                aria-label="搜索博客"
+                placeholder="搜索标题、摘要、标签…"
+                value={query}
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  setPage(1);
+                }}
+              />
+            </ListUI.Div6>
+            <ListUI.Div7>
+              <ListUI.Div8>
+                <ListUI.Button3
+                  type="button"
+                  aria-pressed={filterDraftOnly}
+                  $variant={filterDraftOnly ? "v0" : "v1"}
+                  onClick={() => {
+                    setFilterDraftOnly((v) => !v);
+                    setPage(1);
+                  }}
                 >
-                  <strong>{titleText(d.post.title) || "未命名文章"}</strong>
+                  草稿 ({drafts.length})
+                </ListUI.Button3>
+                <ListUI.Button4
+                  type="button"
+                  aria-pressed={coverOnly}
+                  $variant={coverOnly ? "v0" : "v1"}
+                  onClick={() => {
+                    setCoverOnly((v) => !v);
+                    setPage(1);
+                  }}
+                >
+                  带封面
+                </ListUI.Button4>
+                {selectedTag && (
+                  <ListUI.Button5
+                    type="button"
+                    onClick={() => {
+                      setSelectedTag(null);
+                      setPage(1);
+                    }}
+                  >
+                    #{selectedTag} ×
+                  </ListUI.Button5>
+                )}
+              </ListUI.Div8>
+              <ListUI.Button6
+                type="button"
+                title="切换时间排序"
+                onClick={() => {
+                  setSortOrder((v) => (v === "desc" ? "asc" : "desc"));
+                  setPage(1);
+                }}
+              >
+                <ListUI.ArrowUpDown />
+                {sortOrder === "desc" ? "最新优先" : "最早优先"}
+              </ListUI.Button6>
+            </ListUI.Div7>
+            {tags.length > 0 && !selectedTag && (
+              <ListUI.Div8>
+                {tags.slice(0, 6).map((tag) => (
+                  <ListUI.Button7
+                    key={tag}
+                    type="button"
+                    onClick={() => {
+                      setSelectedTag(tag);
+                      setPage(1);
+                    }}
+                  >
+                    #{tag}
+                  </ListUI.Button7>
+                ))}
+              </ListUI.Div8>
+            )}
+            <div className="posts-list-status">
+              <span role="status">{loading ? "加载中…" : "文章库"}</span>
+              <button
+                type="button"
+                aria-label="刷新文章列表"
+                onClick={() => setRevision((v) => v + 1)}
+              >
+                <RefreshCw size={13} />
+              </button>
+            </div>
+          </ListUI.Div2>
+
+          <div className="posts-list-scroll">
+            {visibleDrafts.length > 0 && (
+              <details open>
+                <summary>本地草稿 · {visibleDrafts.length}</summary>
+                {visibleDrafts.map((d) => (
+                  <button
+                    type="button"
+                    disabled={busy || !ready}
+                    className={`post-list-card ${editor.id === d.id ? "selected" : ""}`}
+                    key={d.id}
+                    onClick={() => void switchEditor(undefined, d)}
+                  >
+                    <strong>{titleText(d.post.title) || "未命名文章"}</strong>
+                    <span className="post-tag-pills">
+                      {d.post.tags.map((tag) => (
+                        <span className="post-tag-pill" key={tag}>
+                          {tag}
+                        </span>
+                      ))}
+                    </span>
+                    <span className="post-dirty">未发布修改</span>
+                  </button>
+                ))}
+              </details>
+            )}
+            <div className="posts-list">
+              {visiblePosts.map((p) => (
+                <button
+                  type="button"
+                  disabled={busy || !ready}
+                  className={`post-list-card ${editor.originalId === p.id ? "selected" : ""}`}
+                  key={p.id}
+                  onClick={() => void switchEditor(p.id)}
+                >
+                  <small>
+                    {p.pinned ? "置顶 · " : ""}
+                    {p.date}
+                  </small>
+                  <strong>{titleText(p.title)}</strong>
+                  <p>{titleText(p.summary)}</p>
                   <span className="post-tag-pills">
-                    {d.post.tags.map((tag) => (
+                    {p.tags.map((tag) => (
                       <span className="post-tag-pill" key={tag}>
                         {tag}
                       </span>
                     ))}
                   </span>
-                  <span className="post-dirty">未发布修改</span>
+                  {drafts.some((d) => d.originalId === p.id) && (
+                    <span className="post-dirty">未发布修改</span>
+                  )}
                 </button>
               ))}
-            </details>
-          )}
-          <div className="posts-list">
-            {visiblePosts.map((p) => (
-              <button
-                disabled={busy || !ready}
-                className={`post-list-card ${editor.originalId === p.id ? "selected" : ""}`}
-                key={p.id}
-                onClick={() => void switchEditor(p.id)}
-              >
-                <small>
-                  {p.pinned ? "置顶 · " : ""}
-                  {p.date}
-                </small>
-                <strong>{titleText(p.title)}</strong>
-                <p>{titleText(p.summary)}</p>
-                <span className="post-tag-pills">
-                  {p.tags.map((tag) => (
-                    <span className="post-tag-pill" key={tag}>
-                      {tag}
-                    </span>
-                  ))}
-                </span>
-                {drafts.some((d) => d.originalId === p.id) && (
-                  <span className="post-dirty">未发布修改</span>
-                )}
-              </button>
-            ))}
-          </div>
-          {!loading && !visiblePosts.length && !visibleDrafts.length && (
-            <div className="posts-empty">
-              {query || selectedTag || coverOnly || filterDraftOnly
-                ? "暂无符合条件的文章"
-                : "从一篇新文章开始。"}
-              <button
-                disabled={busy || !ready}
-                onClick={() => void switchEditor()}
-              >
-                撰写文章
-              </button>
             </div>
-          )}
-          {!filterDraftOnly && (
-            <div className="posts-pagination">
-              <button
-                disabled={page <= 1 || loading}
-                onClick={() => setPage((p) => p - 1)}
-              >
-                上一页
-              </button>
-              <span>
-                {page} / {Math.max(1, Math.ceil((result?.total || 0) / 20))}
-              </span>
-              <button
-                disabled={!result || page * 20 >= result.total || loading}
-                onClick={() => setPage((p) => p + 1)}
-              >
-                下一页
-              </button>
-            </div>
-          )}
-        </div>
-      </aside>
-      <main className="posts-main">
-        <div className="posts-editor-scroll">
-          <div className="posts-editor-container">
-            {result?.warning && (
-              <p className="post-warning" role="status">
-                {result.warning}
-              </p>
-            )}
-            <div className="posts-toolbar">
-              <button
-                className="posts-back"
-                onClick={() => setMobileEditor(false)}
-              >
-                <ArrowLeft size={16} />
-                列表
-              </button>
-              <div>
-                <strong>{editor.originalId ? "编辑文章" : "撰写新文章"}</strong>
-                <span role="status">{ready ? status : "恢复草稿中…"}</span>
-                {dirty && <small className="post-dirty">未发布修改</small>}
-              </div>
-              <div className="post-view-switch" aria-label="编辑器视图">
-                {(["edit", "split", "preview"] as const).map((v) => (
-                  <button
-                    key={v}
-                    disabled={busy || !ready}
-                    aria-pressed={view === v}
-                    onClick={() => setView(v)}
-                  >
-                    {v === "edit" ? "编辑" : v === "split" ? "分屏" : "预览"}
-                  </button>
-                ))}
-              </div>
-            </div>
-            {error && (
-              <p className="post-error" role="alert">
-                {error}
-                <button onClick={() => setError("")} aria-label="关闭错误">
-                  ×
+            {!loading && !visiblePosts.length && !visibleDrafts.length && (
+              <div className="posts-empty">
+                {query || selectedTag || coverOnly || filterDraftOnly
+                  ? "暂无符合条件的文章"
+                  : "从一篇新文章开始。"}
+                <button
+                  type="button"
+                  disabled={busy || !ready}
+                  onClick={() => void switchEditor()}
+                >
+                  撰写文章
                 </button>
-              </p>
+              </div>
             )}
-            {notice && (
-              <p className="post-notice" role="status">
-                {notice}
-              </p>
-            )}
-            <fieldset disabled={busy || !ready} className="post-editor-fields">
-              <label className="post-field-label" htmlFor="post-title">
-                文章标题
-              </label>
-              <input
-                id="post-title"
-                className="post-title"
-                aria-label="文章标题"
-                placeholder="输入文章标题…"
-                value={title}
-                onChange={(e) => editText("title", e.target.value)}
-              />
-              <div className="post-editor-options">
+            {!filterDraftOnly && (
+              <div className="posts-pagination">
+                <button
+                  type="button"
+                  disabled={page <= 1 || loading}
+                  onClick={() => setPage((p) => p - 1)}
+                >
+                  上一页
+                </button>
                 <span>
-                  {chars} 字 · 约 {Math.max(1, Math.ceil(chars / 400))} 分钟
+                  {page} / {Math.max(1, Math.ceil((result?.total || 0) / 20))}
                 </span>
                 <button
-                  aria-expanded={metadata}
-                  onClick={() => setMetadata((v) => !v)}
+                  type="button"
+                  disabled={!result || page * 20 >= result.total || loading}
+                  onClick={() => setPage((p) => p + 1)}
                 >
-                  <Settings2 size={16} />
-                  文章设置
+                  下一页
                 </button>
               </div>
-              {metadata && (
-                <section className="post-metadata" aria-label="文章设置">
-                  <div className="post-language-bar">
-                    <label>
-                      {languages.length ? "文章语言" : "原文语言"}
-                      <select
-                        aria-label="编辑语言"
-                        value={language}
-                        onChange={(e) => setLanguage(e.target.value)}
-                      >
-                        {(languages.length ? languages : ["zh", "en"]).map(
-                          (code) => (
-                            <option key={code} value={code}>
-                              {languageLabel(code)}
-                            </option>
-                          ),
-                        )}
-                      </select>
-                    </label>
-                    {!(languages.length ? languages : [language]).includes(
-                      "en",
-                    ) && (
-                      <button type="button" onClick={() => addLanguage("en")}>
-                        添加英文版
-                      </button>
-                    )}
-                    {!(languages.length ? languages : [language]).some(
-                      (code) => code === "zh" || code.startsWith("zh-"),
-                    ) && (
-                      <button type="button" onClick={() => addLanguage("zh")}>
-                        添加中文版
-                      </button>
-                    )}
-                    <details className="post-language-more">
-                      <summary>更多语言设置</summary>
-                      <div className="post-add-language">
-                        <input
-                          aria-label="新语言代码"
-                          placeholder="其他语言，如 ja"
-                          value={newLanguage}
-                          onChange={(e) => setNewLanguage(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (
-                              e.key === "Enter" &&
-                              !e.nativeEvent.isComposing
-                            ) {
-                              e.preventDefault();
-                              addLanguage();
-                            }
-                          }}
-                        />
-                        <button
-                          type="button"
-                          disabled={!newLanguage.trim()}
-                          onClick={() => addLanguage()}
-                        >
-                          添加语言
-                        </button>
-                      </div>
-                      {languages.length > 0 &&
-                        [post.title, post.summary, post.content].some(
-                          (value) => typeof value === "string",
-                        ) && (
-                          <div className="post-shared-fields">
-                            <small>部分内容由各语言共用。</small>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                change(
-                                  addPostLanguage(post, language, language),
-                                )
-                              }
-                            >
-                              改为分语言编辑
-                            </button>
-                          </div>
-                        )}
-                    </details>
-                  </div>
-                  <label className="post-slug-field">
-                    Slug / 链接 ID
-                    <div className="post-slug">
-                      <input
-                        value={post.id}
-                        disabled={!!editor.originalId}
-                        placeholder="my-first-post"
-                        onChange={(e) => change({ id: e.target.value })}
-                      />
-                      <button
-                        disabled={!!editor.originalId}
-                        onClick={() =>
-                          change({
-                            id: slugFromTitle(
-                              title || displayPostText(post.title),
-                            ),
-                          })
-                        }
-                      >
-                        从标题生成
-                      </button>
-                    </div>
-                    {editor.originalId && (
-                      <small>已发布链接保持稳定；如需新链接请新建文章。</small>
-                    )}
-                  </label>
-                  <label>
-                    发布日期
-                    <input
-                      type="date"
-                      value={post.date.slice(0, 10)}
-                      onChange={(e) =>
-                        change({
-                          date: replacePostDateDay(post.date, e.target.value),
-                        })
-                      }
-                    />
-                    {post.date.length > 10 && (
-                      <small>保留原时间：{post.date.slice(11)}</small>
-                    )}
-                  </label>
-                  <label>
-                    作者
-                    <input
-                      value={post.author || ""}
-                      onChange={(e) => change({ author: e.target.value })}
-                      placeholder="可选"
-                    />
-                  </label>
-                  <label>
-                    封面图 URL
-                    <div className="post-cover">
-                      <input
-                        type="url"
-                        value={post.cover || ""}
-                        placeholder="https://…"
-                        onChange={(e) => change({ cover: e.target.value })}
-                      />
-                      {/^https?:\/\//i.test(post.cover || "") && (
-                        <img
-                          src={post.cover}
-                          alt="封面预览"
-                          referrerPolicy="no-referrer"
-                        />
-                      )}
-                    </div>
-                  </label>
-                  <label className="post-summary">
-                    摘要
-                    <textarea
-                      rows={2}
-                      aria-label="文章摘要"
-                      value={summary}
-                      placeholder="这篇文章讲述什么？"
-                      onChange={(e) => editText("summary", e.target.value)}
-                    />
-                  </label>
-                  <div className="post-tags">
-                    <TagManager
-                      tags={post.tags}
-                      onChange={(tags) => change({ tags })}
-                      availableTags={[
-                        ...new Set(
-                          result?.posts.flatMap((p) =>
-                            Array.isArray(p.tags) ? p.tags : [],
-                          ) || [],
-                        ),
-                      ].map((tag) => ({ tag, count: 1 }))}
-                    />
-                  </div>
-                  <label className="post-pin">
-                    <input
-                      type="checkbox"
-                      checked={!!post.pinned}
-                      onChange={(e) => change({ pinned: e.target.checked })}
-                    />
-                    置顶这篇文章
-                  </label>
-                </section>
+            )}
+          </div>
+        </aside>
+
+        <main className="posts-main">
+          {(error || notice) && (
+            <div className="post-banners">
+              {error && (
+                <p className="post-error" role="alert">
+                  <span>{error}</span>
+                  <button
+                    type="button"
+                    onClick={() => setError("")}
+                    aria-label="关闭错误"
+                  >
+                    ×
+                  </button>
+                </p>
               )}
-              <div className={`post-writing post-view-${view}`}>
-                {view !== "preview" && (
+              {notice && (
+                <p className="post-notice" role="status">
+                  {notice}
+                </p>
+              )}
+            </div>
+          )}
+
+          <fieldset
+            disabled={busy || !ready}
+            className="post-editor-fieldset"
+          >
+            <div
+              className="posts-canvas-grid"
+              data-single={view !== "split"}
+            >
+              {view !== "preview" && (
+                <section className="post-pane-card">
+                  <div className="post-pane-header">
+                    <strong>Markdown 正文</strong>
+                    <span className="post-dock-shortcuts">
+                      {chars} 字 · 约 {Math.max(1, Math.ceil(chars / 400))} 分钟
+                      · ⌘/Ctrl+B · I · Tab
+                    </span>
+                  </div>
+                  <input
+                    id="post-title"
+                    className="post-title"
+                    aria-label="文章标题"
+                    placeholder="输入文章标题…"
+                    value={title}
+                    onChange={(e) => editText("title", e.target.value)}
+                  />
                   <div className="post-source">
                     <div
                       ref={gutter}
@@ -899,46 +846,246 @@ export default function PostsWorkspace({
                       }}
                     />
                   </div>
-                )}
-                {view !== "edit" && <MarkdownPreview content={content} />}
-              </div>
-            </fieldset>
-            <p className="post-shortcuts">
-              Markdown · ⌘ / Ctrl+B 加粗 · ⌘ / Ctrl+I 斜体 · Tab 缩进
-            </p>
-          </div>
-        </div>
-        <footer className="post-footer">
-          <div className="post-footer-inner">
-            <div>
-              <button
-                disabled={busy || !ready}
-                onClick={() => void removeDraft()}
-              >
-                清空草稿 / 放弃更改
-              </button>
-              {editor.originalId && (
-                <button
-                  className="post-delete"
-                  disabled={busy}
-                  onClick={() => void remove()}
-                >
-                  <Trash2 size={15} />
-                  删除文章
-                </button>
+                </section>
+              )}
+
+              {view !== "edit" && (
+                <section className="post-pane-card">
+                  <div className="post-pane-header">
+                    <strong>实时预览</strong>
+                    <span>{displayPostText(post.title) || "未命名文章"}</span>
+                  </div>
+                  <div className="post-preview-scroll">
+                    <MarkdownPreview content={content} />
+                  </div>
+                </section>
               )}
             </div>
-            <button
-              disabled={busy || !ready}
-              className="post-primary"
-              onClick={() => void publish()}
-            >
-              <UploadCloud size={16} />
-              {busy ? "处理中…" : "发布文章"}
-            </button>
-          </div>
-        </footer>
-      </main>
+
+            {/* Single-line horizontally scrollable always-editable Floating Meta Dock */}
+            <div className="posts-dock-wrap">
+              <div
+                className="posts-dock-scroll"
+                aria-label="文章设置"
+                onWheel={handleDockWheel}
+              >
+                <div className="posts-dock-pill">
+                  <Globe size={12} />
+                  <select
+                    aria-label="编辑语言"
+                    value={language}
+                    onChange={(e) => setLanguage(e.target.value)}
+                  >
+                    {(languages.length ? languages : ["zh", "en"]).map(
+                      (code) => (
+                        <option key={code} value={code}>
+                          {languageLabel(code)}
+                        </option>
+                      ),
+                    )}
+                  </select>
+                  {!activeLanguages.includes("en") && (
+                    <button
+                      type="button"
+                      className="post-dock-btn"
+                      onClick={() => addLanguage("en")}
+                    >
+                      添加英文版
+                    </button>
+                  )}
+                  {!activeLanguages.some(
+                    (code) => code === "zh" || code.startsWith("zh-"),
+                  ) && (
+                    <button
+                      type="button"
+                      className="post-dock-btn"
+                      onClick={() => addLanguage("zh")}
+                    >
+                      添加中文版
+                    </button>
+                  )}
+                  <input
+                    aria-label="新语言代码"
+                    placeholder="+语言如ja"
+                    value={newLanguage}
+                    onChange={(e) => setNewLanguage(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+                        e.preventDefault();
+                        addLanguage();
+                      }
+                    }}
+                    style={{ width: "68px" }}
+                  />
+                  {newLanguage.trim() && (
+                    <button
+                      type="button"
+                      className="post-dock-btn"
+                      onClick={() => addLanguage()}
+                    >
+                      添加
+                    </button>
+                  )}
+                  {languages.length > 0 &&
+                    [post.title, post.summary, post.content].some(
+                      (value) => typeof value === "string",
+                    ) && (
+                      <button
+                        type="button"
+                        className="post-dock-btn"
+                        onClick={() =>
+                          change(addPostLanguage(post, language, language))
+                        }
+                        title="将共用文案拆分为分语言编辑"
+                      >
+                        分语言
+                      </button>
+                    )}
+                </div>
+
+                <span className="posts-dock-divider" />
+
+                <div className="posts-dock-pill">
+                  <Link2 size={12} />
+                  <input
+                    aria-label="Slug"
+                    value={post.id}
+                    disabled={!!editor.originalId}
+                    placeholder="slug-id"
+                    onChange={(e) => change({ id: e.target.value })}
+                    style={{ width: "112px" }}
+                  />
+                  {!editor.originalId && (
+                    <button
+                      type="button"
+                      className="post-dock-btn"
+                      onClick={() =>
+                        change({
+                          id: slugFromTitle(
+                            title || displayPostText(post.title),
+                          ),
+                        })
+                      }
+                    >
+                      生成
+                    </button>
+                  )}
+                </div>
+
+                <label className="posts-dock-pill">
+                  <Calendar size={12} />
+                  <input
+                    type="date"
+                    aria-label="发布日期"
+                    value={post.date.slice(0, 10)}
+                    onChange={(e) =>
+                      change({
+                        date: replacePostDateDay(post.date, e.target.value),
+                      })
+                    }
+                    style={{ width: "110px" }}
+                  />
+                </label>
+
+                <div className="posts-dock-pill">
+                  <Pin size={12} />
+                  <label className="post-dock-toggle">
+                    <input
+                      type="checkbox"
+                      checked={!!post.pinned}
+                      onChange={(e) => change({ pinned: e.target.checked })}
+                    />
+                    <span>置顶</span>
+                  </label>
+                </div>
+
+                <span className="posts-dock-divider" />
+
+                <label className="posts-dock-pill">
+                  <AlignLeft size={12} />
+                  <input
+                    type="text"
+                    aria-label="文章摘要"
+                    value={summary}
+                    placeholder="文章摘要…"
+                    onChange={(e) => editText("summary", e.target.value)}
+                    style={{ width: "150px" }}
+                  />
+                </label>
+
+                <label className="posts-dock-pill">
+                  <Hash size={12} />
+                  <input
+                    type="text"
+                    list="posts-tag-list"
+                    aria-label="文章标签"
+                    value={tagsInput}
+                    placeholder="标签 (逗号分隔)"
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      setTagsInput(raw);
+                      change({ tags: parseTagList(raw) });
+                    }}
+                    style={{ width: "120px" }}
+                  />
+                </label>
+
+                <label className="posts-dock-pill">
+                  <ImageIcon size={12} />
+                  {/^https?:\/\//i.test(post.cover || "") && (
+                    <img
+                      className="posts-dock-cover-thumb"
+                      src={post.cover}
+                      alt="封面预览"
+                      referrerPolicy="no-referrer"
+                    />
+                  )}
+                  <input
+                    type="url"
+                    aria-label="封面图 URL"
+                    value={post.cover || ""}
+                    placeholder="封面图 URL"
+                    onChange={(e) => change({ cover: e.target.value })}
+                    style={{ width: "124px" }}
+                  />
+                </label>
+
+                <label className="posts-dock-pill">
+                  <User size={12} />
+                  <input
+                    type="text"
+                    aria-label="作者"
+                    value={post.author || ""}
+                    placeholder="作者"
+                    onChange={(e) => change({ author: e.target.value })}
+                    style={{ width: "76px" }}
+                  />
+                </label>
+              </div>
+            </div>
+          </fieldset>
+
+          <datalist id="posts-tag-list">
+            {tags.map((tag) => (
+              <option key={tag} value={tag} />
+            ))}
+          </datalist>
+        </main>
+      </div>
+
+      <DeleteConfirmModal
+        isOpen={deleteConfirmOpen}
+        title={`删除文章「${displayPostText(post.title) || post.id}」？`}
+        description="此操作将直接从数据库中永久移除该博客文章。"
+        previewText={
+          displayPostText(post.summary) ||
+          displayPostText(post.content).slice(0, 160) ||
+          `Slug: ${post.id || editor.originalId}`
+        }
+        onClose={() => setDeleteConfirmOpen(false)}
+        onConfirm={() => void confirmRemove()}
+        isDeleting={busy}
+      />
     </Workspace>
   );
 }

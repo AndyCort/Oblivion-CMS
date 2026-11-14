@@ -191,6 +191,10 @@ export const ConfigInfoModal: React.FC<ConfigInfoModalProps> = ({
               <S.P5>
                 写权限受 Cloudflare Access 强鉴权保护；前台读取接口已开放公开只读。
               </S.P5>
+              <S.P5>
+                Passkey 通行密钥由 Cloudflare Access 统一管理。启用后，可在 Access 登录页选择
+                「Sign in with a passkey」登录，或通过「Manage passkeys」添加、重命名与删除密钥。
+              </S.P5>
             </S.Div22>
           </S.Div20>
         </S.Div6>
