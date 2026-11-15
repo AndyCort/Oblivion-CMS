@@ -51,7 +51,11 @@ import {
 import { DeleteConfirmModal } from "../modals/DeleteConfirmModal";
 import { MarkdownPreview } from "./MarkdownPreview";
 import { Workspace } from "./PostsWorkspace.styles";
-import { handleDockWheel, parseTagList } from "../../styles/workspace";
+import {
+  handleDockWheel,
+  isMobileViewport,
+  parseTagList,
+} from "../../styles/workspace";
 
 export function slugFromTitle(title: string) {
   return pinyin(title, {
@@ -72,6 +76,7 @@ export function slugFromTitle(title: string) {
 interface PostsWorkspaceProps {
   listNavigation?: ReactNode;
   sidebarOpen?: boolean;
+  onSidebarOpenChange?: (open: boolean) => void;
   newPostTrigger?: number;
   onToast?: (type: "success" | "error" | "info", text: string) => void;
 }
@@ -79,6 +84,7 @@ interface PostsWorkspaceProps {
 export default function PostsWorkspace({
   listNavigation,
   sidebarOpen = true,
+  onSidebarOpenChange,
   newPostTrigger = 0,
   onToast,
 }: PostsWorkspaceProps = {}) {
@@ -102,6 +108,7 @@ export default function PostsWorkspace({
   const saving = useRef(0);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const prevNewTrigger = useRef(newPostTrigger);
+  const prevSidebarOpen = useRef(sidebarOpen);
 
   const [ready, setReady] = useState(false);
   const [status, setStatus] = useState("尚未修改");
@@ -148,6 +155,13 @@ export default function PostsWorkspace({
       void switchEditor();
     }
   }, [newPostTrigger]);
+
+  useEffect(() => {
+    if (prevSidebarOpen.current !== sidebarOpen) {
+      prevSidebarOpen.current = sidebarOpen;
+      setMobileEditor(!sidebarOpen);
+    }
+  }, [sidebarOpen]);
 
   function persist(draft: PostDraft): Promise<void> {
     saving.current += 1;
@@ -344,6 +358,10 @@ export default function PostsWorkspace({
           updatedAt: 0,
         });
       }
+      if (isMobileViewport()) {
+        prevSidebarOpen.current = false;
+        onSidebarOpenChange?.(false);
+      }
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -491,7 +509,12 @@ export default function PostsWorkspace({
           <button
             type="button"
             className="posts-back post-ghost-btn"
-            onClick={() => setMobileEditor(false)}
+            style={onSidebarOpenChange ? { display: "none" } : undefined}
+            onClick={() => {
+              setMobileEditor(false);
+              prevSidebarOpen.current = true;
+              onSidebarOpenChange?.(true);
+            }}
           >
             <ArrowLeft size={13} />
             列表
@@ -539,10 +562,11 @@ export default function PostsWorkspace({
             className="post-ghost-btn"
             disabled={busy || !ready || !dirty}
             onClick={() => void removeDraft()}
+            aria-label="清空本地草稿并放弃更改"
             title="清空本地草稿并放弃更改"
           >
             <RotateCcw size={12} />
-            放弃
+            <span className="btn-label">放弃</span>
           </button>
 
           <button

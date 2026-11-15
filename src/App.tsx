@@ -41,7 +41,11 @@ import { MomentPreview } from "./components/preview/MomentPreview";
 import { DeleteConfirmModal } from "./components/modals/DeleteConfirmModal";
 import { ConflictResolutionModal } from "./components/modals/ConflictResolutionModal";
 import { ConfigInfoModal } from "./components/modals/ConfigInfoModal";
-import { handleDockWheel, parseTagList } from "./styles/workspace";
+import {
+  handleDockWheel,
+  isMobileViewport,
+  parseTagList,
+} from "./styles/workspace";
 
 const PostsWorkspace = lazy(() => import("./components/posts/PostsWorkspace"));
 
@@ -373,6 +377,7 @@ export function App() {
     if (!fp) return;
     setSelectedFingerprint(fp);
     setIsNewArticle(false);
+    if (isMobileViewport()) setSidebarOpen(false);
 
     const draft = draftsMap.get(fp);
     if (draft) {
@@ -396,6 +401,7 @@ export function App() {
   const handleNewArticle = () => {
     setIsNewArticle(true);
     setSelectedFingerprint(null);
+    if (isMobileViewport()) setSidebarOpen(false);
 
     const newDraft = draftsMap.get("new-draft");
     if (newDraft) {
@@ -421,6 +427,7 @@ export function App() {
   const handleCloneArticle = (source: Article) => {
     setIsNewArticle(true);
     setSelectedFingerprint(null);
+    if (isMobileViewport()) setSidebarOpen(false);
 
     const cloned: Article = {
       ...source,
@@ -615,6 +622,7 @@ export function App() {
     } else {
       setPostsOpened(true);
       setNewPostTrigger((c) => c + 1);
+      if (isMobileViewport()) setSidebarOpen(false);
     }
   };
 
@@ -771,6 +779,7 @@ export function App() {
             <Suspense fallback={<S.P role="status">正在载入博客编辑器…</S.P>}>
               <PostsWorkspace
                 sidebarOpen={sidebarOpen}
+                onSidebarOpenChange={setSidebarOpen}
                 newPostTrigger={newPostTrigger}
                 onToast={showToast}
               />
@@ -831,10 +840,11 @@ export function App() {
                 type="button"
                 onClick={handleRevertChanges}
                 disabled={!isMomentsDirty}
+                aria-label="放弃未发布的本地修改"
                 title="放弃未发布的本地修改"
               >
                 <RotateCcw size={12} />
-                放弃
+                <span className="btn-label">放弃</span>
               </S.GhostButton>
 
               <S.DangerIconButton
@@ -897,7 +907,7 @@ export function App() {
               />
             </S.MomentsSidebarWrap>
 
-            <S.MomentsCanvasWrap>
+            <S.MomentsCanvasWrap $sidebarOpen={sidebarOpen}>
               <S.MomentsSplitGrid data-single={momentsView !== "split"}>
                 {momentsView !== "preview" && (
                   <S.CanvasPaneCard>

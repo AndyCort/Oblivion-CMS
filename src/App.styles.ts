@@ -79,6 +79,10 @@ export const LeftRailColumn = styled.aside`
   background-color: var(--color-white);
   z-index: 30;
 
+  @media (max-width: 767px) {
+    width: 38px;
+  }
+
   &:where(.dark, .dark *) {
     border-right-color: var(--color-stone-800);
     background-color: var(--color-stone-900);
@@ -106,6 +110,7 @@ export const RailNav = styled.nav`
   align-items: center;
   justify-content: space-between;
   padding: 10px 0;
+  padding-bottom: max(10px, env(safe-area-inset-bottom, 10px));
 `;
 
 export const RailGroup = styled.div`
@@ -222,6 +227,10 @@ export const HeaderLeft = styled.div`
   gap: 8px;
   min-width: 0;
   overflow: hidden;
+
+  @media (max-width: 767px) {
+    gap: 5px;
+  }
 `;
 
 export const BrandTitle = styled.span`
@@ -230,6 +239,10 @@ export const BrandTitle = styled.span`
   letter-spacing: -0.02em;
   color: var(--color-stone-900);
   white-space: nowrap;
+
+  @media (max-width: 767px) {
+    display: none;
+  }
 
   &:where(.dark, .dark *) {
     color: var(--color-stone-100);
@@ -244,6 +257,10 @@ export const ModePill = styled.span`
   background-color: var(--color-stone-100);
   color: var(--color-stone-500);
   white-space: nowrap;
+
+  @media (max-width: 480px) {
+    display: none;
+  }
 
   &:where(.dark, .dark *) {
     background-color: var(--color-stone-800);
@@ -303,6 +320,10 @@ export const HeaderRight = styled.div`
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
+
+  @media (max-width: 767px) {
+    gap: 5px;
+  }
 `;
 
 export const ViewGroup = styled.div`
@@ -327,6 +348,12 @@ export const PublishButton = styled.button`
   padding: 0 12px;
   border-radius: 8px;
   font-size: 11.5px;
+
+  @media (max-width: 640px) {
+    padding: 0 9px;
+    gap: 4px;
+    font-size: 11px;
+  }
 `;
 
 export const P = styled.p`
@@ -424,6 +451,13 @@ export const Toast = styled.div<{ $variant: keyof typeof ToastVariants }>`
   font-weight: 500;
   box-shadow: 0 12px 24px -8px rgb(0 0 0 / 0.18);
   ${(p) => ToastVariants[p.$variant]}
+
+  @media (max-width: 767px) {
+    top: 48px;
+    right: 8px;
+    left: 46px;
+    max-width: none;
+  }
 `;
 
 export const ToastContent = styled.div`
@@ -484,9 +518,14 @@ export const MomentsSidebarWrap = styled.aside<{ $open: boolean }>`
   flex-direction: column;
   width: 300px;
   height: 100%;
+
+  @media (max-width: 767px) {
+    width: 100%;
+    border-right: 0;
+  }
 `;
 
-export const MomentsCanvasWrap = styled.main`
+export const MomentsCanvasWrap = styled.main<{ $sidebarOpen?: boolean }>`
   ${editorSurface};
   position: relative;
   display: flex;
@@ -494,6 +533,11 @@ export const MomentsCanvasWrap = styled.main`
   padding: 0;
   height: 100%;
   overflow: hidden;
+
+  @media (max-width: 767px) {
+    display: ${(p) => (p.$sidebarOpen ? "none" : "flex")};
+    width: 100%;
+  }
 `;
 
 export const MomentsSplitGrid = styled.div`
@@ -509,6 +553,12 @@ export const CanvasPaneCard = styled.section`
   padding: 14px 16px;
   gap: 12px;
   overflow: hidden;
+
+  @media (max-width: 767px) {
+    padding: 10px 12px;
+    gap: 10px;
+    border-radius: 14px;
+  }
 `;
 
 export const PaneHeader = styled.div`

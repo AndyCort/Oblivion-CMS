@@ -522,5 +522,40 @@ export const Workspace = styled.div`
     & .posts-back {
       display: inline-flex;
     }
+    .posts-header-brand {
+      display: none;
+    }
+    .posts-header-left,
+    .posts-header-right {
+      gap: 5px;
+    }
+    & .post-primary {
+      padding: 0 9px;
+      gap: 4px;
+      font-size: 11px;
+    }
+    .post-pane-card {
+      padding: 10px 12px;
+      gap: 8px;
+      border-radius: 14px;
+    }
+    .post-title {
+      font-size: 17px;
+      padding: 2px 0 8px;
+    }
+    .post-dock-shortcuts {
+      display: none;
+    }
+    .post-source {
+      min-height: 240px;
+    }
+    .post-source textarea {
+      min-height: 240px;
+    }
+  }
+  @media (max-width: 480px) {
+    .posts-mode-pill {
+      display: none;
+    }
   }
 `;

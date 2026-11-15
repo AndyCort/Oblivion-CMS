@@ -115,6 +115,10 @@ export const topWorkspaceHeader = css`
   padding: 0 14px;
   border-bottom: 1px solid var(--color-stone-200);
   background: var(--color-white);
+  @media (max-width: 767px) {
+    padding: 0 8px;
+    gap: 6px;
+  }
   &:where(.dark, .dark *) {
     border-bottom-color: var(--color-stone-800);
     background: var(--color-stone-900);
@@ -171,6 +175,13 @@ export const viewSegmentedButton = css`
       color: var(--color-stone-100);
     }
   }
+  @media (max-width: 767px) {
+    padding: 3px 7px;
+    font-size: 11px;
+    svg {
+      display: none;
+    }
+  }
 `;
 
 export const ghostHeaderButton = css`
@@ -205,6 +216,14 @@ export const ghostHeaderButton = css`
     &:hover:not(:disabled) {
       background: var(--color-stone-800);
       color: var(--color-stone-100);
+    }
+  }
+  @media (max-width: 640px) {
+    padding: 0;
+    width: 28px;
+    justify-content: center;
+    .btn-label {
+      display: none;
     }
   }
 `;
@@ -257,9 +276,26 @@ export const canvasSplitGrid = css`
     width: 100%;
     margin: 0 auto;
   }
+  @media (max-width: 767px) {
+    &[data-single='true'],
+    &.single {
+      padding: 8px 8px calc(64px + env(safe-area-inset-bottom, 0px));
+    }
+  }
   @media (max-width: 900px) {
-    grid-template-columns: minmax(0, 1fr);
-    overflow-y: auto;
+    &:not([data-single='true']):not(.single) {
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      padding: 8px 8px calc(68px + env(safe-area-inset-bottom, 0px));
+      gap: 10px;
+      & > section {
+        height: auto;
+        min-height: 300px;
+        flex-shrink: 0;
+        overflow: visible;
+      }
+    }
   }
 `;
 
@@ -272,6 +308,11 @@ export const floatingMetaDockContainer = css`
   display: flex;
   justify-content: center;
   pointer-events: none;
+  @media (max-width: 767px) {
+    left: 6px;
+    right: 6px;
+    bottom: max(8px, env(safe-area-inset-bottom, 8px));
+  }
 `;
 
 export const floatingMetaDockBar = css`
@@ -285,6 +326,9 @@ export const floatingMetaDockBar = css`
   border-radius: 9999px;
   overflow-x: auto;
   overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
+  overscroll-behavior-x: contain;
   white-space: nowrap;
   scrollbar-width: none;
   -ms-overflow-style: none;
@@ -356,6 +400,10 @@ export const floatingMetaPill = css`
       background: var(--color-stone-900);
     }
   }
+  @media (max-width: 767px) {
+    height: 30px;
+    padding: 0 10px;
+  }
 `;
 
 export const floatingMetaDivider = css`
@@ -412,7 +460,20 @@ export const dockInlineButton = css`
       color: white;
     }
   }
+  @media (max-width: 767px) {
+    height: 22px;
+    padding: 0 8px;
+  }
 `;
+
+/** Detect mobile viewport (<= 767px) safely across browser and SSR/jsdom. */
+export function isMobileViewport(): boolean {
+  if (typeof window === "undefined") return false;
+  if (typeof window.matchMedia === "function") {
+    return window.matchMedia("(max-width: 767px)").matches;
+  }
+  return window.innerWidth <= 767;
+}
 
 /** Convert vertical wheel motion into horizontal scroll for single-line docks. */
 export function handleDockWheel(e: {
