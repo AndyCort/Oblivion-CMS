@@ -1,4 +1,4 @@
-import * as S from './NineGridMedia.styles';
+import * as S from "./NineGridMedia.styles";
 import React, { useState } from "react";
 import type { ArticleMedia, ArticleMediaType } from "../../types/article";
 
@@ -10,7 +10,10 @@ interface NineGridMediaProps {
   onChange: (newMedia: ArticleMedia[]) => void;
 }
 
-export const NineGridMedia: React.FC<NineGridMediaProps> = ({ media, onChange }) => {
+export const NineGridMedia: React.FC<NineGridMediaProps> = ({
+  media,
+  onChange,
+}) => {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [isBatchModalOpen, setIsBatchModalOpen] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -138,17 +141,7 @@ export const NineGridMedia: React.FC<NineGridMediaProps> = ({ media, onChange })
   return (
     <S.Div>
       <S.Div2>
-        <S.Label>
-          <span>九宫格媒体</span>
-          <S.Span>
-            ({media.length} 项，支持自由混排与拖拽排序)
-          </S.Span>
-        </S.Label>
-        <S.Button
-          type="button"
-          onClick={() => setIsBatchModalOpen(true)}
-
-        >
+        <S.Button type="button" onClick={() => setIsBatchModalOpen(true)}>
           <S.Layers />
           批量粘贴导入
         </S.Button>
@@ -171,15 +164,22 @@ export const NineGridMedia: React.FC<NineGridMediaProps> = ({ media, onChange })
               onDragEnd={handleDragEnd}
               onTouchStart={(e) => handleTouchStart(index, e)}
               onClick={() => setLightboxIndex(index)}
-              $variant={((isDragging) && (isOver)) ? "v0" : ((isDragging) && (!(isOver))) ? "v1" : ((!(isDragging)) && (isOver)) ? "v2" : "v3"} data-style-group
+              $variant={
+                isDragging && isOver
+                  ? "v0"
+                  : isDragging && !isOver
+                    ? "v1"
+                    : !isDragging && isOver
+                      ? "v2"
+                      : "v3"
+              }
+              data-style-group
             >
               {/* Media Preview */}
               {isFailed ? (
                 <S.Div5>
                   <S.AlertTriangle />
-                  <S.Span2>
-                    加载异常
-                  </S.Span2>
+                  <S.Span2>加载异常</S.Span2>
                   <S.Div6>
                     <S.Button2
                       type="button"
@@ -187,7 +187,6 @@ export const NineGridMedia: React.FC<NineGridMediaProps> = ({ media, onChange })
                         e.stopPropagation();
                         handleRetryMedia(item.url);
                       }}
-
                       title="重试"
                     >
                       <S.RotateCw />
@@ -195,7 +194,6 @@ export const NineGridMedia: React.FC<NineGridMediaProps> = ({ media, onChange })
                     <S.Button2
                       type="button"
                       onClick={(e) => handleStartEdit(index, e)}
-
                       title="修改 URL"
                     >
                       <S.Edit2 />
@@ -208,38 +206,31 @@ export const NineGridMedia: React.FC<NineGridMediaProps> = ({ media, onChange })
                   alt=""
                   loading="lazy"
                   onError={() => handleMediaError(item.url)}
-
- />
+                />
               ) : (
                 <S.Div7>
                   <S.Video
                     src={item.url}
                     preload="metadata"
                     onError={() => handleMediaError(item.url)}
-
- />
+                  />
                   <S.Div8>
                     <S.Div9>
                       <S.Play />
                     </S.Div9>
                   </S.Div8>
-                  <S.Span3>
-                    VID
-                  </S.Span3>
+                  <S.Span3>VID</S.Span3>
                 </S.Div7>
               )}
 
               {/* Order index badge */}
-              <S.Div10>
-                {index + 1}
-              </S.Div10>
+              <S.Div10>{index + 1}</S.Div10>
 
               {/* Actions group: always visible & easy to tap on mobile, hover on desktop */}
               <S.Div11>
                 <S.Button3
                   type="button"
                   onClick={(e) => handleToggleType(index, e)}
-
                   title={item.type === "img" ? "切换为视频" : "切换为图片"}
                 >
                   <S.ArrowLeftRight />
@@ -247,7 +238,6 @@ export const NineGridMedia: React.FC<NineGridMediaProps> = ({ media, onChange })
                 <S.Button3
                   type="button"
                   onClick={(e) => handleStartEdit(index, e)}
-
                   title="编辑 URL"
                 >
                   <S.Edit2 />
@@ -255,7 +245,6 @@ export const NineGridMedia: React.FC<NineGridMediaProps> = ({ media, onChange })
                 <S.Button4
                   type="button"
                   onClick={(e) => handleDelete(index, e)}
-
                   title="删除"
                 >
                   <S.Trash2 />
@@ -265,27 +254,18 @@ export const NineGridMedia: React.FC<NineGridMediaProps> = ({ media, onChange })
               {/* Drag handle & Preview hint */}
               <S.Div12>
                 <S.Div13>
-                  <S.Div14
-
-                    title="拖拽排序"
-                  >
+                  <S.Div14 title="拖拽排序">
                     <S.GripVertical />
                   </S.Div14>
                 </S.Div13>
-                <S.Div15>
-                  点击查看大图
-                </S.Div15>
+                <S.Div15>点击查看大图</S.Div15>
               </S.Div12>
             </S.Div4>
           );
         })}
 
         {/* Add Card (Always at the end) */}
-        <S.Button5
-          type="button"
-          onClick={() => setIsAddingSingle(true)}
-
-        >
+        <S.Button5 type="button" onClick={() => setIsAddingSingle(true)}>
           <S.Div16>
             <S.Plus />
           </S.Div16>
@@ -297,54 +277,44 @@ export const NineGridMedia: React.FC<NineGridMediaProps> = ({ media, onChange })
       {isAddingSingle && (
         <S.Div17>
           <S.Div18>
-            <S.H4>
-              添加单项媒体
-            </S.H4>
-            <S.Form onSubmit={handleAddSingle} >
+            <S.H4>添加单项媒体</S.H4>
+            <S.Form onSubmit={handleAddSingle}>
               <S.Div19>
                 <S.Button6
                   type="button"
                   onClick={() => setNewTypeInput("img")}
-                  $variant={((newTypeInput === "img")) ? "v0" : "v1"}
+                  $variant={newTypeInput === "img" ? "v0" : "v1"}
                 >
                   <S.ImageIcon /> 图片
                 </S.Button6>
                 <S.Button6
                   type="button"
                   onClick={() => setNewTypeInput("vid")}
-                  $variant={((newTypeInput === "vid")) ? "v0" : "v1"}
+                  $variant={newTypeInput === "vid" ? "v0" : "v1"}
                 >
                   <S.VideoIcon /> 视频
                 </S.Button6>
               </S.Div19>
 
               <div>
-                <S.Label2>
-                  媒体链接 URL (支持图片或视频直接访问地址)
-                </S.Label2>
+                <S.Label2>媒体链接 URL (支持图片或视频直接访问地址)</S.Label2>
                 <S.Input
                   type="url"
                   value={newUrlInput}
                   onChange={(e) => setNewUrlInput(e.target.value)}
                   placeholder="https://example.com/photo.jpg"
-
                   autoFocus
- />
+                />
               </div>
 
               <S.Div20>
                 <S.Button7
                   type="button"
                   onClick={() => setIsAddingSingle(false)}
-
                 >
                   取消
                 </S.Button7>
-                <S.Button8
-                  type="submit"
-                  disabled={!newUrlInput.trim()}
-
-                >
+                <S.Button8 type="submit" disabled={!newUrlInput.trim()}>
                   确定添加
                 </S.Button8>
               </S.Div20>
@@ -357,31 +327,19 @@ export const NineGridMedia: React.FC<NineGridMediaProps> = ({ media, onChange })
       {editingIndex !== null && (
         <S.Div21>
           <S.Div22>
-            <S.H4>
-              修改媒体链接 #{editingIndex + 1}
-            </S.H4>
-            <S.Form2 onSubmit={handleSaveEdit} >
+            <S.H4>修改媒体链接 #{editingIndex + 1}</S.H4>
+            <S.Form2 onSubmit={handleSaveEdit}>
               <S.Input2
                 type="url"
                 value={editUrlValue}
                 onChange={(e) => setEditUrlValue(e.target.value)}
-
                 autoFocus
- />
+              />
               <S.Div23>
-                <S.Button9
-                  type="button"
-                  onClick={() => setEditingIndex(null)}
-
-                >
+                <S.Button9 type="button" onClick={() => setEditingIndex(null)}>
                   取消
                 </S.Button9>
-                <S.Button10
-                  type="submit"
-
-                >
-                  保存修改
-                </S.Button10>
+                <S.Button10 type="submit">保存修改</S.Button10>
               </S.Div23>
             </S.Form2>
           </S.Div22>
@@ -394,14 +352,14 @@ export const NineGridMedia: React.FC<NineGridMediaProps> = ({ media, onChange })
         currentIndex={lightboxIndex}
         onClose={() => setLightboxIndex(null)}
         onNavigate={(idx) => setLightboxIndex(idx)}
- />
+      />
 
       {/* Batch Import Modal */}
       <BatchAddModal
         isOpen={isBatchModalOpen}
         onClose={() => setIsBatchModalOpen(false)}
         onAdd={handleBatchAdd}
- />
+      />
     </S.Div>
   );
 };
