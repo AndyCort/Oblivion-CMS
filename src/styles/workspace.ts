@@ -106,17 +106,20 @@ export const primaryButton = css`
 `;
 
 export const topWorkspaceHeader = css`
-  height: 42px;
+  height: calc(42px + env(safe-area-inset-top, 0px));
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-right: max(14px, env(safe-area-inset-right, 0px));
+  padding-left: 14px;
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 0 14px;
   border-bottom: 1px solid var(--color-stone-200);
   background: var(--color-white);
   @media (max-width: 767px) {
-    padding: 0 8px;
+    padding-right: max(8px, env(safe-area-inset-right, 0px));
+    padding-left: 8px;
     gap: 6px;
   }
   &:where(.dark, .dark *) {

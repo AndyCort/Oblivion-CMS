@@ -29,6 +29,8 @@ export const SessionScreen = styled.div`
   align-items: center;
   justify-content: center;
   gap: calc(var(--spacing) * 3);
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
   background-color: var(--color-stone-950);
   font-family: var(--font-sans);
   color: var(--color-stone-400);
@@ -70,7 +72,8 @@ export const AppShell = styled.div`
 `;
 
 export const LeftRailColumn = styled.aside`
-  width: 44px;
+  width: calc(44px + env(safe-area-inset-left, 0px));
+  padding-left: env(safe-area-inset-left, 0px);
   flex-shrink: 0;
   height: 100dvh;
   display: flex;
@@ -80,7 +83,7 @@ export const LeftRailColumn = styled.aside`
   z-index: 30;
 
   @media (max-width: 767px) {
-    width: 38px;
+    width: calc(38px + env(safe-area-inset-left, 0px));
   }
 
   &:where(.dark, .dark *) {
@@ -90,7 +93,8 @@ export const LeftRailColumn = styled.aside`
 `;
 
 export const RailTopToggleSlot = styled.div`
-  height: 42px;
+  height: calc(42px + env(safe-area-inset-top, 0px));
+  padding-top: env(safe-area-inset-top, 0px);
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -437,7 +441,7 @@ const ToastVariants = {
 
 export const Toast = styled.div<{ $variant: keyof typeof ToastVariants }>`
   position: fixed;
-  top: 52px;
+  top: calc(52px + env(safe-area-inset-top, 0px));
   right: 16px;
   z-index: 60;
   display: flex;
@@ -453,9 +457,9 @@ export const Toast = styled.div<{ $variant: keyof typeof ToastVariants }>`
   ${(p) => ToastVariants[p.$variant]}
 
   @media (max-width: 767px) {
-    top: 48px;
-    right: 8px;
-    left: 46px;
+    top: calc(48px + env(safe-area-inset-top, 0px));
+    right: max(8px, env(safe-area-inset-right, 8px));
+    left: calc(46px + env(safe-area-inset-left, 0px));
     max-width: none;
   }
 `;

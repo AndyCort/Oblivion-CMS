@@ -15,6 +15,8 @@ align-items: center;
 justify-content: center;
 background-color: color-mix(in oklab, var(--color-black) 60%, transparent);
 padding: calc(var(--spacing) * 3);
+padding-top: max(calc(var(--spacing) * 3), env(safe-area-inset-top, 0px));
+padding-bottom: max(calc(var(--spacing) * 3), env(safe-area-inset-bottom, 0px));
 --cms-backdrop-blur: blur(var(--blur-sm));
 -webkit-backdrop-filter: var(--cms-backdrop-blur,) var(--cms-backdrop-brightness,) var(--cms-backdrop-contrast,) var(--cms-backdrop-grayscale,) var(--cms-backdrop-hue-rotate,) var(--cms-backdrop-invert,) var(--cms-backdrop-opacity,) var(--cms-backdrop-saturate,) var(--cms-backdrop-sepia,);
 backdrop-filter: var(--cms-backdrop-blur,) var(--cms-backdrop-brightness,) var(--cms-backdrop-contrast,) var(--cms-backdrop-grayscale,) var(--cms-backdrop-hue-rotate,) var(--cms-backdrop-invert,) var(--cms-backdrop-opacity,) var(--cms-backdrop-saturate,) var(--cms-backdrop-sepia,);
@@ -22,6 +24,8 @@ backdrop-filter: var(--cms-backdrop-blur,) var(--cms-backdrop-brightness,) var(-
 @media (width >= 40rem) {
   & {
     padding: calc(var(--spacing) * 4);
+    padding-top: max(calc(var(--spacing) * 4), env(safe-area-inset-top, 0px));
+    padding-bottom: max(calc(var(--spacing) * 4), env(safe-area-inset-bottom, 0px));
   }
 }
 `;
