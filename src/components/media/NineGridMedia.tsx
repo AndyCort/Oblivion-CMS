@@ -8,11 +8,13 @@ import { BatchAddModal } from "./BatchAddModal";
 interface NineGridMediaProps {
   media: ArticleMedia[];
   onChange: (newMedia: ArticleMedia[]) => void;
+  defaultBatchMediaType?: "auto" | ArticleMediaType;
 }
 
 export const NineGridMedia: React.FC<NineGridMediaProps> = ({
   media,
   onChange,
+  defaultBatchMediaType = "auto",
 }) => {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [isBatchModalOpen, setIsBatchModalOpen] = useState(false);
@@ -359,6 +361,7 @@ export const NineGridMedia: React.FC<NineGridMediaProps> = ({
         isOpen={isBatchModalOpen}
         onClose={() => setIsBatchModalOpen(false)}
         onAdd={handleBatchAdd}
+        defaultMediaMode={defaultBatchMediaType}
       />
     </S.Div>
   );

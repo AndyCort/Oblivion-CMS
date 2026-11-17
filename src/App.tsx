@@ -34,20 +34,36 @@ import {
 } from "./lib/api/client";
 import type { FetchArticlesResponse, UserSession } from "./lib/api/client";
 import { LoginPage } from "./components/auth/LoginPage";
-import { saveDraft, getAllDrafts, deleteDraft } from "./lib/storage/draftStore";
+import {
+  saveDraft,
+  getAllDrafts,
+  deleteDraft,
+  getPostDrafts,
+  deletePostDraft,
+} from "./lib/storage/draftStore";
+import type { PostDraft } from "./types/post";
 import { ArticleListSidebar } from "./components/articles/ArticleListSidebar";
 import { NineGridMedia } from "./components/media/NineGridMedia";
 import { MomentPreview } from "./components/preview/MomentPreview";
 import { DeleteConfirmModal } from "./components/modals/DeleteConfirmModal";
 import { ConflictResolutionModal } from "./components/modals/ConflictResolutionModal";
-import { ConfigInfoModal } from "./components/modals/ConfigInfoModal";
 import {
   handleDockWheel,
   isMobileViewport,
   parseTagList,
 } from "./styles/workspace";
+import {
+  applySiteBrand,
+  applyThemeAndAccent,
+  loadCmsSettings,
+  resetCmsSettings,
+  resolveEditorFontCss,
+  saveCmsSettings,
+  type CmsSettings,
+} from "./lib/settings/cmsSettings";
 
 const PostsWorkspace = lazy(() => import("./components/posts/PostsWorkspace"));
+const ConfigInfoModal = lazy(() => import("./components/modals/ConfigInfoModal"));
 
 function formatLocalDateTime(ts: number): string {
   const d = new Date(ts);
@@ -57,7 +73,26 @@ function formatLocalDateTime(ts: number): string {
 }
 
 export function App() {
+  const [settings, setSettings] = useState<CmsSettings>(() => loadCmsSettings());
+
+  const updateSettings = (patch: Partial<CmsSettings>) => {
+    setSettings((prev) => saveCmsSettings({ ...prev, ...patch }));
+  };
+
+  const handleResetSettings = () => {
+    const fresh = resetCmsSettings();
+    setSettings(fresh);
+    showToast("info", "已恢复全部默认设置");
+  };
+
+  const handleReplaceSettings = (next: CmsSettings) => {
+    setSettings(saveCmsSettings(next));
+  };
+
   const [contentMode, setContentMode] = useState<"moments" | "posts">(() => {
+    if (settings.startupMode === "moments" || settings.startupMode === "posts") {
+      return settings.startupMode;
+    }
     try {
       return localStorage.getItem("oblivion_content_mode") === "posts"
         ? "posts"
@@ -67,8 +102,14 @@ export function App() {
     }
   });
   const [postsOpened, setPostsOpened] = useState(contentMode === "posts");
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(() =>
+    isMobileViewport() ? true : settings.defaultSidebarOpen,
+  );
   const [newPostTrigger, setNewPostTrigger] = useState(0);
+  const [postSaveTrigger, setPostSaveTrigger] = useState(0);
+  const [postPublishTrigger, setPostPublishTrigger] = useState(0);
+  const [postDraftSyncRev, setPostDraftSyncRev] = useState(0);
+  const [modalPostDrafts, setModalPostDrafts] = useState<PostDraft[]>([]);
 
   function switchContentMode(mode: "moments" | "posts") {
     setContentMode(mode);
@@ -121,9 +162,8 @@ export function App() {
   const [historyIndex, setHistoryIndex] = useState(-1);
 
   // UI state
-  const [theme, setTheme] = useState<"light" | "dark" | "system">("system");
   const [momentsView, setMomentsView] = useState<"edit" | "split" | "preview">(
-    "split",
+    () => settings.defaultMomentsView,
   );
   const [isPublishing, setIsPublishing] = useState(false);
   const [autoSaveStatus, setAutoSaveStatus] = useState<string>("已保存");
@@ -143,6 +183,23 @@ export function App() {
   const [commitMessageInput, setCommitMessageInput] = useState("");
 
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const shortcutHandlersRef = useRef({
+    save: () => {},
+    publish: () => {},
+    toggleSidebar: () => {},
+    enabled: true,
+  });
+
+  // Sync view & sidebar when updated in settings
+  useEffect(() => {
+    setMomentsView(settings.defaultMomentsView);
+  }, [settings.defaultMomentsView]);
+
+  useEffect(() => {
+    if (!isMobileViewport()) {
+      setSidebarOpen(settings.defaultSidebarOpen);
+    }
+  }, [settings.defaultSidebarOpen]);
 
   // Keep raw tags input synchronized when switching/reverting articles without clobbering trailing commas while typing
   useEffect(() => {
@@ -151,28 +208,39 @@ export function App() {
     }
   }, [currentArticle.tags]);
 
-  // Apply theme
+  // Apply unified site brand (document.title, favicon, iPhone web app title)
   useEffect(() => {
-    const root = document.documentElement;
-    if (theme === "dark") {
-      root.classList.add("dark");
-    } else if (theme === "light") {
-      root.classList.remove("dark");
-    } else {
-      if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
-        root.classList.add("dark");
-      } else {
-        root.classList.remove("dark");
-      }
-    }
-  }, [theme]);
+    applySiteBrand(settings);
+  }, [settings.siteName, settings.siteSubtitle, settings.siteIcon]);
 
-  // Keyboard shortcut Ctrl/Cmd + B to toggle list sidebar
+  // Apply theme & accent color + watch system color scheme when theme === "system"
+  useEffect(() => {
+    applyThemeAndAccent(settings);
+    if (settings.theme !== "system" || typeof window.matchMedia !== "function") {
+      return;
+    }
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const listener = () => applyThemeAndAccent(settings);
+    mq.addEventListener("change", listener);
+    return () => mq.removeEventListener("change", listener);
+  }, [settings.theme, settings.accentColor]);
+
+  // Global keyboard shortcuts: Ctrl/Cmd+B (sidebar), Ctrl/Cmd+S (save), Ctrl/Cmd+Enter (publish)
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "b") {
+      const h = shortcutHandlersRef.current;
+      if (!h.enabled || e.defaultPrevented || e.isComposing) return;
+      if (!(e.metaKey || e.ctrlKey)) return;
+      const key = e.key.toLowerCase();
+      if (key === "b") {
         e.preventDefault();
-        setSidebarOpen((prev) => !prev);
+        h.toggleSidebar();
+      } else if (key === "s") {
+        e.preventDefault();
+        h.save();
+      } else if (key === "enter") {
+        e.preventDefault();
+        h.publish();
       }
     };
     window.addEventListener("keydown", onKeyDown);
@@ -261,7 +329,9 @@ export function App() {
         if (existingDraft) {
           setCurrentArticle(existingDraft.article);
           setHistoryStack([existingDraft.article.content]);
-          showToast("info", "已自动恢复该文章的本地未发布草稿");
+          if (settings.notifyOnDraftRestore) {
+            showToast("info", "已自动恢复该文章的本地未发布草稿");
+          }
         } else {
           setCurrentArticle(first);
           setHistoryStack([first.content]);
@@ -280,6 +350,36 @@ export function App() {
     }
   };
 
+  const persistMomentDraftNow = async (updated: Article) => {
+    try {
+      const draftId = isNewArticle
+        ? "new-draft"
+        : selectedFingerprint || "new-draft";
+      const draft: ArticleDraft = {
+        id: draftId,
+        article: updated,
+        baseSha: serverData?.sha,
+        updatedAt: Date.now(),
+        isNew: isNewArticle,
+      };
+      await saveDraft(draft);
+
+      setDraftsMap((prev) => {
+        const next = new Map(prev);
+        next.set(draftId, draft);
+        return next;
+      });
+
+      const timeStr = new Date().toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+      setAutoSaveStatus(`已存 ${timeStr}`);
+    } catch {
+      setAutoSaveStatus("保存失败");
+    }
+  };
+
   // Debounced auto-save draft to IndexedDB
   const triggerAutoSave = (updated: Article) => {
     setAutoSaveStatus("保存中…");
@@ -287,35 +387,9 @@ export function App() {
       clearTimeout(autoSaveTimerRef.current);
     }
 
-    autoSaveTimerRef.current = setTimeout(async () => {
-      try {
-        const draftId = isNewArticle
-          ? "new-draft"
-          : selectedFingerprint || "new-draft";
-        const draft: ArticleDraft = {
-          id: draftId,
-          article: updated,
-          baseSha: serverData?.sha,
-          updatedAt: Date.now(),
-          isNew: isNewArticle,
-        };
-        await saveDraft(draft);
-
-        setDraftsMap((prev) => {
-          const next = new Map(prev);
-          next.set(draftId, draft);
-          return next;
-        });
-
-        const timeStr = new Date().toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        });
-        setAutoSaveStatus(`已存 ${timeStr}`);
-      } catch {
-        setAutoSaveStatus("保存失败");
-      }
-    }, 700);
+    autoSaveTimerRef.current = setTimeout(() => {
+      void persistMomentDraftNow(updated);
+    }, settings.autoSaveDelayMs);
   };
 
   const updateArticle = (updater: (prev: Article) => Article) => {
@@ -377,14 +451,18 @@ export function App() {
     if (!fp) return;
     setSelectedFingerprint(fp);
     setIsNewArticle(false);
-    if (isMobileViewport()) setSidebarOpen(false);
+    if (isMobileViewport() && settings.autoCloseSidebarOnMobile) {
+      setSidebarOpen(false);
+    }
 
     const draft = draftsMap.get(fp);
     if (draft) {
       setCurrentArticle(draft.article);
       setHistoryStack([draft.article.content]);
       setHistoryIndex(0);
-      showToast("info", "已载入本地未发布草稿");
+      if (settings.notifyOnDraftRestore) {
+        showToast("info", "已载入本地未发布草稿");
+      }
     } else {
       const target = serverData?.articles.find(
         (a) => generateArticleFingerprint(a) === fp,
@@ -401,21 +479,25 @@ export function App() {
   const handleNewArticle = () => {
     setIsNewArticle(true);
     setSelectedFingerprint(null);
-    if (isMobileViewport()) setSidebarOpen(false);
+    if (isMobileViewport() && settings.autoCloseSidebarOnMobile) {
+      setSidebarOpen(false);
+    }
 
     const newDraft = draftsMap.get("new-draft");
     if (newDraft) {
       setCurrentArticle(newDraft.article);
       setHistoryStack([newDraft.article.content]);
       setHistoryIndex(0);
-      showToast("info", "已恢复之前的未发布新建草稿");
+      if (settings.notifyOnDraftRestore) {
+        showToast("info", "已恢复之前的未发布新建草稿");
+      }
     } else {
       const freshArticle: Article = {
         time: Date.now(),
         content: "",
         media: [],
-        tags: ["日常"],
-        location: "",
+        tags: [...settings.defaultMomentTags],
+        location: settings.defaultMomentLocation,
       };
       setCurrentArticle(freshArticle);
       setHistoryStack([""]);
@@ -427,12 +509,19 @@ export function App() {
   const handleCloneArticle = (source: Article) => {
     setIsNewArticle(true);
     setSelectedFingerprint(null);
-    if (isMobileViewport()) setSidebarOpen(false);
+    if (isMobileViewport() && settings.autoCloseSidebarOnMobile) {
+      setSidebarOpen(false);
+    }
 
+    const suffix = settings.cloneAppendSuffix
+      ? settings.cloneSuffixText
+        ? `\n${settings.cloneSuffixText}`
+        : ""
+      : "";
     const cloned: Article = {
       ...source,
       time: Date.now(),
-      content: source.content ? `${source.content}\n（副本）` : "",
+      content: source.content ? `${source.content}${suffix}` : "",
     };
     setCurrentArticle(cloned);
     setHistoryStack([cloned.content]);
@@ -475,6 +564,22 @@ export function App() {
   // Publish to D1 Database
   const handlePublish = async (options?: { force?: boolean }) => {
     if (!serverData) return;
+    if (
+      settings.preventEmptyPublish &&
+      !currentArticle.content.trim() &&
+      currentArticle.media.length === 0
+    ) {
+      showToast("error", "已开启防空发布保护：请填写正文或添加媒体后再发布");
+      return;
+    }
+    if (
+      settings.confirmBeforePublish &&
+      options?.force !== true &&
+      typeof window !== "undefined" &&
+      !window.confirm("确认将当前说说发布到数据库？")
+    ) {
+      return;
+    }
     setIsPublishing(true);
 
     const isForce = options?.force === true;
@@ -491,7 +596,10 @@ export function App() {
           ? undefined
           : selectedFingerprint || undefined,
         baseSha: conflictModalData.remoteSha || serverData.sha,
-        commitMessage: commitMessageInput.trim() || undefined,
+        commitMessage:
+          commitMessageInput.trim() ||
+          settings.defaultCommitMessage.trim() ||
+          undefined,
         force: isForce,
       });
 
@@ -508,7 +616,9 @@ export function App() {
           ? `强制覆盖发布成功！${res.commitMessage}`
           : `发布成功！${res.commitMessage}`,
       );
-      setCommitMessageInput("");
+      if (settings.clearCommitAfterPublish) {
+        setCommitMessageInput("");
+      }
 
       const newFp = generateArticleFingerprint(currentArticle);
       setSelectedFingerprint(newFp);
@@ -611,9 +721,13 @@ export function App() {
   }, [isNewArticle, selectedFingerprint, draftsMap, currentArticle, serverData]);
 
   const handleCycleTheme = () => {
-    setTheme((prev) =>
-      prev === "light" ? "dark" : prev === "dark" ? "system" : "light",
-    );
+    const next =
+      settings.theme === "light"
+        ? "dark"
+        : settings.theme === "dark"
+          ? "system"
+          : "light";
+    updateSettings({ theme: next });
   };
 
   const handleRailCreate = () => {
@@ -622,8 +736,76 @@ export function App() {
     } else {
       setPostsOpened(true);
       setNewPostTrigger((c) => c + 1);
-      if (isMobileViewport()) setSidebarOpen(false);
+      if (isMobileViewport() && settings.autoCloseSidebarOnMobile) {
+        setSidebarOpen(false);
+      }
     }
+  };
+
+  const refreshPostDrafts = async () => {
+    try {
+      setModalPostDrafts(await getPostDrafts());
+    } catch {
+      /* indexedDB unavailable */
+    }
+  };
+
+  const handleDeleteMomentDraft = async (id: string) => {
+    await deleteDraft(id);
+    setDraftsMap((prev) => {
+      const next = new Map(prev);
+      next.delete(id);
+      return next;
+    });
+    showToast("info", "已删除一条说说草稿");
+  };
+
+  const handleClearAllMomentDrafts = async () => {
+    for (const id of draftsMap.keys()) {
+      await deleteDraft(id);
+    }
+    setDraftsMap(new Map());
+    showToast("info", "已清空所有本地说说草稿");
+  };
+
+  const handleDeletePostDraft = async (id: string) => {
+    await deletePostDraft(id);
+    await refreshPostDrafts();
+    setPostDraftSyncRev((c) => c + 1);
+    showToast("info", "已删除一条博客草稿");
+  };
+
+  const handleClearAllPostDrafts = async () => {
+    for (const d of modalPostDrafts) {
+      await deletePostDraft(d.id);
+    }
+    setModalPostDrafts([]);
+    setPostDraftSyncRev((c) => c + 1);
+    showToast("info", "已清空所有本地博客草稿");
+  };
+
+  shortcutHandlersRef.current = {
+    enabled: settings.enableShortcuts,
+    toggleSidebar: () => setSidebarOpen((prev) => !prev),
+    save: () => {
+      if (contentMode === "moments") {
+        if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+        void persistMomentDraftNow(currentArticle).then(() =>
+          showToast("success", "当前说说草稿已立即保存"),
+        );
+      } else {
+        setPostsOpened(true);
+        setPostSaveTrigger((c) => c + 1);
+      }
+    },
+    publish: () => {
+      if (contentMode === "moments") {
+        if (!isPublishing && serverData) void handlePublish();
+      } else {
+        setPostsOpened(true);
+        setPostPublishTrigger((c) => c + 1);
+      }
+    },
   };
 
   if (isCheckingAuth) {
@@ -713,16 +895,16 @@ export function App() {
               onClick={handleCycleTheme}
               aria-label="切换主题"
               title={
-                theme === "light"
+                settings.theme === "light"
                   ? "主题：浅色"
-                  : theme === "dark"
+                  : settings.theme === "dark"
                     ? "主题：深色"
                     : "主题：跟随系统"
               }
             >
-              {theme === "light" ? (
+              {settings.theme === "light" ? (
                 <Sun size={15} />
-              ) : theme === "dark" ? (
+              ) : settings.theme === "dark" ? (
                 <Moon size={15} />
               ) : (
                 <Laptop size={15} />
@@ -732,7 +914,7 @@ export function App() {
               type="button"
               onClick={() => setIsConfigModalOpen(true)}
               aria-label="系统设置"
-              title="查看连接与鉴权配置"
+              title="CMS 设置"
             >
               <Settings size={15} />
             </S.RailIconButton>
@@ -781,6 +963,10 @@ export function App() {
                 sidebarOpen={sidebarOpen}
                 onSidebarOpenChange={setSidebarOpen}
                 newPostTrigger={newPostTrigger}
+                draftSyncRevision={postDraftSyncRev}
+                saveTrigger={postSaveTrigger}
+                publishTrigger={postPublishTrigger}
+                settings={settings}
                 onToast={showToast}
               />
             </Suspense>
@@ -791,7 +977,10 @@ export function App() {
         <S.MomentsWorkspace $visible={contentMode === "moments"}>
           <S.WorkspaceHeader>
             <S.HeaderLeft>
-              <S.BrandTitle>Oblivion-CMS</S.BrandTitle>
+              {settings.siteIcon && (
+                <S.BrandIconImg src={settings.siteIcon} alt="" />
+              )}
+              <S.BrandTitle>{settings.siteName}</S.BrandTitle>
               <S.ModePill>{isNewArticle ? "新说说" : "说说动态"}</S.ModePill>
               <S.StatusTextPill>
                 {autoSaveStatus} · {currentArticle.content.length} 字
@@ -904,6 +1093,8 @@ export function App() {
                 }
                 drafts={draftsMap}
                 getFingerprint={generateArticleFingerprint}
+                defaultSortOrder={settings.defaultSortOrder}
+                compactList={settings.compactList}
               />
             </S.MomentsSidebarWrap>
 
@@ -944,6 +1135,15 @@ export function App() {
                         onChange={(e) => handleContentChange(e.target.value)}
                         placeholder="分享此刻的所思所想..."
                         rows={8}
+                        spellCheck={settings.spellCheck}
+                        style={{
+                          fontFamily: resolveEditorFontCss(
+                            settings.editorFontFamily,
+                            "moments",
+                          ),
+                          fontSize: `${settings.editorFontSize}px`,
+                          lineHeight: settings.editorLineHeight,
+                        }}
                       />
                       <S.MediaSection>
                         <NineGridMedia
@@ -954,6 +1154,7 @@ export function App() {
                               media: newMedia,
                             }))
                           }
+                          defaultBatchMediaType={settings.defaultBatchMediaType}
                         />
                       </S.MediaSection>
                     </S.EditorScrollBody>
@@ -967,7 +1168,12 @@ export function App() {
                       <S.PaneMetaGroup>Moments</S.PaneMetaGroup>
                     </S.PaneHeader>
                     <S.PreviewScrollBody>
-                      <MomentPreview article={currentArticle} />
+                      <MomentPreview
+                        article={currentArticle}
+                        authorName={settings.momentAuthorName}
+                        authorAvatar={settings.momentAuthorAvatar}
+                        dateFormat={settings.momentDateFormat}
+                      />
                     </S.PreviewScrollBody>
                   </S.CanvasPaneCard>
                 )}
@@ -1129,19 +1335,32 @@ export function App() {
         isPublishing={isPublishing}
       />
 
-      <ConfigInfoModal
-        isOpen={isConfigModalOpen}
-        onClose={() => setIsConfigModalOpen(false)}
-        owner={serverData?.owner}
-        repo={serverData?.repo}
-        branch={serverData?.branch}
-        path={serverData?.path}
-        sha={serverData?.sha}
-        isMock={serverData?.isMock}
-        userEmail={currentUser?.email || serverData?.user?.email}
-        bindingName={serverData?.bindingName}
-        envKeys={serverData?.envKeys}
-      />
+      {isConfigModalOpen && (
+        <Suspense fallback={null}>
+          <ConfigInfoModal
+            isOpen={isConfigModalOpen}
+            onClose={() => setIsConfigModalOpen(false)}
+            settings={settings}
+            onUpdateSettings={updateSettings}
+            onResetSettings={handleResetSettings}
+            onReplaceSettings={handleReplaceSettings}
+            articles={serverData?.articles || []}
+            momentDrafts={Array.from(draftsMap.values())}
+            postDrafts={modalPostDrafts}
+            onRefreshPostDrafts={refreshPostDrafts}
+            onDeleteMomentDraft={handleDeleteMomentDraft}
+            onDeletePostDraft={handleDeletePostDraft}
+            onClearAllMomentDrafts={handleClearAllMomentDrafts}
+            onClearAllPostDrafts={handleClearAllPostDrafts}
+            onImportComplete={loadInitialData}
+            onToast={showToast}
+            onLogout={handleLogout}
+            isD1={serverData?.isD1}
+            d1Mode={serverData?.d1Mode}
+            userEmail={currentUser?.email || serverData?.user?.email}
+          />
+        </Suspense>
+      )}
     </S.AppShell>
   );
 }

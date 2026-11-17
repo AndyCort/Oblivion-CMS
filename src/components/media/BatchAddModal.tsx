@@ -1,5 +1,5 @@
 import * as S from './BatchAddModal.styles';
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import type { ArticleMedia, ArticleMediaType } from "../../types/article";
 
 
@@ -7,15 +7,23 @@ interface BatchAddModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAdd: (items: ArticleMedia[]) => void;
+  defaultMediaMode?: "auto" | ArticleMediaType;
 }
 
 export const BatchAddModal: React.FC<BatchAddModalProps> = ({
   isOpen,
   onClose,
   onAdd,
+  defaultMediaMode = "auto",
 }) => {
   const [urlsText, setUrlsText] = useState("");
-  const [defaultType, setDefaultType] = useState<"auto" | ArticleMediaType>("auto");
+  const [defaultType, setDefaultType] = useState<"auto" | ArticleMediaType>(defaultMediaMode);
+
+  useEffect(() => {
+    if (isOpen) {
+      setDefaultType(defaultMediaMode);
+    }
+  }, [isOpen, defaultMediaMode]);
 
   if (!isOpen) return null;
 

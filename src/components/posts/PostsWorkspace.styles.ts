@@ -74,6 +74,13 @@ export const Workspace = styled.div`
     letter-spacing: -0.02em;
     white-space: nowrap;
   }
+  .posts-header-icon {
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+    object-fit: cover;
+    flex-shrink: 0;
+  }
   .posts-mode-pill {
     font-size: 11px;
     font-weight: 500;
@@ -166,6 +173,13 @@ export const Workspace = styled.div`
   }
   .posts-sidebar.collapsed {
     display: none;
+  }
+  .posts-sidebar.compact .post-list-card {
+    padding: 9px 12px;
+    gap: 3px;
+  }
+  .posts-sidebar.compact .post-list-card p {
+    -webkit-line-clamp: 1;
   }
   .posts-nav-slot {
     padding: 10px 14px 0;
@@ -409,7 +423,9 @@ export const Workspace = styled.div`
   .post-line-numbers,
   .post-source textarea {
     tab-size: 2;
-    font: 13.5px/24px ui-monospace, SFMono-Regular, monospace;
+    font-family: var(--post-editor-font, ui-monospace, SFMono-Regular, monospace);
+    font-size: var(--post-editor-size, 13.5px);
+    line-height: var(--post-editor-lh, 24px);
     white-space: pre-wrap;
     overflow-wrap: anywhere;
     word-break: normal;
@@ -425,7 +441,7 @@ export const Workspace = styled.div`
   }
   .post-line-numbers > div {
     position: relative;
-    min-height: 24px;
+    min-height: var(--post-editor-lh, 24px);
   }
   .post-line-numbers > div::before {
     content: attr(data-line);
@@ -450,6 +466,14 @@ export const Workspace = styled.div`
     overflow-x: hidden;
     overflow-y: auto;
     color: inherit;
+  }
+  .post-source.no-line-numbers .post-line-numbers {
+    display: none;
+  }
+  .post-source.no-line-numbers textarea {
+    width: 100%;
+    margin-left: 0;
+    padding-left: 12px;
   }
   .post-preview-scroll {
     flex: 1;
@@ -522,7 +546,8 @@ export const Workspace = styled.div`
     & .posts-back {
       display: inline-flex;
     }
-    .posts-header-brand {
+    .posts-header-brand,
+    .posts-header-icon {
       display: none;
     }
     .posts-header-left,

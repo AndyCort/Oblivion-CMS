@@ -253,6 +253,18 @@ export const BrandTitle = styled.span`
   }
 `;
 
+export const BrandIconImg = styled.img`
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  object-fit: cover;
+  flex-shrink: 0;
+
+  @media (max-width: 767px) {
+    display: none;
+  }
+`;
+
 export const ModePill = styled.span`
   font-size: 11px;
   font-weight: 500;

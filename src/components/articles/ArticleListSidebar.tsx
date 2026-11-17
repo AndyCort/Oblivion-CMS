@@ -1,5 +1,5 @@
 import * as S from './ArticleListSidebar.styles';
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import type { Article, ArticleDraft } from "../../types/article";
 
 interface ArticleListSidebarProps {
@@ -12,6 +12,8 @@ interface ArticleListSidebarProps {
   onDeleteArticle: (article: Article, fingerprint: string) => void;
   drafts: Map<string, ArticleDraft>;
   getFingerprint: (article: Article) => string;
+  defaultSortOrder?: "desc" | "asc";
+  compactList?: boolean;
 }
 
 export const ArticleListSidebar: React.FC<ArticleListSidebarProps> = ({
@@ -24,10 +26,16 @@ export const ArticleListSidebar: React.FC<ArticleListSidebarProps> = ({
   onDeleteArticle,
   drafts,
   getFingerprint,
+  defaultSortOrder = "desc",
+  compactList = false,
 }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
-  const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
+  const [sortOrder, setSortOrder] = useState<"desc" | "asc">(defaultSortOrder);
+
+  useEffect(() => {
+    setSortOrder(defaultSortOrder);
+  }, [defaultSortOrder]);
   const [filterDraftOnly, setFilterDraftOnly] = useState(false);
   const [filterMediaOnly, setFilterMediaOnly] = useState(false);
 
@@ -200,7 +208,9 @@ export const ArticleListSidebar: React.FC<ArticleListSidebarProps> = ({
               <S.Div11
                 key={fp}
                 onClick={() => onSelectArticle(fp)}
-                $variant={((isSelected)) ? "v0" : "v1"} data-style-group
+                $variant={((isSelected)) ? "v0" : "v1"}
+                $compact={compactList}
+                data-style-group
               >
                 {/* Meta row: Date & status */}
                 <S.Div12>
@@ -222,7 +232,7 @@ export const ArticleListSidebar: React.FC<ArticleListSidebarProps> = ({
                 </S.Div12>
 
                 {/* Content Excerpt - 1:1 aligned with frontend preview */}
-                <S.Div14>
+                <S.Div14 $compact={compactList}>
                   {article.content || (
                     <S.Span4>
                       （暂无正文内容）

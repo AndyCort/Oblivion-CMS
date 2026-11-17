@@ -25,7 +25,7 @@ export const Preview = styled.section`
   margin-top: 12px;
 }
 .post-toc a {
-  color: #818cf8;
+  color: var(--color-indigo-400);
 }
 .post-prose {
   line-height: 1.9;
@@ -67,12 +67,12 @@ export const Preview = styled.section`
 }
 .post-prose blockquote {
   padding: 2px 18px;
-  border-left: 3px solid #818cf8;
+  border-left: 3px solid var(--color-indigo-400);
   color: var(--post-muted);
-  background: #6366f108;
+  background: color-mix(in oklab, var(--color-indigo-500) 6%, transparent);
 }
 .post-prose a {
-  color: #818cf8;
+  color: var(--color-indigo-400);
   text-decoration: underline;
 }
 .post-prose img {

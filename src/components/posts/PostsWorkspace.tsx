@@ -1,7 +1,7 @@
 import * as ListUI from "../articles/ArticleListSidebar.styles";
 import { matchesPost, postTagCounts } from "../../lib/postsList";
 import { useEffect, useRef, useState, useDeferredValue } from "react";
-import type { KeyboardEvent, ReactNode } from "react";
+import type { CSSProperties, KeyboardEvent, ReactNode } from "react";
 import { pinyin } from "pinyin-pro";
 import {
   Plus,
@@ -56,6 +56,11 @@ import {
   isMobileViewport,
   parseTagList,
 } from "../../styles/workspace";
+import {
+  DEFAULT_CMS_SETTINGS,
+  resolveEditorFontCss,
+  type CmsSettings,
+} from "../../lib/settings/cmsSettings";
 
 export function slugFromTitle(title: string) {
   return pinyin(title, {
@@ -78,6 +83,10 @@ interface PostsWorkspaceProps {
   sidebarOpen?: boolean;
   onSidebarOpenChange?: (open: boolean) => void;
   newPostTrigger?: number;
+  draftSyncRevision?: number;
+  saveTrigger?: number;
+  publishTrigger?: number;
+  settings?: CmsSettings;
   onToast?: (type: "success" | "error" | "info", text: string) => void;
 }
 
@@ -86,20 +95,33 @@ export default function PostsWorkspace({
   sidebarOpen = true,
   onSidebarOpenChange,
   newPostTrigger = 0,
+  draftSyncRevision = 0,
+  saveTrigger = 0,
+  publishTrigger = 0,
+  settings = DEFAULT_CMS_SETTINGS,
   onToast,
 }: PostsWorkspaceProps = {}) {
+  const createDefaultPost = (): BlogPost => {
+    const fresh = emptyPost();
+    return settings.defaultPostAuthor
+      ? { ...fresh, author: settings.defaultPostAuthor }
+      : fresh;
+  };
+
   const [result, setResult] = useState<PostList>();
   const [query, setQuery] = useState("");
   const [filterDraftOnly, setFilterDraftOnly] = useState(false);
   const [coverOnly, setCoverOnly] = useState(false);
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">(
+    settings.defaultSortOrder,
+  );
   const search = useDeferredValue(query);
   const [page, setPage] = useState(1);
   const [revision, setRevision] = useState(0);
   const [drafts, setDrafts] = useState<PostDraft[]>([]);
   const [editor, setEditor] = useState<PostDraft>(() => {
-    const p = emptyPost();
+    const p = createDefaultPost();
     return { id: crypto.randomUUID(), post: p, baseline: p, updatedAt: 0 };
   });
   const current = useRef(editor);
@@ -109,6 +131,10 @@ export default function PostsWorkspace({
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const prevNewTrigger = useRef(newPostTrigger);
   const prevSidebarOpen = useRef(sidebarOpen);
+  const prevSaveTrigger = useRef(saveTrigger);
+  const prevPublishTrigger = useRef(publishTrigger);
+  const prevDraftSync = useRef(draftSyncRevision);
+  const slugManuallyEdited = useRef(false);
 
   const [ready, setReady] = useState(false);
   const [status, setStatus] = useState("尚未修改");
@@ -117,8 +143,10 @@ export default function PostsWorkspace({
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(false);
   const [mobileEditor, setMobileEditor] = useState(false);
-  const [view, setView] = useState<"edit" | "split" | "preview">("split");
-  const [language, setLanguage] = useState("zh");
+  const [view, setView] = useState<"edit" | "split" | "preview">(
+    settings.defaultPostsView,
+  );
+  const [language, setLanguage] = useState(settings.defaultPostLanguage || "zh");
   const [newLanguage, setNewLanguage] = useState("");
   const [tagsInput, setTagsInput] = useState("");
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
@@ -148,6 +176,37 @@ export default function PostsWorkspace({
       setTagsInput(post.tags.join(", "));
     }
   }, [post.tags]);
+
+  useEffect(() => {
+    setSortOrder(settings.defaultSortOrder);
+  }, [settings.defaultSortOrder]);
+
+  useEffect(() => {
+    setView(settings.defaultPostsView);
+  }, [settings.defaultPostsView]);
+
+  useEffect(() => {
+    if (draftSyncRevision !== prevDraftSync.current) {
+      prevDraftSync.current = draftSyncRevision;
+      void getPostDrafts().then(setDrafts).catch(() => {});
+    }
+  }, [draftSyncRevision]);
+
+  useEffect(() => {
+    if (saveTrigger > 0 && saveTrigger !== prevSaveTrigger.current) {
+      prevSaveTrigger.current = saveTrigger;
+      void flush()
+        .then(() => onToast?.("success", "当前博客草稿已保存至本机"))
+        .catch(() => {});
+    }
+  }, [saveTrigger]);
+
+  useEffect(() => {
+    if (publishTrigger > 0 && publishTrigger !== prevPublishTrigger.current) {
+      prevPublishTrigger.current = publishTrigger;
+      if (!busy && ready) void publish();
+    }
+  }, [publishTrigger]);
 
   useEffect(() => {
     if (newPostTrigger > 0 && newPostTrigger !== prevNewTrigger.current) {
@@ -293,11 +352,17 @@ export default function PostsWorkspace({
         setStatus("保存失败");
         setError(err.message);
       });
-    }, 700);
+    }, settings.autoSaveDelayMs);
   }
 
   function activate(next: PostDraft) {
-    setLanguage(preferredPostLanguage(next.post));
+    const existingLangs = postLanguages(next.post);
+    setLanguage(
+      existingLangs.length
+        ? preferredPostLanguage(next.post)
+        : settings.defaultPostLanguage || "zh",
+    );
+    slugManuallyEdited.current = false;
     current.current = next;
     setEditor(next);
     setMobileEditor(true);
@@ -311,9 +376,18 @@ export default function PostsWorkspace({
   }
 
   function editText(field: PostTextField, value: string) {
-    change({
+    const patch: Partial<BlogPost> = {
       [field]: updatePostText(current.current.post[field], language, value),
-    });
+    };
+    if (
+      field === "title" &&
+      settings.autoGenerateSlug &&
+      !current.current.originalId &&
+      !slugManuallyEdited.current
+    ) {
+      patch.id = slugFromTitle(value);
+    }
+    change(patch);
   }
 
   function addLanguage(requested = newLanguage) {
@@ -350,7 +424,7 @@ export default function PostsWorkspace({
           });
         }
       } else {
-        const p = emptyPost();
+        const p = createDefaultPost();
         activate({
           id: crypto.randomUUID(),
           post: p,
@@ -358,7 +432,7 @@ export default function PostsWorkspace({
           updatedAt: 0,
         });
       }
-      if (isMobileViewport()) {
+      if (isMobileViewport() && settings.autoCloseSidebarOnMobile) {
         prevSidebarOpen.current = false;
         onSidebarOpenChange?.(false);
       }
@@ -392,6 +466,13 @@ export default function PostsWorkspace({
   }
 
   async function publish() {
+    if (
+      settings.confirmBeforePublish &&
+      typeof window !== "undefined" &&
+      !window.confirm(`确认将「${displayPostText(post.title) || post.id || "当前文章"}」发布写入数据库？`)
+    ) {
+      return;
+    }
     setBusy(true);
     setError("");
     setNotice("");
@@ -455,7 +536,7 @@ export default function PostsWorkspace({
   }
 
   function shortcut(e: KeyboardEvent<HTMLTextAreaElement>) {
-    if (e.nativeEvent.isComposing) return;
+    if (!settings.enableShortcuts || e.nativeEvent.isComposing) return;
     const key = e.key.toLowerCase();
     if (
       key !== "tab" &&
@@ -467,16 +548,17 @@ export default function PostsWorkspace({
     const start = el.selectionStart;
     const end = el.selectionEnd;
     const wrap = key === "b" ? "**" : "*";
+    const tabUnit = " ".repeat(settings.tabIndentSpaces);
     const selected = content.slice(start, end);
     const insert =
       key === "tab"
-        ? "  " + selected.replace(/\n/g, "\n  ")
+        ? tabUnit + selected.replace(/\n/g, `\n${tabUnit}`)
         : wrap + selected + wrap;
     editText("content", content.slice(0, start) + insert + content.slice(end));
     requestAnimationFrame(() => {
       el.focus();
       el.setSelectionRange(
-        start + (key === "tab" ? 2 : wrap.length),
+        start + (key === "tab" ? tabUnit.length : wrap.length),
         start + insert.length - (key === "tab" ? 0 : wrap.length),
       );
     });
@@ -519,7 +601,14 @@ export default function PostsWorkspace({
             <ArrowLeft size={13} />
             列表
           </button>
-          <span className="posts-header-brand">Oblivion-CMS</span>
+          {settings.siteIcon && (
+            <img
+              className="posts-header-icon"
+              src={settings.siteIcon}
+              alt=""
+            />
+          )}
+          <span className="posts-header-brand">{settings.siteName}</span>
           <span className="posts-mode-pill">
             {editor.originalId ? "博客长文" : "新文章"}
           </span>
@@ -594,7 +683,9 @@ export default function PostsWorkspace({
       </header>
 
       <div className="posts-body">
-        <aside className={`posts-sidebar${sidebarOpen ? "" : " collapsed"}`}>
+        <aside
+          className={`posts-sidebar${sidebarOpen ? "" : " collapsed"}${settings.compactList ? " compact" : ""}`}
+        >
           {listNavigation && (
             <div className="posts-nav-slot">{listNavigation}</div>
           )}
@@ -831,8 +922,12 @@ export default function PostsWorkspace({
                   <div className="post-pane-header">
                     <strong>Markdown 正文</strong>
                     <span className="post-dock-shortcuts">
-                      {chars} 字 · 约 {Math.max(1, Math.ceil(chars / 400))} 分钟
-                      · ⌘/Ctrl+B · I · Tab
+                      {chars} 字 · 约{" "}
+                      {Math.max(
+                        1,
+                        Math.ceil(chars / (settings.readingSpeedCpm || 400)),
+                      )}{" "}
+                      分钟 · ⌘/Ctrl+B · I · Tab
                     </span>
                   </div>
                   <input
@@ -843,7 +938,19 @@ export default function PostsWorkspace({
                     value={title}
                     onChange={(e) => editText("title", e.target.value)}
                   />
-                  <div className="post-source">
+                  <div
+                    className={`post-source${settings.showLineNumbers ? "" : " no-line-numbers"}`}
+                    style={
+                      {
+                        "--post-editor-font": resolveEditorFontCss(
+                          settings.editorFontFamily,
+                          "posts",
+                        ),
+                        "--post-editor-size": `${settings.editorFontSize}px`,
+                        "--post-editor-lh": `${Math.round(settings.editorFontSize * settings.editorLineHeight)}px`,
+                      } as CSSProperties
+                    }
+                  >
                     <div
                       ref={gutter}
                       className="post-line-numbers"
@@ -858,7 +965,7 @@ export default function PostsWorkspace({
                     <textarea
                       ref={textarea}
                       aria-label="Markdown 正文"
-                      spellCheck={false}
+                      spellCheck={settings.spellCheck}
                       wrap="soft"
                       placeholder="从这里落笔。支持 Markdown…"
                       value={content}
@@ -880,7 +987,10 @@ export default function PostsWorkspace({
                     <span>{displayPostText(post.title) || "未命名文章"}</span>
                   </div>
                   <div className="post-preview-scroll">
-                    <MarkdownPreview content={content} />
+                    <MarkdownPreview
+                      content={content}
+                      tocDefaultOpen={settings.previewTocDefaultOpen}
+                    />
                   </div>
                 </section>
               )}
@@ -976,7 +1086,10 @@ export default function PostsWorkspace({
                     value={post.id}
                     disabled={!!editor.originalId}
                     placeholder="slug-id"
-                    onChange={(e) => change({ id: e.target.value })}
+                    onChange={(e) => {
+                      slugManuallyEdited.current = true;
+                      change({ id: e.target.value });
+                    }}
                     style={{ width: "112px" }}
                   />
                   {!editor.originalId && (

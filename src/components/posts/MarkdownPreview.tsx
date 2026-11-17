@@ -12,7 +12,13 @@ import bash from 'highlight.js/lib/languages/bash';
 import { Preview, TocLink } from './MarkdownPreview.styles';
 for (const [name, language] of Object.entries({ javascript, typescript, css, xml, json, python, bash })) hljs.registerLanguage(name, language);
 const escape = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-export function MarkdownPreview({ content }: { content: string }) {
+export function MarkdownPreview({
+  content,
+  tocDefaultOpen = true,
+}: {
+  content: string;
+  tocDefaultOpen?: boolean;
+}) {
   const rendered = useMemo(() => {
     const headings: { id: string; text: string; level: number }[] = [];
     const parser = new Marked({ gfm: true, renderer: {
@@ -32,7 +38,7 @@ export function MarkdownPreview({ content }: { content: string }) {
     return { html, headings };
   }, [content]);
   return <Preview aria-label="Markdown 实时预览">
-    {rendered.headings.length > 0 && <details className="post-toc" open><summary>文章目录</summary><nav aria-label="文章目录">{rendered.headings.map(h => <TocLink key={h.id} href={`#${h.id}`} $level={h.level} dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(h.text) }} />)}</nav></details>}
+    {rendered.headings.length > 0 && <details className="post-toc" open={tocDefaultOpen}><summary>文章目录</summary><nav aria-label="文章目录">{rendered.headings.map(h => <TocLink key={h.id} href={`#${h.id}`} $level={h.level} dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(h.text) }} />)}</nav></details>}
     <div className="post-prose" dangerouslySetInnerHTML={{ __html: rendered.html }} />
   </Preview>;
 }

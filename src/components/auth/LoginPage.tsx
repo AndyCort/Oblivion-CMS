@@ -1,6 +1,11 @@
 import * as S from './LoginPage.styles';
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { loginWithCloudflareAccess, checkAuthStatus } from "../../lib/api/client";
+import {
+  loadCmsSettings,
+  applySiteBrand,
+  applyThemeAndAccent,
+} from "../../lib/settings/cmsSettings";
 
 
 interface LoginPageProps {
@@ -15,8 +20,15 @@ export const LoginPage: React.FC<LoginPageProps> = ({
   initialError,
   onRetry,
 }) => {
+  const brand = useMemo(() => loadCmsSettings(), []);
+  const [iconError, setIconError] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(initialError || null);
+
+  useEffect(() => {
+    applySiteBrand(brand);
+    applyThemeAndAccent(brand);
+  }, [brand]);
 
   useEffect(() => {
     if (initialError) {
@@ -82,12 +94,21 @@ export const LoginPage: React.FC<LoginPageProps> = ({
           {/* Header */}
           <S.Div6>
             <S.Div7>
-              <S.PenTool />
+              {brand.siteIcon && !iconError ? (
+                <img
+                  src={brand.siteIcon}
+                  alt={brand.siteName}
+                  onError={() => setIconError(true)}
+                  style={{ width: "26px", height: "26px", borderRadius: "6px", objectFit: "cover" }}
+                />
+              ) : (
+                <S.PenTool />
+              )}
             </S.Div7>
 
             <div>
               <S.H1>
-                <span>Oblivion-CMS</span>
+                <span>{brand.siteName}</span>
                 <S.Span>
                   Zero Trust
                 </S.Span>

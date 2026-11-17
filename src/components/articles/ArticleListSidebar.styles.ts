@@ -370,10 +370,13 @@ v1: css`
 }
 `
 };
-export const Div11 = styled.div<{ $variant: keyof typeof Div11Variants }>`
+export const Div11 = styled.div<{
+  $variant: keyof typeof Div11Variants;
+  $compact?: boolean;
+}>`
 position: relative;
 cursor: pointer;
-padding: calc(var(--spacing) * 3.5);
+padding: ${(p) => (p.$compact ? "8px 12px" : "calc(var(--spacing) * 3.5)")};
 transition-property: color, background-color, border-color, outline-color, text-decoration-color, fill, stroke, --cms-gradient-from, --cms-gradient-via, --cms-gradient-to;
 transition-timing-function: var(--cms-ease, var(--default-transition-timing-function));
 transition-duration: var(--cms-duration, var(--default-transition-duration));
@@ -449,8 +452,8 @@ height: calc(var(--spacing) * 2.5);
 width: calc(var(--spacing) * 2.5)
 `;
 
-export const Div14 = styled.div`
-margin-bottom: calc(var(--spacing) * 2);
+export const Div14 = styled.div<{ $compact?: boolean }>`
+margin-bottom: ${(p) => (p.$compact ? "calc(var(--spacing) * 1)" : "calc(var(--spacing) * 2)")};
 font-family: var(--font-serif);
 font-size: var(--text-xs);
 line-height: var(--cms-leading, var(--text-xs--line-height));
@@ -463,6 +466,16 @@ white-space: pre-wrap;
 color: var(--color-stone-800);
 -webkit-user-select: text;
 user-select: text;
+
+${(p) =>
+  p.$compact
+    ? css`
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      `
+    : ""}
 
 @media (width >= 40rem) {
   & {

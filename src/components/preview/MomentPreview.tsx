@@ -1,18 +1,40 @@
 import * as S from "./MomentPreview.styles";
 import React from "react";
 import type { Article } from "../../types/article";
+import {
+  DEFAULT_MOMENT_AVATAR,
+  type MomentDateFormat,
+} from "../../lib/settings/cmsSettings";
 
 interface MomentPreviewProps {
   article: Article;
+  authorName?: string;
+  authorAvatar?: string;
+  dateFormat?: MomentDateFormat;
 }
 
-function formatDisplayDate(timestamp: number): string {
+function formatDisplayDate(
+  timestamp: number,
+  dateFormat: MomentDateFormat = "full",
+): string {
   const d = new Date(timestamp);
   const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  const datePart =
+    dateFormat === "short"
+      ? `${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+      : `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  return `${datePart} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-export const MomentPreview: React.FC<MomentPreviewProps> = ({ article }) => {
+export const MomentPreview: React.FC<MomentPreviewProps> = ({
+  article,
+  authorName,
+  authorAvatar,
+  dateFormat = "full",
+}) => {
+  const displayAuthor = authorName?.trim() || "Andy";
+  const displayAvatar = authorAvatar?.trim() || DEFAULT_MOMENT_AVATAR;
+
   return (
     <S.Div>
       <S.Div3>
@@ -20,11 +42,11 @@ export const MomentPreview: React.FC<MomentPreviewProps> = ({ article }) => {
         <S.Header>
           <S.Div4>
             <S.Img
-              src="https://raw.githubusercontent.com/AndyCort/PicGo/master/img/6C93394B-9A64-4DCE-BA19-3E6A316120D1_1_201_a.jpeg"
-              alt="Avatar"
+              src={displayAvatar}
+              alt={`${displayAuthor} Avatar`}
             />
           </S.Div4>
-          <S.Div5>Andy</S.Div5>
+          <S.Div5>{displayAuthor}</S.Div5>
         </S.Header>
 
         {/* Content text: whitespace-pre-wrap */}
@@ -73,7 +95,7 @@ export const MomentPreview: React.FC<MomentPreviewProps> = ({ article }) => {
 
         {/* Card Footer: Time & Music */}
         <S.Footer>
-          <span>{formatDisplayDate(article.time)}</span>
+          <span>{formatDisplayDate(article.time, dateFormat)}</span>
 
           {article.music && (
             <S.Span5>

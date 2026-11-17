@@ -1,672 +1,670 @@
-import styled, { css } from 'styled-components';
-import { Settings as BaseSettings } from 'lucide-react';
-import { X as BaseX } from 'lucide-react';
-import { Sparkles as BaseSparkles } from 'lucide-react';
-import { Check as BaseCheck } from 'lucide-react';
-import { Copy as BaseCopy } from 'lucide-react';
-import { Code2 as BaseCode2 } from 'lucide-react';
-import { Database as BaseDatabase } from 'lucide-react';
-import { Shield as BaseShield } from 'lucide-react';
+import styled, { css } from "styled-components";
 
-export const Div = styled.div`
-position: fixed;
-inset: 0px;
-z-index: 50;
-display: flex;
-align-items: center;
-justify-content: center;
-background-color: color-mix(in oklab, var(--color-black) 60%, transparent);
-padding: calc(var(--spacing) * 3);
-padding-top: max(calc(var(--spacing) * 3), env(safe-area-inset-top, 0px));
-padding-bottom: max(calc(var(--spacing) * 3), env(safe-area-inset-bottom, 0px));
---cms-backdrop-blur: blur(var(--blur-sm));
--webkit-backdrop-filter: var(--cms-backdrop-blur,) var(--cms-backdrop-brightness,) var(--cms-backdrop-contrast,) var(--cms-backdrop-grayscale,) var(--cms-backdrop-hue-rotate,) var(--cms-backdrop-invert,) var(--cms-backdrop-opacity,) var(--cms-backdrop-saturate,) var(--cms-backdrop-sepia,);
-backdrop-filter: var(--cms-backdrop-blur,) var(--cms-backdrop-brightness,) var(--cms-backdrop-contrast,) var(--cms-backdrop-grayscale,) var(--cms-backdrop-hue-rotate,) var(--cms-backdrop-invert,) var(--cms-backdrop-opacity,) var(--cms-backdrop-saturate,) var(--cms-backdrop-sepia,);
--webkit-user-select: none;
-user-select: none;
+export const Overlay = styled.div`
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: color-mix(in oklab, var(--color-black) 60%, transparent);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  padding: 12px;
+  padding-top: max(12px, env(safe-area-inset-top, 0px));
+  padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
+  padding-left: max(12px, env(safe-area-inset-left, 0px));
+  padding-right: max(12px, env(safe-area-inset-right, 0px));
+`;
 
-@media (width >= 40rem) {
-  & {
-    padding: calc(var(--spacing) * 4);
-    padding-top: max(calc(var(--spacing) * 4), env(safe-area-inset-top, 0px));
-    padding-bottom: max(calc(var(--spacing) * 4), env(safe-area-inset-bottom, 0px));
+export const Dialog = styled.div`
+  width: 100%;
+  max-width: 780px;
+  height: min(650px, calc(100dvh - 24px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 18px;
+  border: 1px solid var(--color-stone-200);
+  background-color: var(--color-white);
+  color: var(--color-stone-900);
+  box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+
+  &:where(.dark, .dark *) {
+    border-color: var(--color-stone-800);
+    background-color: var(--color-stone-900);
+    color: var(--color-stone-100);
   }
-}
 `;
 
-export const Div2 = styled.div`
-max-height: 92dvh;
-width: 100%;
-max-width: var(--container-lg);
-overflow-y: auto;
-border-radius: var(--radius-2xl);
-border-style: var(--cms-border-style);
-border-width: 1px;
-border-color: var(--color-stone-200);
-background-color: var(--color-white);
-padding: calc(var(--spacing) * 4.5);
---cms-shadow: 0 25px 50px -12px var(--cms-shadow-color, rgb(0 0 0 / 0.25));
-box-shadow: var(--cms-inset-shadow), var(--cms-inset-ring-shadow), var(--cms-ring-offset-shadow), var(--cms-ring-shadow), var(--cms-shadow);
+export const Header = styled.div`
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--color-stone-200);
 
-:where(& > :not(:last-child)) {
-  --cms-space-y-reverse: 0;
-  margin-block-start: calc(calc(var(--spacing) * 4) * var(--cms-space-y-reverse));
-  margin-block-end: calc(calc(var(--spacing) * 4) * calc(1 - var(--cms-space-y-reverse)));
-}
-
-@media (width >= 40rem) {
-  :where(& > :not(:last-child)) {
-    --cms-space-y-reverse: 0;
-    margin-block-start: calc(calc(var(--spacing) * 5) * var(--cms-space-y-reverse));
-    margin-block-end: calc(calc(var(--spacing) * 5) * calc(1 - var(--cms-space-y-reverse)));
+  &:where(.dark, .dark *) {
+    border-bottom-color: var(--color-stone-800);
   }
-  & {
-    border-radius: var(--radius-3xl);
-    padding: calc(var(--spacing) * 7);
+`;
+
+export const HeaderTitleGroup = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+`;
+
+export const HeaderIconBox = styled.div`
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: color-mix(in oklab, var(--color-indigo-500) 14%, transparent);
+  color: var(--color-indigo-600);
+
+  &:where(.dark, .dark *) {
+    color: var(--color-indigo-300);
   }
-}
-
-&:where(.dark, .dark *) {
-  border-color: var(--color-stone-800);
-  background-color: var(--color-stone-900);
-}
 `;
 
-export const Div3 = styled.div`
-display: flex;
-align-items: center;
-justify-content: space-between;
-border-bottom-style: var(--cms-border-style);
-border-bottom-width: 1px;
-border-color: var(--color-stone-100);
-padding-bottom: calc(var(--spacing) * 3);
-
-&:where(.dark, .dark *) {
-  border-color: var(--color-stone-800);
-}
+export const HeaderTitle = styled.h3`
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.25;
 `;
 
-export const Div4 = styled.div`
-display: flex;
-align-items: center;
-gap: calc(var(--spacing) * 2)
+export const HeaderSubtitle = styled.p`
+  font-size: 11px;
+  color: var(--color-stone-500);
+
+  &:where(.dark, .dark *) {
+    color: var(--color-stone-400);
+  }
 `;
 
-export const Div5 = styled.div`
-display: flex;
-height: calc(var(--spacing) * 8);
-width: calc(var(--spacing) * 8);
-align-items: center;
-justify-content: center;
-border-radius: var(--radius-xl);
-border-style: var(--cms-border-style);
-border-width: 1px;
-border-color: var(--color-indigo-200);
-background-color: var(--color-indigo-50);
-color: var(--color-indigo-600);
+export const CloseButton = styled.button`
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--color-stone-400);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
 
-&:where(.dark, .dark *) {
-  border-color: color-mix(in oklab, var(--color-indigo-800) 60%, transparent);
-  background-color: color-mix(in oklab, var(--color-indigo-950) 60%, transparent);
-  color: var(--color-indigo-400);
-}
-`;
-
-export const Settings = styled(BaseSettings)`
-height: calc(var(--spacing) * 4);
-width: calc(var(--spacing) * 4)
-`;
-
-export const H3 = styled.h3`
-font-size: var(--text-base);
-line-height: var(--cms-leading, var(--text-base--line-height));
---cms-font-weight: var(--font-weight-semibold);
-font-weight: var(--font-weight-semibold);
-color: var(--color-stone-900);
-
-&:where(.dark, .dark *) {
-  color: var(--color-stone-100);
-}
-`;
-
-export const P = styled.p`
-font-size: 11px;
-color: var(--color-stone-400)
-`;
-
-export const Button = styled.button`
-cursor: pointer;
-border-radius: var(--radius-xl);
-padding: calc(var(--spacing) * 1.5);
-color: var(--color-stone-400);
-
-@media (hover: hover) {
   &:hover {
     background-color: var(--color-stone-100);
-    color: var(--color-stone-600);
+    color: var(--color-stone-700);
   }
   &:where(.dark, .dark *):hover {
     background-color: var(--color-stone-800);
     color: var(--color-stone-200);
   }
-}
 `;
 
-export const X = styled(BaseX)`
-height: calc(var(--spacing) * 5);
-width: calc(var(--spacing) * 5)
+export const TabBar = styled.div`
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--color-stone-200);
+  background-color: var(--color-stone-50);
+  overflow-x: auto;
+  overflow-y: hidden;
+  white-space: nowrap;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+
+  &:where(.dark, .dark *) {
+    border-bottom-color: var(--color-stone-800);
+    background-color: color-mix(in oklab, var(--color-stone-950) 60%, transparent);
+  }
+
+  @media (max-width: 640px) {
+    padding: 8px 10px;
+  }
 `;
 
-export const Div6 = styled.div`
-:where(& > :not(:last-child)) {
-  --cms-space-y-reverse: 0;
-  margin-block-start: calc(calc(var(--spacing) * 3.5) * var(--cms-space-y-reverse));
-  margin-block-end: calc(calc(var(--spacing) * 3.5) * calc(1 - var(--cms-space-y-reverse)));
-}
+export const TabButton = styled.button<{ $active: boolean }>`
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 11px;
+  border-radius: 9999px;
+  border: 1px solid
+    ${(p) => (p.$active ? "var(--color-indigo-600)" : "transparent")};
+  background-color: ${(p) =>
+    p.$active ? "var(--color-indigo-600)" : "transparent"};
+  color: ${(p) =>
+    p.$active ? "var(--color-white)" : "var(--color-stone-600)"};
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 150ms, color 150ms;
 
-font-size: var(--text-xs);
-line-height: var(--cms-leading, var(--text-xs--line-height))
-`;
-
-export const Div7 = styled.div`
-:where(& > :not(:last-child)) {
-  --cms-space-y-reverse: 0;
-  margin-block-start: calc(calc(var(--spacing) * 2.5) * var(--cms-space-y-reverse));
-  margin-block-end: calc(calc(var(--spacing) * 2.5) * calc(1 - var(--cms-space-y-reverse)));
-}
-
-border-radius: var(--radius-2xl);
-border-style: var(--cms-border-style);
-border-width: 1px;
-border-color: color-mix(in oklab, var(--color-indigo-500) 30%, transparent);
---cms-gradient-position: to bottom right in oklab;
-background-image: linear-gradient(var(--cms-gradient-stops));
---cms-gradient-from: color-mix(in oklab, var(--color-indigo-500) 10%, transparent);
---cms-gradient-stops: var(--cms-gradient-via-stops, var(--cms-gradient-position), var(--cms-gradient-from) var(--cms-gradient-from-position), var(--cms-gradient-to) var(--cms-gradient-to-position));
---cms-gradient-via: color-mix(in oklab, var(--color-purple-500) 5%, transparent);
---cms-gradient-via-stops: var(--cms-gradient-position), var(--cms-gradient-from) var(--cms-gradient-from-position), var(--cms-gradient-via) var(--cms-gradient-via-position), var(--cms-gradient-to) var(--cms-gradient-to-position);
---cms-gradient-stops: var(--cms-gradient-via-stops);
---cms-gradient-to: transparent;
---cms-gradient-stops: var(--cms-gradient-via-stops, var(--cms-gradient-position), var(--cms-gradient-from) var(--cms-gradient-from-position), var(--cms-gradient-to) var(--cms-gradient-to-position));
-padding: calc(var(--spacing) * 4)
-`;
-
-export const Div8 = styled.div`
-display: flex;
-align-items: center;
-justify-content: space-between;
---cms-font-weight: var(--font-weight-medium);
-font-weight: var(--font-weight-medium);
-color: var(--color-stone-900);
-
-&:where(.dark, .dark *) {
-  color: var(--color-stone-100);
-}
-`;
-
-export const Span = styled.span`
-display: flex;
-align-items: center;
-gap: calc(var(--spacing) * 1.5);
---cms-font-weight: var(--font-weight-semibold);
-font-weight: var(--font-weight-semibold);
-color: var(--color-indigo-600);
-
-&:where(.dark, .dark *) {
-  color: var(--color-indigo-400);
-}
-`;
-
-export const Sparkles = styled(BaseSparkles)`
-height: calc(var(--spacing) * 4);
-width: calc(var(--spacing) * 4)
-`;
-
-export const Span2 = styled.span`
-border-radius: calc(infinity * 1px);
-background-color: var(--color-indigo-100);
-padding-inline: calc(var(--spacing) * 2);
-padding-block: calc(var(--spacing) * 0.5);
-font-family: var(--font-mono);
-font-size: 10px;
-color: var(--color-indigo-700);
-
-&:where(.dark, .dark *) {
-  background-color: var(--color-indigo-950);
-  color: var(--color-indigo-300);
-}
-`;
-
-export const P2 = styled.p`
-font-size: 11px;
---cms-leading: var(--leading-relaxed);
-line-height: var(--leading-relaxed);
-color: var(--color-stone-600);
-
-&:where(.dark, .dark *) {
-  color: var(--color-stone-400);
-}
-`;
-
-export const Div9 = styled.div`
-display: flex;
-align-items: center;
-gap: calc(var(--spacing) * 2);
-border-radius: var(--radius-xl);
-border-style: var(--cms-border-style);
-border-width: 1px;
-border-color: var(--color-stone-200);
-background-color: var(--color-white);
-padding: calc(var(--spacing) * 2);
-
-&:where(.dark, .dark *) {
-  border-color: var(--color-stone-800);
-  background-color: var(--color-stone-950);
-}
-`;
-
-export const Input = styled.input`
-flex: 1;
-background-color: transparent;
-font-family: var(--font-mono);
-font-size: 11px;
-color: var(--color-indigo-600);
---cms-outline-style: none;
-outline-style: none;
--webkit-user-select: all;
-user-select: all;
-
-&:where(.dark, .dark *) {
-  color: var(--color-indigo-400);
-}
-`;
-
-export const Button2 = styled.button`
-display: flex;
-flex-shrink: 0;
-cursor: pointer;
-align-items: center;
-gap: var(--spacing);
-border-radius: var(--radius-lg);
-background-color: var(--color-indigo-600);
-padding-inline: calc(var(--spacing) * 2.5);
-padding-block: var(--spacing);
-font-size: 11px;
---cms-font-weight: var(--font-weight-medium);
-font-weight: var(--font-weight-medium);
-color: var(--color-white);
-transition-property: all;
-transition-timing-function: var(--cms-ease, var(--default-transition-timing-function));
-transition-duration: var(--cms-duration, var(--default-transition-duration));
-
-@media (hover: hover) {
   &:hover {
-    background-color: var(--color-indigo-500);
+    background-color: ${(p) =>
+      p.$active ? "var(--color-indigo-600)" : "var(--color-stone-200)"};
   }
-}
 
-&:active {
-  --cms-scale-x: 95%;
-  --cms-scale-y: 95%;
-  --cms-scale-z: 95%;
-  scale: var(--cms-scale-x) var(--cms-scale-y);
-}
-`;
-
-export const Check = styled(BaseCheck)`
-height: calc(var(--spacing) * 3.5);
-width: calc(var(--spacing) * 3.5)
-`;
-
-export const Copy = styled(BaseCopy)`
-height: calc(var(--spacing) * 3.5);
-width: calc(var(--spacing) * 3.5)
-`;
-
-export const Div10 = styled.div`
-:where(& > :not(:last-child)) {
-  --cms-space-y-reverse: 0;
-  margin-block-start: calc(var(--spacing) * var(--cms-space-y-reverse));
-  margin-block-end: calc(var(--spacing) * calc(1 - var(--cms-space-y-reverse)));
-}
-
-border-radius: var(--radius-xl);
-background-color: var(--color-stone-900);
-padding: calc(var(--spacing) * 2.5);
-font-family: var(--font-mono);
-font-size: 10px;
-color: var(--color-stone-300)
-`;
-
-export const Div11 = styled.div`
-display: flex;
-align-items: center;
-gap: var(--spacing);
-font-family: var(--font-sans);
-color: var(--color-stone-400)
-`;
-
-export const Code2 = styled(BaseCode2)`
-height: calc(var(--spacing) * 3);
-width: calc(var(--spacing) * 3);
-color: var(--color-indigo-400)
-`;
-
-export const P3 = styled.p`
-color: var(--color-indigo-300)
-`;
-
-export const Div12 = styled.div`
-:where(& > :not(:last-child)) {
-  --cms-space-y-reverse: 0;
-  margin-block-start: calc(calc(var(--spacing) * 3) * var(--cms-space-y-reverse));
-  margin-block-end: calc(calc(var(--spacing) * 3) * calc(1 - var(--cms-space-y-reverse)));
-}
-
-border-radius: var(--radius-2xl);
-border-style: var(--cms-border-style);
-border-width: 1px;
-border-color: var(--color-stone-200);
-background-color: var(--color-stone-50);
-padding: calc(var(--spacing) * 3.5);
-
-@media (width >= 40rem) {
-  & {
-    padding: calc(var(--spacing) * 4);
+  &:where(.dark, .dark *) {
+    color: ${(p) =>
+      p.$active ? "var(--color-white)" : "var(--color-stone-300)"};
+    &:hover {
+      background-color: ${(p) =>
+        p.$active ? "var(--color-indigo-600)" : "var(--color-stone-800)"};
+    }
   }
-}
-
-&:where(.dark, .dark *) {
-  border-color: var(--color-stone-800);
-  background-color: var(--color-stone-950);
-}
 `;
 
-export const Span3 = styled.span`
-display: flex;
-align-items: center;
-gap: calc(var(--spacing) * 1.5)
-`;
+export const Body = styled.div`
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 
-export const Database = styled(BaseDatabase)`
-height: calc(var(--spacing) * 4);
-width: calc(var(--spacing) * 4);
-color: var(--color-emerald-500)
-`;
-
-const Span4Variants = {
-v0: css`
-border-color: color-mix(in oklab, var(--color-amber-300) 60%, transparent);
-background-color: var(--color-amber-100);
-color: var(--color-amber-700);
-
-&:where(.dark, .dark *) {
-  background-color: color-mix(in oklab, var(--color-amber-950) 60%, transparent);
-  color: var(--color-amber-400);
-}
-`,
-v1: css`
-border-color: color-mix(in oklab, var(--color-emerald-300) 60%, transparent);
-background-color: var(--color-emerald-100);
-color: var(--color-emerald-700);
-
-&:where(.dark, .dark *) {
-  background-color: color-mix(in oklab, var(--color-emerald-950) 60%, transparent);
-  color: var(--color-emerald-400);
-}
-`
-};
-export const Span4 = styled.span<{ $variant: keyof typeof Span4Variants }>`
-border-radius: 0.25rem;
-border-style: var(--cms-border-style);
-border-width: 1px;
-padding-inline: calc(var(--spacing) * 2);
-padding-block: calc(var(--spacing) * 0.5);
-font-size: 10px;
---cms-font-weight: var(--font-weight-medium);
-font-weight: var(--font-weight-medium);
-${p => Span4Variants[p.$variant]}
-`;
-
-export const Div13 = styled.div`
-:where(& > :not(:last-child)) {
-  --cms-space-y-reverse: 0;
-  margin-block-start: calc(var(--spacing) * var(--cms-space-y-reverse));
-  margin-block-end: calc(var(--spacing) * calc(1 - var(--cms-space-y-reverse)));
-}
-
-font-family: var(--font-mono);
-font-size: 11px;
-color: var(--color-stone-600);
-
-&:where(.dark, .dark *) {
-  color: var(--color-stone-400);
-}
-`;
-
-export const Span5 = styled.span`
---cms-font-weight: var(--font-weight-bold);
-font-weight: var(--font-weight-bold);
-color: var(--color-indigo-600);
-
-&:where(.dark, .dark *) {
-  color: var(--color-indigo-400);
-}
-`;
-
-export const Div14 = styled.div`
-margin-top: calc(var(--spacing) * 2.5);
-border-radius: var(--radius-xl);
-border-style: var(--cms-border-style);
-border-width: 1px;
-border-color: color-mix(in oklab, var(--color-amber-500) 30%, transparent);
-background-color: color-mix(in oklab, var(--color-amber-500) 10%, transparent);
-padding: calc(var(--spacing) * 3);
-font-size: 11px;
-color: var(--color-amber-900);
-
-:where(& > :not(:last-child)) {
-  --cms-space-y-reverse: 0;
-  margin-block-start: calc(calc(var(--spacing) * 2) * var(--cms-space-y-reverse));
-  margin-block-end: calc(calc(var(--spacing) * 2) * calc(1 - var(--cms-space-y-reverse)));
-}
-
-&:where(.dark, .dark *) {
-  color: var(--color-amber-200);
-}
-`;
-
-export const Div15 = styled.div`
-display: flex;
-align-items: center;
-gap: var(--spacing);
---cms-font-weight: var(--font-weight-semibold);
-font-weight: var(--font-weight-semibold);
-color: var(--color-amber-800);
-
-&:where(.dark, .dark *) {
-  color: var(--color-amber-300);
-}
-`;
-
-export const P4 = styled.p`
---cms-leading: var(--leading-relaxed);
-line-height: var(--leading-relaxed)
-`;
-
-export const Div16 = styled.div`
-border-radius: var(--radius-lg);
-border-style: var(--cms-border-style);
-border-width: 1px;
-border-color: color-mix(in oklab, var(--color-amber-500) 20%, transparent);
-background-color: color-mix(in oklab, var(--color-white) 60%, transparent);
-padding: calc(var(--spacing) * 2);
-font-family: var(--font-mono);
-font-size: 10px;
-color: var(--color-stone-600);
-
-&:where(.dark, .dark *) {
-  background-color: color-mix(in oklab, var(--color-stone-900) 60%, transparent);
-  color: var(--color-stone-400);
-}
-`;
-
-export const Div17 = styled.div`
---cms-font-weight: var(--font-weight-semibold);
-font-weight: var(--font-weight-semibold);
-word-break: break-all;
-color: var(--color-indigo-600);
-
-&:where(.dark, .dark *) {
-  color: var(--color-indigo-400);
-}
-`;
-
-export const Div18 = styled.div`
-:where(& > :not(:last-child)) {
-  --cms-space-y-reverse: 0;
-  margin-block-start: calc(calc(var(--spacing) * 1.5) * var(--cms-space-y-reverse));
-  margin-block-end: calc(calc(var(--spacing) * 1.5) * calc(1 - var(--cms-space-y-reverse)));
-}
-
-padding-top: var(--spacing);
-font-family: var(--font-sans)
-`;
-
-export const Div19 = styled.div`
---cms-font-weight: var(--font-weight-medium);
-font-weight: var(--font-weight-medium);
-color: var(--color-amber-900);
-
-&:where(.dark, .dark *) {
-  color: var(--color-amber-200);
-}
-`;
-
-export const Ol = styled.ol`
-list-style-position: inside;
-list-style-type: decimal;
-color: var(--color-stone-700);
-
-:where(& > :not(:last-child)) {
-  --cms-space-y-reverse: 0;
-  margin-block-start: calc(var(--spacing) * var(--cms-space-y-reverse));
-  margin-block-end: calc(var(--spacing) * calc(1 - var(--cms-space-y-reverse)));
-}
-
-&:where(.dark, .dark *) {
-  color: var(--color-stone-300);
-}
-`;
-
-export const Code = styled.code`
-font-family: var(--font-mono);
---cms-font-weight: var(--font-weight-bold);
-font-weight: var(--font-weight-bold);
-color: var(--color-indigo-600);
-
-&:where(.dark, .dark *) {
-  color: var(--color-indigo-400);
-}
-`;
-
-export const Div20 = styled.div`
-:where(& > :not(:last-child)) {
-  --cms-space-y-reverse: 0;
-  margin-block-start: calc(calc(var(--spacing) * 1.5) * var(--cms-space-y-reverse));
-  margin-block-end: calc(calc(var(--spacing) * 1.5) * calc(1 - var(--cms-space-y-reverse)));
-}
-
-border-radius: var(--radius-2xl);
-border-style: var(--cms-border-style);
-border-width: 1px;
-border-color: var(--color-stone-200);
-background-color: var(--color-stone-50);
-padding: calc(var(--spacing) * 3.5);
-
-&:where(.dark, .dark *) {
-  border-color: var(--color-stone-800);
-  background-color: var(--color-stone-950);
-}
-`;
-
-export const Div21 = styled.div`
-display: flex;
-align-items: center;
-gap: calc(var(--spacing) * 1.5);
---cms-font-weight: var(--font-weight-medium);
-font-weight: var(--font-weight-medium);
-color: var(--color-stone-900);
-
-&:where(.dark, .dark *) {
-  color: var(--color-stone-100);
-}
-`;
-
-export const Shield = styled(BaseShield)`
-height: calc(var(--spacing) * 4);
-width: calc(var(--spacing) * 4);
-color: var(--color-indigo-500)
-`;
-
-export const Div22 = styled.div`
-font-size: 11px;
---cms-leading: var(--leading-relaxed);
-line-height: var(--leading-relaxed);
-color: var(--color-stone-600);
-
-&:where(.dark, .dark *) {
-  color: var(--color-stone-400);
-}
-`;
-
-export const Span6 = styled.span`
-font-family: var(--font-mono);
-color: var(--color-indigo-600);
-
-&:where(.dark, .dark *) {
-  color: var(--color-indigo-400);
-}
-`;
-
-export const P5 = styled.p`
-margin-top: var(--spacing)
-`;
-
-export const Div23 = styled.div`
-display: flex;
-justify-content: flex-end;
-padding-top: calc(var(--spacing) * 2)
-`;
-
-export const Button3 = styled.button`
-cursor: pointer;
-border-radius: var(--radius-xl);
-background-color: var(--color-indigo-600);
-padding-inline: calc(var(--spacing) * 5);
-padding-block: calc(var(--spacing) * 2.5);
-font-size: var(--text-xs);
-line-height: var(--cms-leading, var(--text-xs--line-height));
---cms-font-weight: var(--font-weight-semibold);
-font-weight: var(--font-weight-semibold);
-color: var(--color-white);
---cms-shadow: 0 4px 6px -1px var(--cms-shadow-color, rgb(0 0 0 / 0.1)), 0 2px 4px -2px var(--cms-shadow-color, rgb(0 0 0 / 0.1));
-box-shadow: var(--cms-inset-shadow), var(--cms-inset-ring-shadow), var(--cms-ring-offset-shadow), var(--cms-ring-shadow), var(--cms-shadow);
---cms-shadow-color: color-mix(in oklab, color-mix(in oklab, var(--color-indigo-600) 20%, transparent) var(--cms-shadow-alpha), transparent);
-transition-property: all;
-transition-timing-function: var(--cms-ease, var(--default-transition-timing-function));
-transition-duration: var(--cms-duration, var(--default-transition-duration));
-
-@media (hover: hover) {
-  &:hover {
-    background-color: var(--color-indigo-500);
+  @media (max-width: 640px) {
+    padding: 12px;
+    gap: 12px;
   }
-}
+`;
 
-&:active {
-  --cms-scale-x: 95%;
-  --cms-scale-y: 95%;
-  --cms-scale-z: 95%;
-  scale: var(--cms-scale-x) var(--cms-scale-y);
-}
+export const SectionCard = styled.section`
+  border-radius: 14px;
+  border: 1px solid var(--color-stone-200);
+  background-color: var(--color-white);
+  overflow: hidden;
+
+  &:where(.dark, .dark *) {
+    border-color: var(--color-stone-800);
+    background-color: color-mix(in oklab, var(--color-stone-950) 55%, transparent);
+  }
+`;
+
+export const SectionHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--color-stone-100);
+  background-color: var(--color-stone-50);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: var(--color-stone-600);
+
+  &:where(.dark, .dark *) {
+    border-bottom-color: var(--color-stone-800);
+    background-color: color-mix(in oklab, var(--color-stone-900) 80%, transparent);
+    color: var(--color-stone-300);
+  }
+`;
+
+export const SettingRow = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--color-stone-100);
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &:where(.dark, .dark *) {
+    border-bottom-color: var(--color-stone-800);
+  }
+
+  @media (max-width: 560px) {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+`;
+
+export const SettingInfo = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+`;
+
+export const SettingLabel = styled.span`
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--color-stone-900);
+
+  &:where(.dark, .dark *) {
+    color: var(--color-stone-100);
+  }
+`;
+
+export const SettingHint = styled.span`
+  font-size: 11px;
+  color: var(--color-stone-500);
+  line-height: 1.4;
+
+  &:where(.dark, .dark *) {
+    color: var(--color-stone-400);
+  }
+`;
+
+export const SettingControl = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+`;
+
+export const TextInput = styled.input`
+  height: 32px;
+  min-width: 190px;
+  max-width: 100%;
+  padding: 0 10px;
+  border-radius: 9px;
+  border: 1px solid var(--color-stone-200);
+  background-color: var(--color-stone-50);
+  color: var(--color-stone-900);
+  font-size: 12px;
+  outline: none;
+
+  &:focus {
+    border-color: var(--color-indigo-500);
+    background-color: var(--color-white);
+  }
+
+  &:where(.dark, .dark *) {
+    border-color: var(--color-stone-700);
+    background-color: var(--color-stone-900);
+    color: var(--color-stone-100);
+    &:focus {
+      border-color: var(--color-indigo-400);
+    }
+  }
+
+  @media (max-width: 560px) {
+    width: 100%;
+    flex: 1;
+  }
+`;
+
+export const SelectInput = styled.select`
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 9px;
+  border: 1px solid var(--color-stone-200);
+  background-color: var(--color-stone-50);
+  color: var(--color-stone-900);
+  font-size: 12px;
+  outline: none;
+  cursor: pointer;
+
+  &:focus {
+    border-color: var(--color-indigo-500);
+  }
+
+  &:where(.dark, .dark *) {
+    border-color: var(--color-stone-700);
+    background-color: var(--color-stone-900);
+    color: var(--color-stone-100);
+  }
+`;
+
+export const SegmentGroup = styled.div`
+  display: inline-flex;
+  align-items: center;
+  padding: 2px;
+  gap: 2px;
+  border-radius: 9px;
+  border: 1px solid var(--color-stone-200);
+  background-color: var(--color-stone-100);
+
+  &:where(.dark, .dark *) {
+    border-color: var(--color-stone-700);
+    background-color: var(--color-stone-800);
+  }
+`;
+
+export const SegmentButton = styled.button<{ $active: boolean }>`
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 7px;
+  border: none;
+  background-color: ${(p) => (p.$active ? "var(--color-white)" : "transparent")};
+  color: ${(p) =>
+    p.$active ? "var(--color-stone-900)" : "var(--color-stone-500)"};
+  font-size: 11.5px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: ${(p) => (p.$active ? "0 1px 2px rgb(0 0 0 / 0.08)" : "none")};
+
+  &:where(.dark, .dark *) {
+    background-color: ${(p) => (p.$active ? "var(--color-stone-700)" : "transparent")};
+    color: ${(p) =>
+      p.$active ? "var(--color-stone-100)" : "var(--color-stone-400)"};
+  }
+`;
+
+export const ToggleSwitch = styled.button<{ $checked: boolean }>`
+  width: 40px;
+  height: 22px;
+  padding: 2px;
+  border-radius: 9999px;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: ${(p) => (p.$checked ? "flex-end" : "flex-start")};
+  background-color: ${(p) =>
+    p.$checked ? "var(--color-indigo-600)" : "var(--color-stone-300)"};
+  transition: background-color 150ms;
+
+  &:where(.dark, .dark *) {
+    background-color: ${(p) =>
+      p.$checked ? "var(--color-indigo-500)" : "var(--color-stone-700)"};
+  }
+`;
+
+export const ToggleKnob = styled.span`
+  width: 18px;
+  height: 18px;
+  border-radius: 9999px;
+  background-color: var(--color-white);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.2);
+`;
+
+export const AccentSwatchButton = styled.button<{
+  $color: string;
+  $active: boolean;
+}>`
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 9px;
+  border-radius: 9999px;
+  border: 1.5px solid
+    ${(p) => (p.$active ? p.$color : "var(--color-stone-200)")};
+  background-color: ${(p) =>
+    p.$active ? `color-mix(in oklab, ${p.$color} 12%, transparent)` : "transparent"};
+  color: inherit;
+  font-size: 11.5px;
+  cursor: pointer;
+
+  &:where(.dark, .dark *) {
+    border-color: ${(p) => (p.$active ? p.$color : "var(--color-stone-700)")};
+  }
+`;
+
+export const AccentDot = styled.span<{ $color: string }>`
+  width: 10px;
+  height: 10px;
+  border-radius: 9999px;
+  background-color: ${(p) => p.$color};
+`;
+
+export const PreviewThumb = styled.img<{ $round?: boolean }>`
+  width: 28px;
+  height: 28px;
+  border-radius: ${(p) => (p.$round ? "9999px" : "8px")};
+  object-fit: cover;
+  border: 1px solid var(--color-stone-200);
+  flex-shrink: 0;
+
+  &:where(.dark, .dark *) {
+    border-color: var(--color-stone-700);
+  }
+`;
+
+export const ActionButton = styled.button<{
+  $tone?: "default" | "primary" | "danger";
+}>`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 30px;
+  padding: 0 11px;
+  border-radius: 8px;
+  font-size: 11.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 150ms, border-color 150ms, opacity 150ms;
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  ${(p) =>
+    p.$tone === "primary"
+      ? css`
+          border: 1px solid var(--color-indigo-600);
+          background-color: var(--color-indigo-600);
+          color: var(--color-white);
+          &:hover:not(:disabled) {
+            background-color: var(--color-indigo-500);
+          }
+        `
+      : p.$tone === "danger"
+        ? css`
+            border: 1px solid rgb(244 63 94 / 0.35);
+            background-color: rgb(244 63 94 / 0.08);
+            color: var(--color-rose-600);
+            &:hover:not(:disabled) {
+              background-color: rgb(244 63 94 / 0.16);
+            }
+            &:where(.dark, .dark *) {
+              color: var(--color-rose-400);
+            }
+          `
+        : css`
+            border: 1px solid var(--color-stone-200);
+            background-color: var(--color-white);
+            color: var(--color-stone-700);
+            &:hover:not(:disabled) {
+              background-color: var(--color-stone-100);
+            }
+            &:where(.dark, .dark *) {
+              border-color: var(--color-stone-700);
+              background-color: var(--color-stone-800);
+              color: var(--color-stone-200);
+              &:hover:not(:disabled) {
+                background-color: var(--color-stone-700);
+              }
+            }
+          `}
+`;
+
+export const StatsGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+
+  @media (max-width: 640px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+`;
+
+export const StatCard = styled.div`
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--color-stone-200);
+  background-color: var(--color-stone-50);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+
+  strong {
+    font-size: 18px;
+    font-weight: 700;
+    font-family: var(--font-mono);
+  }
+  span {
+    font-size: 11px;
+    color: var(--color-stone-500);
+  }
+
+  &:where(.dark, .dark *) {
+    border-color: var(--color-stone-800);
+    background-color: color-mix(in oklab, var(--color-stone-950) 55%, transparent);
+    span {
+      color: var(--color-stone-400);
+    }
+  }
+`;
+
+export const DraftList = styled.div`
+  display: flex;
+  flex-direction: column;
+  max-height: 200px;
+  overflow-y: auto;
+`;
+
+export const DraftItem = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--color-stone-100);
+  font-size: 12px;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &:where(.dark, .dark *) {
+    border-bottom-color: var(--color-stone-800);
+  }
+`;
+
+export const DraftBadge = styled.span<{ $kind: "moment" | "post" }>`
+  padding: 1px 6px;
+  border-radius: 9999px;
+  font-size: 10px;
+  font-weight: 600;
+  flex-shrink: 0;
+  background-color: ${(p) =>
+    p.$kind === "moment" ? "rgb(99 102 241 / 0.14)" : "rgb(16 185 129 / 0.14)"};
+  color: ${(p) =>
+    p.$kind === "moment" ? "var(--color-indigo-600)" : "var(--color-emerald-700)"};
+
+  &:where(.dark, .dark *) {
+    color: ${(p) =>
+      p.$kind === "moment" ? "var(--color-indigo-300)" : "var(--color-emerald-300)"};
+  }
+`;
+
+export const ImportBox = styled.div`
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+`;
+
+export const ImportTextarea = styled.textarea`
+  width: 100%;
+  min-height: 88px;
+  resize: vertical;
+  padding: 9px 11px;
+  border-radius: 10px;
+  border: 1px solid var(--color-stone-200);
+  background-color: var(--color-stone-50);
+  color: var(--color-stone-900);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  line-height: 1.5;
+  outline: none;
+
+  &:focus {
+    border-color: var(--color-indigo-500);
+  }
+
+  &:where(.dark, .dark *) {
+    border-color: var(--color-stone-700);
+    background-color: var(--color-stone-900);
+    color: var(--color-stone-100);
+  }
+`;
+
+export const ShortcutTable = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  padding: 12px 14px;
+
+  @media (max-width: 560px) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+`;
+
+export const ShortcutRow = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: 9px;
+  background-color: var(--color-stone-50);
+  font-size: 11.5px;
+
+  kbd {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    padding: 2px 6px;
+    border-radius: 5px;
+    border: 1px solid var(--color-stone-200);
+    background-color: var(--color-white);
+  }
+
+  &:where(.dark, .dark *) {
+    background-color: var(--color-stone-900);
+    kbd {
+      border-color: var(--color-stone-700);
+      background-color: var(--color-stone-800);
+    }
+  }
+`;
+
+export const Footer = styled.div`
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--color-stone-200);
+  background-color: var(--color-stone-50);
+  font-size: 11.5px;
+
+  &:where(.dark, .dark *) {
+    border-top-color: var(--color-stone-800);
+    background-color: color-mix(in oklab, var(--color-stone-950) 60%, transparent);
+  }
 `;
