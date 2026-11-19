@@ -16,19 +16,19 @@ export interface D1PreparedStatement {
   all<T = unknown>(): Promise<D1Result<T>>;
 }
 
-export interface D1Result<T = unknown> {
+interface D1Result<T = unknown> {
   results?: T[];
   success: boolean;
   error?: string;
   meta?: Record<string, unknown>;
 }
 
-export interface D1ExecResult {
+interface D1ExecResult {
   count: number;
   duration: number;
 }
 
-export interface D1ArticleRow {
+interface D1ArticleRow {
   time: number;
   content: string;
   media: string;
@@ -39,7 +39,7 @@ export interface D1ArticleRow {
   updated_at: number;
 }
 
-export class D1HttpClient implements D1Database {
+class D1HttpClient implements D1Database {
   private accountId: string;
   private databaseId: string;
   private apiToken: string;
@@ -173,7 +173,7 @@ function visibleEnvKeys(env: Record<string, any>): string[] {
   );
 }
 
-export function getD1UnboundErrorMessage(
+function getD1UnboundErrorMessage(
   env: Record<string, any>,
   serviceBindingWarning?: string,
 ): string {
@@ -240,7 +240,7 @@ export function getD1Database(env: Record<string, any>): {
 
 let inMemoryArticles: Article[] = structuredClone(DEFAULT_MOCK_ARTICLES);
 
-export function computeArticlesSha(articles: Article[]): string {
+function computeArticlesSha(articles: Article[]): string {
   if (!articles || articles.length === 0) return "d1-empty-v1";
   let hash = 0;
   for (const a of articles) {
@@ -254,7 +254,7 @@ export function computeArticlesSha(articles: Article[]): string {
   return `d1-${articles.length}-${newest.toString(16)}-${Math.abs(hash).toString(36)}`;
 }
 
-export type D1ArticleTable = "articles" | "oblivion_cms_moments";
+type D1ArticleTable = "articles" | "oblivion_cms_moments";
 const schemaInitializations = new WeakMap<D1Database, Promise<D1ArticleTable>>();
 const requiredArticleColumns = [
   "time",
@@ -348,7 +348,7 @@ function parseJsonField<T>(raw: string | null | undefined, fallback: T): T {
   }
 }
 
-export function rowToArticle(row: D1ArticleRow): Article {
+function rowToArticle(row: D1ArticleRow): Article {
   return {
     time: Number(row.time),
     content: row.content || "",

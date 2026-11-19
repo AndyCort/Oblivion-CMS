@@ -9,7 +9,6 @@ import {
 
 interface LoginPageProps {
   onLoginSuccess: (user: any) => void;
-  onLoginError?: (error: string) => void;
   initialError?: string | null;
   onRetry?: () => void;
 }

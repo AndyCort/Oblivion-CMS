@@ -1,39 +1,29 @@
 # Oblivion-CMS
 
-**Oblivion-CMS** 是一个专为个人博客设计的独立文章/说说可视化编辑器，拥有类似 QQ 空间“发表说说”的沉浸式操作体验。
-
-它直接托管于 **Cloudflare Pages**，基于 **Cloudflare Access** 实现无数据库的零信任身份认证，并通过 **TypeScript AST (抽象语法树)** 安全读写保存在 GitHub 仓库中的 `data.ts`（例如 `src/components/data/moments.ts`），直接触发博客既有的静态部署流程。
+**Oblivion-CMS** 是一个独立托管在 **Cloudflare Pages** 上的个人博客可视化创作工作台，提供「说说动态（Moments）」与「博客长文（Posts）」双创作模式，基于 **Cloudflare Access** 实现零信任身份认证，并以 **Cloudflare D1** 与博客内容 Worker 作为持久化存储。
 
 ---
 
 ## 🌟 核心特性
 
+- **双模式创作工作台**：
+  - **说说动态（Moments）**：类似 QQ 空间“发表说说”的沉浸式编辑器，支持编辑 / 分屏 / 前台 1:1 实时预览，底部悬浮 Meta Dock 一行管理时间、地点、标签、音乐与发布备注。
+  - **博客长文（Posts）**：支持多语言（中文 / English / 自定义语言代码）、Markdown 编辑与行号对齐、拼音自动生成 Slug、GFM / TOC 目录 / 代码高亮安全预览（DOMPurify 清洗）。
 - **QQ 空间式九宫格媒体管理**：
-  - 三列统一正方形网格（1:1），图片视频自由混排。
-  - **打破 9 个限制**：第 10 个及更多媒体自动换行（如 13 个媒体展示 5 行），编辑模式完整可见。
-  - **自由拖拽排序**：支持桌面端鼠标拖拽及移动端 Safari 触屏长按拖拽，实时同步。
-  - **媒体预览与大图灯箱**：支持图片全屏大图（键盘方向键、Escape 关闭）与原生视频弹层预览（关闭即停播）。
-  - **多行批量粘贴导入**：支持在对话框中一次粘贴多条 URL 批量导入，智能推测媒体类型。
-  - **加载容错保护**：媒体加载失败展示错误占位、重试按钮与快速修改 URL 入口，绝不让编辑器崩溃。
-- **TypeScript AST 安全范围修改**：
-  - **杜绝正则粗暴替换**：使用 AST 精确查找目标文章在源码中的 `[start, end]` 字符范围。
-  - **极致保真**：完美保留源文件中的顶部注释、导入语句、缩进风格、字段顺序及其它无关代码。
-  - **语法合法性往返校验**：每一次改动均重新解析并校验 TypeScript 语法与文章结构；若包含动态表达式（如 `Date.now()`、函数调用），明确提示并拒绝破坏性改写。
+  - 三列统一正方形网格（1:1），图片视频自由混排，支持突破 9 个限制自动换行。
+  - 支持鼠标拖拽排序、全屏大图灯箱（键盘方向键、Escape 关闭）与视频弹层预览。
+  - 支持多行批量粘贴 URL 导入并自动识别图片 / 视频类型，内置加载失败占位与重试。
 - **IndexedDB 本机防抖自动草稿**：
-  - 编辑时防抖（700ms）自动保存到当前浏览器的 IndexedDB。
-  - 刷新页面、意外关闭、切换文章均不丢失编辑进度。
-  - “保存草稿”仅保存在本机；点击“发布到 GitHub”才提交远程仓库；发布成功自动清理对应草稿。
-- **GitHub API 联机发布与冲突控制**：
-  - 提交基于远程 SHA 的版本基准校验。
-  - 当远程仓库在编辑期间被其他人或进程修改时，触发 **409 Conflict** 冲突保护，阻止静默覆盖，并提供本地草稿备份导出与远程最新数据合并指引。
+  - 编辑时防抖自动写入当前浏览器的 IndexedDB（默认 700ms，可在设置中调整）。
+  - 刷新页面、意外关闭或切换文章均保留草稿，发布成功后自动清理对应草稿。
+- **乐观锁冲突保护与导入迁移**：
+  - 说说发布基于数据版本 SHA 校验，发生并发修改时触发 **409 Conflict** 保护弹窗，支持复制草稿 JSON、拉取最新远程数据或强制覆盖。
+  - 设置中心支持批量导入 `.json` 与旧版 `moments.ts`（通过 `@babel/parser` AST 解析），并支持 CMS 个性化设置的导出与迁移。
 - **Cloudflare Access 零信任服务端验签**：
-  - 后端 Pages Functions 通过 Web Crypto 原生校验 `Cf-Access-Jwt-Assertion` 的 JWKS 签名、Audience、Issuer 与有效期。
-  - 支持 Cloudflare Access 原生 Passkey 登录，绑定与管理在 Access 完成，CMS 沿用现有 JWT 鉴权。
-  - GitHub Token 仅保存在 Cloudflare Secrets 中，严禁泄漏至前端 Bundle、Git 或接口响应。
-- **全平台 Safari 与移动端体验优化**：
-  - 适配 Mac、iPad、iPhone，支持 iOS 虚拟键盘与 `safe-area-inset` 安全区域。
-  - 支持深色 / 浅色 / 跟随系统主题。
-  - 具备 1:1 对齐博客前台样式的实时渲染预览模式。
+  - 后端 Pages Functions 通过 `jose` 校验 `Cf-Access-Jwt-Assertion` 的 JWKS 签名、Audience 与有效期。
+  - 支持 Cloudflare Access 原生 Passkey 登录；所有服务端密钥仅保存在 Cloudflare Secrets 中，不进入前端 Bundle。
+- **全平台 Safari 与移动端适配**：
+  - 适配 Mac、iPad、iPhone 与 `safe-area-inset` 安全区域，支持浅色 / 深色 / 跟随系统主题及 5 套强调色切换。
 
 ---
 
@@ -45,10 +35,9 @@ graph TD
     User -.->|本地自动保存| IDB[(浏览器 IndexedDB 本地草稿)]
     Pages -->|API 请求 + Access JWT| Functions[Cloudflare Pages Functions API]
     Functions -->|1. JWT 验签| CFAccess[Cloudflare Access JWKS]
-    Functions -->|2. Contents API 读取 data.ts| GitHub[(GitHub 仓库)]
-    Functions -->|3. AST 解析与源码范围更新| AST[TypeScript AST Parser & Patcher]
-    Functions -->|4. 带 SHA 提交 Commit| GitHub
-    GitHub -->|触发自动部署 Action| Blog[博客前台静态网站]
+    Functions -->|2. 说说读写| D1[(Cloudflare D1: oblivion_cms_moments)]
+    Functions -->|3. 博客长文代理 / 读写| BlogWorker[oblivion-content Worker / BLOG_DB]
+    PublicAPI[/api/public/moments] -->|只读 CORS JSON| Blog[博客前台网站]
 ```
 
 ---
@@ -59,33 +48,40 @@ graph TD
 Oblivion-CMS/
 ├── functions/                    # Cloudflare Pages Functions 后端 API
 │   ├── api/
-│   │   ├── articles.ts           # GET /api/articles (读取并 AST 解析文章)
-│   │   ├── publish.ts            # POST /api/publish (新建/更新/删除文章与冲突校验)
-│   │   └── auth/me.ts            # GET /api/auth/me (当前用户鉴权状态)
+│   │   ├── articles.ts           # GET /api/articles (读取说说列表与版本 SHA)
+│   │   ├── publish.ts            # POST /api/publish (说说新建/更新/删除与冲突校验)
+│   │   ├── import.ts             # POST /api/import (说说批量合并/覆盖导入)
+│   │   ├── auth/me.ts            # GET /api/auth/me (当前用户鉴权状态)
+│   │   ├── auth/logout.ts        # POST /api/auth/logout (退出登录)
+│   │   ├── posts/                # /api/posts/* (博客长文增删改查接口)
+│   │   └── public/               # /api/public/moments & /articles (公开只读 API)
 │   └── lib/
-│       ├── access.ts             # Cloudflare Access JWT 验证 (JWKS 远程验签)
-│       └── github.ts             # GitHub REST API 客户端 (UTF-8 Base64 编解码)
+│       ├── access.ts             # Cloudflare Access JWT 验证与 JSON 响应工具
+│       ├── d1.ts                 # Cloudflare D1 客户端（原生 Binding / REST API / 本地模拟）
+│       └── posts.ts              # 博客 Worker 桥接与 BLOG_DB 读写逻辑
 ├── src/                          # 前端 React 源代码
 │   ├── components/
-│   │   ├── articles/             # 文章列表与侧边栏、筛选器
-│   │   ├── media/                # QQ 空间九宫格媒体、拖拽、灯箱、批量导入
-│   │   ├── music/                # 音乐卡片编辑器
-│   │   ├── tags/                 # 标签管理与建议
-│   │   ├── location/             # 地点输入与历史补全
-│   │   ├── time/                 # 发布时间选择器 (保留秒级精度)
-│   │   ├── preview/              # 博客前台 1:1 实时渲染预览
-│   │   └── modals/               # 删除确认、冲突处理、系统状态弹窗
+│   │   ├── articles/             # 说说列表侧边栏、说说工作区画布
+│   │   ├── auth/                 # Cloudflare Access 登录页
+│   │   ├── layout/               # 左侧 44px 图标导轨 (LeftRail)
+│   │   ├── media/                # 九宫格媒体管理、灯箱、批量导入弹窗
+│   │   ├── modals/               # 设置中心、删除确认、冲突解决弹窗
+│   │   ├── posts/                # 博客长文工作区与 Markdown 安全预览
+│   │   └── preview/              # 说说前台 1:1 实时预览卡片
 │   ├── lib/
-│   │   ├── ast/                  # TypeScript AST 解析器与源码范围补丁核心
-│   │   ├── api/                  # 前端 API 请求与离线降级适配器
-│   │   └── storage/              # IndexedDB 本机草稿存储服务
-│   ├── types/                    # TypeScript 数据模型与接口定义
-│   ├── App.tsx                   # 主应用布局与交互中枢
-│   └── styles/GlobalStyle.ts     # styled-components 全局样式与设计变量
-├── tests/                        # 单元测试与集成测试
-│   ├── articleParser.test.ts     # AST 解析、更新、插入、删除、往返测试
-│   ├── apiAndAccess.test.ts      # Cloudflare Access 鉴权、Base64 UTF-8、API 冲突测试
-│   └── frontendAndDrafts.test.ts # 前端逻辑测试 (九宫格 >9 换行、排序、指纹算法)
+│   │   ├── api/                  # 前端 API 请求与本地开发模拟适配器
+│   │   ├── ast/                  # TypeScript AST 解析器 (moments.ts 导入解析)
+│   │   ├── hooks/                # useMomentsWorkspace 状态与草稿同步 Hook
+│   │   ├── importer/             # JSON / moments.ts 数据归一化与导入解析
+│   │   ├── settings/             # CMS 个人设置与站点品牌同步
+│   │   ├── storage/              # IndexedDB 本机草稿存储服务
+│   │   └── postsList.ts          # 博客筛选、标签统计工具
+│   ├── styles/                   # GlobalStyle.ts 全局重置与 workspace.ts 共享样式
+│   ├── types/                    # TypeScript 数据模型与校验逻辑
+│   ├── App.tsx                   # 根组件：鉴权生命周期、模式切换与全局快捷键
+│   └── main.tsx                  # 应用入口
+├── tests/                        # Vitest 单元测试与集成测试
+├── schema.sql                    # Cloudflare D1 说说表结构定义
 ├── .env.example                  # 环境变量配置模板
 └── vite.config.ts                # Vite 构建配置
 ```
@@ -97,7 +93,7 @@ Oblivion-CMS/
 ### 1. 安装依赖
 
 ```bash
-npm install --legacy-peer-deps --cache .npm-cache
+npm install
 ```
 
 ### 2. 启动开发服务器
@@ -107,17 +103,17 @@ npm run dev
 ```
 
 在本地开发模式（`localhost:5173`）下：
-- 系统内置了**显式启用、严格限制于本地的开发模拟鉴权与离线数据引擎**。
-- 您无需立即配置 GitHub Token 或 Cloudflare Access 即可体验全部功能（包括 9 宫格拖拽、批量导入、新建、编辑、删除、草稿自动保存、冲突处理演练）。
+- 系统内置了**显式启用、严格限制于本地的开发模拟鉴权与内存数据适配器**。
+- 无需配置 Cloudflare D1 或 Cloudflare Access 即可体验完整编辑器功能（九宫格拖拽、批量导入、新建、编辑、删除、草稿自动保存、冲突演练与博客 Markdown 编辑）。
 
-### 3. 执行自动化测试与类型检查
+### 3. 执行自动化检查与构建
 
 ```bash
-# 运行全部 Vitest 自动化测试
-npm test
+# 运行全部类型检查（前端 + Functions）与 Vitest 测试
+npm run check
 
-# 运行 TypeScript 类型检查
-npx tsc -b
+# 单独运行单元测试
+npm test
 
 # 运行正式生产构建打包
 npm run build
@@ -127,54 +123,41 @@ npm run build
 
 ## ☁️ 部署到 Cloudflare Pages
 
-### 第一步：在 GitHub 创建专属访问令牌 (GitHub Token)
+### 第一步：准备 Cloudflare D1 数据库与项目构建
 
-1. 打开 GitHub -> Settings -> Developer Settings -> Personal access tokens -> **Fine-grained tokens**。
-2. 点击 **Generate new token**：
-   - **Repository access**: 选择 **Only select repositories**，选中存放文章数据的仓库（例如 `AndyCort/oblivion-dashboard`）。
-   - **Permissions** -> **Repository permissions**：
-     - **Contents**: 选择 **Read and write**（用于读取和提交 `data.ts`）。
-3. 复制生成的 Token（格式为 `github_pat_...`）。
-
----
-
-### 第二步：在 Cloudflare Pages 创建项目
-
-1. 登录 [Cloudflare Dashboard](https://dash.cloudflare.com/)。
-2. 进入 **Workers & Pages** -> **Create application** -> **Pages** -> **Connect to Git**。
-3. 选择 `oblivion-cms` 仓库，构建设置如下：
+1. 登录 [Cloudflare Dashboard](https://dash.cloudflare.com/)，在 **Workers & Pages -> D1 SQL Database** 创建数据库（若已有数据库可直接复用）。
+2. 进入 **Workers & Pages -> Create application -> Pages -> Connect to Git**，选择本仓库：
    - **Framework preset**: `Vite`
    - **Build command**: `npm run build`
    - **Build output directory**: `dist`
-4. 在 **Environment variables** (或部署后的 **Settings -> Environment variables**) 添加：
+3. 在 **Settings -> Functions -> D1 database bindings** 中绑定 D1 数据库：
+   - 变量名填写 `DB`（用于存储说说动态，系统会在首次访问时自动建表 `oblivion_cms_moments`）。
+   - 如需协同博客长文，按下方「博客长文（Posts）」章节绑定 `BLOG_DB`。
+
+### 第二步：配置环境变量 (Settings -> Environment variables)
 
 | 变量名 | 必填 | 说明 | 示例 |
 | :--- | :---: | :--- | :--- |
-| `GITHUB_OWNER` | 是 | 仓库拥有者用户名或组织名 | `AndyCort` |
-| `GITHUB_REPO` | 是 | 存放文章数据的仓库名 | `oblivion-dashboard` |
-| `GITHUB_BRANCH` | 是 | 分支名称（默认为 main） | `main` |
-| `GITHUB_DATA_PATH` | 是 | 文章 TS 数据文件相对路径 | `src/components/data/moments.ts` |
-| `GITHUB_TOKEN` | 是 | 第一步创建的 GitHub PAT (建议设为 Secret) | `github_pat_xxxx` |
 | `CF_ACCESS_TEAM_DOMAIN` | 生产必填 | Cloudflare Zero Trust 团队域名 | `my-team.cloudflareaccess.com` |
 | `CF_ACCESS_AUD` | 生产必填 | Cloudflare Access Application AUD 标识 | `xxxx-xxxx-xxxx` |
 | `DEV_MODE` | 否 | 生产环境请留空或设为 `false` | `false` |
-
-> ⚠️ **安全警告**：`GITHUB_TOKEN` 必须作为加密 Secret 存储在 Cloudflare 中，绝不要放入公开的环境变量或代码库中。
+| `BLOG_WORKER_URL` | 博客 Worker 模式必填 | 博客内容 Worker 根地址（不要带 `/api`） | `https://oblivion-content.example.workers.dev` |
+| `BLOG_PUBLISH_SECRET` | 博客 Worker 模式必填 | 与博客 Worker 的 `PUBLISH_SECRET` 一致（设为 Secret） | `secret` |
+| `CF_ACCOUNT_ID` / `CF_D1_DATABASE_ID` / `CF_API_TOKEN` | 可选 | 仅在无 D1 原生 Binding 时用于 REST 直连 D1 | — |
 
 ---
 
 ### 第三步：配置 Cloudflare Access (Zero Trust) 保护
 
 1. 打开 [Cloudflare Zero Trust 控制台](https://one.dash.cloudflare.com/)。
-2. 进入 **Access** -> **Applications** -> **Add an application** -> **Self-hosted**。
+2. 进入 **Access -> Applications -> Add an application -> Self-hosted**。
 3. 填写应用信息：
    - **Application name**: `Oblivion-CMS`
    - **Application domain**: 绑定您的自定义域名（例如 `cms.yourdomain.com`）或 Pages 域名。
 4. 在 **Policies** 中添加策略：
    - **Action**: `Allow`
    - **Include**: 选择 `Emails`，填入允许登录您编辑器的个人邮箱。
-5. 保存后，在 Application 详情页面复制 **Application Audience (AUD) Tag**，将其填入 Cloudflare Pages 的 `CF_ACCESS_AUD` 环境变量中。
-6. 将您的团队域名填入 `CF_ACCESS_TEAM_DOMAIN`。
+5. 保存后，在 Application 详情页面复制 **Application Audience (AUD) Tag**，将其填入 Cloudflare Pages 的 `CF_ACCESS_AUD` 环境变量中，并将团队域名填入 `CF_ACCESS_TEAM_DOMAIN`。
 
 #### 保护预览部署域名（防止绕开 Access 规则）
 Cloudflare Pages 默认会为每次提交生成类似 `<hash>.pages.dev` 的预览域名。为了防止未经授权的访问通过默认 Pages 域名绕开 Access：
@@ -200,22 +183,22 @@ Cloudflare Access 原生支持 Passkeys，可在 Access 中验证现有身份后
 ## 🛠️ 常见问题与排查 (FAQ)
 
 ### Q1: 提示“409 CONFLICT: 检测到版本冲突”怎么办？
-- **原因**：在您打开页面到点击发布的这段时间内，远程 GitHub 仓库的 `data.ts` 文件已被其他提交修改，其最新的 SHA 与您本地编辑时的基准 SHA 不一致。
-- **解决办法**：系统会自动弹出冲突处理弹窗，保护您的本地草稿不被覆盖。您可以点击“复制本地草稿 JSON 备份”，然后点击“拉取最新远程数据”，刷新后将您的新内容合并发布即可。
+- **原因**：在您打开页面到点击发布的这段时间内，D1 数据库中的说说数据已被其他客户端修改，远程版本 SHA 与您本地编辑时的基准 SHA 不一致。
+- **解决办法**：系统会自动弹出冲突处理弹窗，保护您的本地草稿不被覆盖。您可以点击“复制草稿 JSON 备份”，然后选择“拉取最新远程数据”或“强制覆盖发布”。
 
-### Q2: 提示“无法安全修改包含动态表达式的文章”是什么原因？
-- **原因**：AST 解析器检测到该文章对象中含有非静态字面量的 JavaScript 动态表达式（如 `time: Date.now()`、Spread 运算符 `...props` 或函数调用）。
-- **保护机制**：为了防止破坏您的代码逻辑，Oblivion-CMS 会拒绝覆盖带有动态表达式的对象。建议将动态字段改为合法的常量值（例如具体的毫秒时间戳数字）。
+### Q2: 批量导入 `moments.ts` 时提示动态表达式错误怎么办？
+- **原因**：AST 解析器检测到对象中含有非静态字面量的 JavaScript 动态表达式（如 `Date.now()`、Spread 运算符 `...props` 或函数调用）。
+- **解决办法**：建议先在原文件或粘贴文本中将动态字段替换为常量值（例如具体的毫秒时间戳数字），或导出为标准 JSON 数组后再导入。
 
 ### Q3: 本地草稿会同步到其他设备吗？
-- **不会**。第一版草稿使用浏览器的 IndexedDB 存储，严格隔离在当前浏览器和当前设备中，不经过任何未授权的云端服务器。仅有点击“发布到 GitHub”后，内容才会同步到远程仓库。
+- **不会**。未发布草稿使用浏览器的 IndexedDB 存储，严格隔离在当前浏览器和当前设备中。只有点击“发布”后，内容才会提交到 Cloudflare D1 或博客 Worker。
 
+---
 
 ## D1 与已有博客数据库共用
 
 CMS 的说说数据默认保存在独立表 `oblivion_cms_moments` 中，首次访问时自动创建。
-已有博客的 `articles` 表（如 `id/title/date/content` 结构）不会被读取、覆盖或删除；
-说说不再提供全量数据导入入口。空表不会自动填充示例内容。
+已有博客的 `articles` 表（如 `id/title/date/content` 结构）不会被读取、覆盖或删除；空表不会自动填充示例内容。
 
 若数据库仍使用旧版 CMS 的 `articles` 表（包含 `time/content/media/tags/location/music/created_at/updated_at`），
 且独立说说表不存在，程序会继续使用旧表以保留已有说说。此时无需手动执行 `schema.sql`。
@@ -223,9 +206,11 @@ CMS 的说说数据默认保存在独立表 `oblivion_cms_moments` 中，首次�
 出现 `no such column: time` 时，部署包含此兼容逻辑的新版本即可，
 无需删除博客表或给博客文章强行添加时间戳字段。博客文章不会自动转换为说说。
 
+---
+
 ## 博客长文（Posts）
 
-顶部可切换「说说动态 / 博客长文」，模式保存在 localStorage。博客编辑器支持 GFM、表格、任务列表、目录、常见语言代码高亮，以及 Ctrl/⌘+B、Ctrl/⌘+I、Tab 缩进。预览经过 DOMPurify 清理。首次进入博客模式才加载编辑器及拼音词典。
+左侧导轨可切换「说说动态 / 博客长文」，模式保存在 localStorage。博客编辑器支持 GFM、表格、任务列表、目录、常见语言代码高亮，以及 Ctrl/⌘+B、Ctrl/⌘+I、Tab 缩进。预览经过 DOMPurify 清理。首次进入博客模式才加载编辑器及拼音词典。
 
 博客草稿按 `post:<编辑器 UUID>` 写入 IndexedDB，700ms 防抖，在切换文章和发布前等待保存提交；Slug 编辑不会改变草稿身份。动态草稿使用 `moment:<原 ID>`，继续读取旧版无前缀草稿。新草稿、未发布修改、恢复和清空均独立于动态。清空当前草稿会恢复线上内容。浏览器清除站点数据也会删除本地草稿。
 
@@ -238,7 +223,7 @@ CMS 的说说数据默认保存在独立表 `oblivion_cms_moments` 中，首次�
 - D1 直连不会调用 Worker 的缓存清理，界面会提示这一点。配置了 Worker 后的网络或认证失败不会退回模拟成功。
 - 仅 localhost 显式启用开发认证时使用服务端内存模拟；纯 Vite 本地运行也有明确标记的内存适配器。模拟发布不是上线，刷新/重启可能丢失；IndexedDB 草稿仍保留。
 
-接口：`GET /api/posts?page=1&pageSize=20&q=关键词`、`GET /api/posts/:id`、`POST /api/posts/publish`（`{ post: BlogPost, originalId?: string }`）、`DELETE /api/posts/:id`。创建时不传 originalId；修改时必须与现有 id 相同。已发布 Slug 固定，避免遗留旧链接或产生重复文章。标题、摘要和正文同时支持纯文本或语言对象（例如 `{ "zh": "中文", "en": "English" }`）。「文章设置」中可切换已有语言、一键添加中英文版本，并按当前语言预览；其他语言收纳在「更多语言设置」中；发布与本地草稿保存完整语言对象，未编辑的语言保持原样。列表优先显示中文，再回退到英文或其他非空语言。纯文本字段默认各语言共用，可在「更多语言设置」中点击「改为分语言编辑」后独立编辑。日期同时兼容 `YYYY-MM-DD`、已有的 `YYYY-MM-DD HH:mm:ss` 及 ISO 时间格式；修改日期时保留原时间和时区后缀。阅读字数按当前语言显示，发布的 `chars` 为各语言非空白字符总数。
+接口：`GET /api/posts?page=1&pageSize=20&q=关键词`、`GET /api/posts/:id`、`POST /api/posts/publish`（`{ post: BlogPost, originalId?: string }`）、`DELETE /api/posts/:id`。创建时不传 originalId；修改时必须与现有 id 相同。已发布 Slug 固定，避免遗留旧链接或产生重复文章。标题、摘要和正文同时支持纯文本或语言对象（例如 `{ "zh": "中文", "en": "English" }`）。顶部操作栏与底部 Meta Dock 中可切换已有语言、一键添加中英文版本，并按当前语言预览；发布与本地草稿保存完整语言对象，未编辑的语言保持原样。列表优先显示中文，再回退到英文或其他非空语言。纯文本字段默认各语言共用，可点击「分语言」后独立编辑。日期同时兼容 `YYYY-MM-DD`、已有的 `YYYY-MM-DD HH:mm:ss` 及 ISO 时间格式；修改日期时保留原时间和时区后缀。阅读字数按当前语言显示，发布的 `chars` 为各语言非空白字符总数。
 
 ### Worker 协议与验证范围
 
@@ -246,7 +231,7 @@ CMS 的说说数据默认保存在独立表 `oblivion_cms_moments` 中，首次�
 
 **现有 Worker 没有原子增量发布或版本条件接口，读取 ID 到写入之间仍存在并发窗口。请串行发布，避免同时运行其他 CMS / Obsidian 全量同步。** 真正支持并发写入需要 Worker 增加事务内的单篇更新/删除接口；仅靠 Pages 代理无法保证跨客户端同步互斥。
 
-执行 `npm run check` 可检查前端、Pages Functions 类型和自动化测试；`npm run build` 构建生产产物。新增测试覆盖发布保留列表、删除、鉴权、密钥隔离、Worker 失败不降级、草稿新旧格式隔离、拼音/英文 Slug、GFM 和 XSS。线上 Access、真实 D1 和边缘缓存的端到端效果需在部署配置后验证。
+执行 `npm run check` 可检查前端、Pages Functions 类型和自动化测试；`npm run build` 构建生产产物。
 
 ### 界面样式
 

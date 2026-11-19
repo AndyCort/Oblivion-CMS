@@ -3,7 +3,6 @@ import React, { useState, useMemo, useEffect } from "react";
 import type { Article, ArticleDraft } from "../../types/article";
 
 interface ArticleListSidebarProps {
-  listNavigation?: React.ReactNode;
   articles: Article[];
   selectedFingerprint: string | null;
   onSelectArticle: (fingerprint: string | null) => void;
@@ -17,7 +16,6 @@ interface ArticleListSidebarProps {
 }
 
 export const ArticleListSidebar: React.FC<ArticleListSidebarProps> = ({
-  listNavigation,
   articles,
   selectedFingerprint,
   onSelectArticle,
@@ -103,7 +101,6 @@ export const ArticleListSidebar: React.FC<ArticleListSidebarProps> = ({
 
   return (
     <S.SidebarContainer>
-      {listNavigation}
       <S.SidebarHeader>
         <S.SidebarTitleRow>
           <S.SidebarTitleGroup>

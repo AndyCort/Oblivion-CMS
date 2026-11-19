@@ -41,7 +41,7 @@ type ConfirmKind =
   | "overwriteImport"
   | "resetSettings";
 
-export interface ConfigInfoModalProps {
+interface ConfigInfoModalProps {
   isOpen: boolean;
   onClose: () => void;
   settings: CmsSettings;

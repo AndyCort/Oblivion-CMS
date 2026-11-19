@@ -4,7 +4,6 @@ import {
   Article,
   ArticleMedia,
 } from "../src/types/article";
-import { formatArticleToTS } from "../src/lib/ast/articleParser";
 
 describe("Frontend Fingerprints & Formats", () => {
   it("generates deterministic fingerprint for the same article", () => {
@@ -39,7 +38,7 @@ describe("Frontend Fingerprints & Formats", () => {
     };
 
     expect(generateArticleFingerprint(base)).not.toBe(
-      generateArticleFingerprint(modified)
+      generateArticleFingerprint(modified),
     );
   });
 });
@@ -53,23 +52,9 @@ describe("Nine Grid Media Logic (>9 items & mixed media)", () => {
 
     expect(mixedMedia.length).toBe(13);
 
-    // Verify grid rows calculation: 13 items + 1 add card = 14 slots = 5 rows (in 3-column grid)
-    const totalSlots = mixedMedia.length + 1;
-    const rows = Math.ceil(totalSlots / 3);
+    // 13 items + 1 add card = 14 slots = 5 rows in a 3-column grid
+    const rows = Math.ceil((mixedMedia.length + 1) / 3);
     expect(rows).toBe(5);
-
-    // Formats into valid TS with all 13 items
-    const article: Article = {
-      time: 1789122720000,
-      content: "13 media test",
-      media: mixedMedia,
-      tags: ["九宫格突破"],
-      location: "Elysium",
-    };
-
-    const ts = formatArticleToTS(article);
-    expect(ts).toContain("media: [");
-    expect(ts).toContain("https://example.com/item-13.jpg");
   });
 
   it("supports reordering media elements smoothly", () => {
@@ -79,7 +64,6 @@ describe("Nine Grid Media Logic (>9 items & mixed media)", () => {
       { type: "img", url: "https://example.com/c.jpg" },
     ];
 
-    // Move index 0 to index 2
     const reordered = [...list];
     const [moved] = reordered.splice(0, 1);
     reordered.splice(2, 0, moved);

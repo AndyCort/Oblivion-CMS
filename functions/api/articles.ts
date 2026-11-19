@@ -13,29 +13,13 @@ export const onRequestGet = async (context: {
   }
 
   try {
-    const {
-      articles,
-      sha,
-      isD1,
-      d1Mode,
-      bindingName,
-      tableName,
-      warning,
-      envKeys,
-    } = await getD1Articles(env);
+    const { articles, sha, isD1, d1Mode, bindingName, warning, envKeys } =
+      await getD1Articles(env);
 
     return jsonResponse(
       {
         articles,
         sha,
-        path: isD1 ? `Cloudflare D1: ${tableName} 表` : "离线只读模拟环境",
-        branch: isD1
-          ? d1Mode === "native"
-            ? `D1 原生绑定 (env.${bindingName || "DB"})`
-            : "D1 REST API 直连"
-          : "未绑定 D1",
-        owner: "Cloudflare",
-        repo: "D1 Database",
         isD1,
         isMock: !isD1,
         d1Mode,

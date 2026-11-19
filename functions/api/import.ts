@@ -2,12 +2,12 @@ import { jsonResponse, verifyCloudflareAccess } from "../lib/access";
 import type { Article } from "../../src/types/article";
 import { batchImportD1Articles } from "../lib/d1";
 
-export interface ImportRequest {
+interface ImportRequest {
   articles: Article[];
   mode?: "merge" | "overwrite";
 }
 
-export interface ImportResponse {
+interface ImportResponse {
   success: boolean;
   count: number;
   total: number;

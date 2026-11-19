@@ -2,12 +2,12 @@ import { DEFAULT_SITE_BRAND, formatDocumentTitle } from "./siteBrand";
 
 export type CmsThemeMode = "light" | "dark" | "system";
 export type AccentColorPreset = "indigo" | "emerald" | "sky" | "amber" | "rose";
-export type StartupModuleMode = "last" | "moments" | "posts";
+type StartupModuleMode = "last" | "moments" | "posts";
 export type EditorViewMode = "edit" | "split" | "preview";
-export type EditorFontFamily = "default" | "sans" | "serif" | "mono";
-export type SortOrder = "desc" | "asc";
+type EditorFontFamily = "default" | "sans" | "serif" | "mono";
+type SortOrder = "desc" | "asc";
 export type MomentDateFormat = "full" | "short";
-export type BatchMediaMode = "auto" | "img" | "vid";
+type BatchMediaMode = "auto" | "img" | "vid";
 
 export interface CmsSettings {
   // 1. 站点品牌 & 外观界面

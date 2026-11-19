@@ -16,10 +16,6 @@ export interface UserSession {
 export interface FetchArticlesResponse {
   articles: Article[];
   sha: string;
-  path: string;
-  branch: string;
-  owner: string;
-  repo: string;
   isMock: boolean;
   isD1?: boolean;
   d1Mode?: "native" | "http" | "mock";
@@ -47,13 +43,13 @@ export function getDevMockToken(): string | null {
   }
 }
 
-export function setDevMockToken(token: string): void {
+function setDevMockToken(token: string): void {
   try {
     localStorage.setItem(DEV_MOCK_TOKEN_KEY, token);
   } catch {}
 }
 
-export function clearDevMockToken(): void {
+function clearDevMockToken(): void {
   try {
     localStorage.removeItem(DEV_MOCK_TOKEN_KEY);
   } catch {}
@@ -162,10 +158,6 @@ function getLocalFallbackArticles(): FetchArticlesResponse {
   return {
     articles: structuredClone(localFallbackArticles),
     sha: computeClientFallbackSha(localFallbackArticles),
-    path: "本地离线模拟环境 (未连接 D1)",
-    branch: "离线开发",
-    owner: "Cloudflare",
-    repo: "D1 Database",
     isMock: true,
     isD1: false,
     d1Mode: "mock",
@@ -273,12 +265,7 @@ function handleLocalFallbackPublish(req: PublishRequest): PublishResponse {
   };
 }
 
-export interface ImportArticlesRequest {
-  articles: Article[];
-  mode: "merge" | "overwrite";
-}
-
-export interface ImportArticlesResponse {
+interface ImportArticlesResponse {
   success: boolean;
   count: number;
   total: number;

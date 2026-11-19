@@ -1,7 +1,7 @@
 import * as ListUI from "../articles/ArticleListSidebar.styles";
 import { matchesPost, postTagCounts } from "../../lib/postsList";
 import { useEffect, useRef, useState, useDeferredValue } from "react";
-import type { CSSProperties, KeyboardEvent, ReactNode } from "react";
+import type { CSSProperties, KeyboardEvent } from "react";
 import { pinyin } from "pinyin-pro";
 import {
   Plus,
@@ -89,7 +89,6 @@ function useTrigger(value: number, effect: () => void) {
 }
 
 interface PostsWorkspaceProps {
-  listNavigation?: ReactNode;
   sidebarOpen?: boolean;
   onSidebarOpenChange?: (open: boolean) => void;
   newPostTrigger?: number;
@@ -101,7 +100,6 @@ interface PostsWorkspaceProps {
 }
 
 export default function PostsWorkspace({
-  listNavigation,
   sidebarOpen = true,
   onSidebarOpenChange,
   newPostTrigger = 0,
@@ -558,7 +556,6 @@ export default function PostsWorkspace({
     });
   }
 
-  const titleText = displayPostText;
   const visibleDrafts = drafts
     .filter((d) =>
       matchesPost(d.post, search, { tag: selectedTag || undefined, coverOnly }),
@@ -684,9 +681,6 @@ export default function PostsWorkspace({
         <aside
           className={`posts-sidebar${sidebarOpen ? "" : " collapsed"}${settings.compactList ? " compact" : ""}`}
         >
-          {listNavigation && (
-            <div className="posts-nav-slot">{listNavigation}</div>
-          )}
           <ListUI.SidebarHeader>
             <ListUI.SidebarTitleRow>
               <ListUI.SidebarTitleGroup>
@@ -807,7 +801,7 @@ export default function PostsWorkspace({
                     key={d.id}
                     onClick={() => void switchEditor(undefined, d)}
                   >
-                    <strong>{titleText(d.post.title) || "未命名文章"}</strong>
+                    <strong>{displayPostText(d.post.title) || "未命名文章"}</strong>
                     <span className="post-tag-pills">
                       {d.post.tags.map((tag) => (
                         <span className="post-tag-pill" key={tag}>
@@ -833,8 +827,8 @@ export default function PostsWorkspace({
                     {p.pinned ? "置顶 · " : ""}
                     {p.date}
                   </small>
-                  <strong>{titleText(p.title)}</strong>
-                  <p>{titleText(p.summary)}</p>
+                  <strong>{displayPostText(p.title)}</strong>
+                  <p>{displayPostText(p.summary)}</p>
                   <span className="post-tag-pills">
                     {p.tags.map((tag) => (
                       <span className="post-tag-pill" key={tag}>

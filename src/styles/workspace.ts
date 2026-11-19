@@ -63,19 +63,6 @@ export const editorCard = css`
   }
 `;
 
-export const editorToolbar = css`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  min-height: 40px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--color-stone-200);
-  &:where(.dark, .dark *) {
-    border-color: var(--color-stone-800);
-  }
-`;
-
 export const primaryButton = css`
   display: inline-flex;
   align-items: center;

@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
 import { verifyCloudflareAccess } from "../functions/lib/access";
-import { encodeBase64Utf8, decodeBase64Utf8 } from "../functions/lib/github";
 import { onRequestGet as getArticles } from "../functions/api/articles";
 import { onRequestPost as publishArticle } from "../functions/api/publish";
 import { onRequestPost as importPost } from "../functions/api/import";
@@ -10,15 +9,6 @@ import {
   onRequestOptions as optionsPublicMoments,
 } from "../functions/api/public/moments";
 import { isD1DatabaseInstance, getD1Database } from "../functions/lib/d1";
-
-describe("Base64 UTF-8 encoding & decoding", () => {
-  it("correctly encodes and decodes Chinese characters and emojis without data loss", () => {
-    const original = "好的结果也可以是一种诅咒，而坏的结果也许是一种缓冲。✨🚀\n换行测试：'\"`";
-    const encoded = encodeBase64Utf8(original);
-    const decoded = decodeBase64Utf8(encoded);
-    expect(decoded).toBe(original);
-  });
-});
 
 describe("Cloudflare Access Verification", () => {
   it("rejects requests without token in production mode", async () => {

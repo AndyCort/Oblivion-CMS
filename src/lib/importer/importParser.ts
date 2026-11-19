@@ -1,7 +1,7 @@
 import { parseArticlesFromSource } from "../ast/articleParser";
 import type { Article, ArticleMedia, ArticleMusic } from "../../types/article";
 
-export interface ImportStats {
+interface ImportStats {
   total: number;
   earliestTime?: number;
   latestTime?: number;

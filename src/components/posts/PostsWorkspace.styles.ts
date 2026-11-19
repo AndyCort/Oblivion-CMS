@@ -186,9 +186,6 @@ export const Workspace = styled.div`
   .posts-sidebar.compact .post-list-card p {
     -webkit-line-clamp: 1;
   }
-  .posts-nav-slot {
-    padding: 10px 14px 0;
-  }
   .posts-sidebar details summary {
     font-size: 11px;
     color: var(--post-muted);
