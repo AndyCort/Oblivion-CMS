@@ -19,7 +19,6 @@ export interface AccessUser {
   isMock?: boolean;
 }
 
-// In-memory cached remote JWK sets by team domain
 const jwksCache = new Map<string, ReturnType<typeof createRemoteJWKSet>>();
 
 function getJWKS(teamDomain: string) {
@@ -27,10 +26,8 @@ function getJWKS(teamDomain: string) {
   if (!domain.includes(".")) {
     domain = `${domain}.cloudflareaccess.com`;
   }
-
   if (!jwksCache.has(domain)) {
-    const certsUrl = new URL(`https://${domain}/cdn-cgi/access/certs`);
-    jwksCache.set(domain, createRemoteJWKSet(certsUrl));
+    jwksCache.set(domain, createRemoteJWKSet(new URL(`https://${domain}/cdn-cgi/access/certs`)));
   }
   return {
     jwks: jwksCache.get(domain)!,
@@ -38,159 +35,33 @@ function getJWKS(teamDomain: string) {
   };
 }
 
-/**
- * Pure Cloudflare Access JWT & Edge header verification
- */
-export async function verifyCloudflareAccess(
-  request: Request,
-  env: Record<string, string | undefined>
-): Promise<{ user?: AccessUser; error?: string; status: number }> {
-  const url = new URL(request.url);
-  const isLocalHost =
-    url.hostname === "localhost" ||
-    url.hostname === "127.0.0.1" ||
-    url.hostname === "0.0.0.0";
-
-  const allowLocalMock =
-    (env.ALLOW_LOCAL_MOCK_AUTH === "true" || env.DEV_MODE === "true") &&
-    isLocalHost;
-
-  // Retrieve edge-injected headers (Cloudflare Edge injects these after successful Access login)
-  const edgeEmail =
-    request.headers.get("cf-access-authenticated-user-email") ||
-    request.headers.get("Cf-Access-Authenticated-User-Email");
-  const edgeUserId =
-    request.headers.get("cf-access-user-id") ||
-    request.headers.get("Cf-Access-User-Id");
-
-  // Retrieve Access JWT assertion from header or cookie
-  let token =
+function extractToken(request: Request): string | null {
+  const headerToken =
     request.headers.get("cf-access-jwt-assertion") ||
     request.headers.get("Cf-Access-Jwt-Assertion");
+  if (headerToken) return headerToken.trim();
 
-  if (!token) {
-    const cookieHeader = request.headers.get("Cookie") || "";
-    const match = cookieHeader.match(/CF_Authorization=([^;]+)/);
-    if (match) {
-      token = match[1];
-    }
+  const cookie = request.headers.get("Cookie") || "";
+  const cookieMatch = cookie.match(/(?:^|;\s*)CF_Authorization=([^;]+)/);
+  if (cookieMatch) return cookieMatch[1].trim();
+
+  const authHeader = request.headers.get("Authorization");
+  if (authHeader?.startsWith("Bearer ")) {
+    return authHeader.slice(7).trim();
   }
+  return null;
+}
 
-  // Support local bearer token for dev/test
-  if (!token) {
-    const authHeader = request.headers.get("Authorization");
-    if (authHeader && authHeader.startsWith("Bearer ")) {
-      const candidate = authHeader.slice(7).trim();
-      if (candidate.startsWith("mock-dev") && allowLocalMock) {
-        return {
-          user: {
-            email: "developer@oblivion.local",
-            sub: "dev-user-local",
-            name: "本地开发者",
-            isMock: true,
-          },
-          status: 200,
-        };
-      }
-      token = candidate;
-    }
-  }
+/** Strict Cloudflare Access JWT verification; local mock is strictly limited to localhost + DEV_MODE=true. */
+export async function verifyAccess(
+  request: Request,
+  env: Record<string, any>,
+): Promise<{ user?: AccessUser; error?: string; status: number }> {
+  const { hostname } = new URL(request.url);
+  const isLocalHost =
+    hostname === "localhost" || hostname === "127.0.0.1" || hostname === "0.0.0.0";
 
-  // 1. If we have a JWT token, verify it
-  if (token) {
-    const teamDomain = env.CF_ACCESS_TEAM_DOMAIN;
-    const expectedAud = env.CF_ACCESS_AUD;
-
-    if (teamDomain) {
-      try {
-        const { jwks } = getJWKS(teamDomain);
-        const verifyOptions: any = {};
-        if (expectedAud) {
-          verifyOptions.audience = expectedAud.trim();
-        }
-
-        const { payload } = await jwtVerify(token, jwks, verifyOptions);
-
-        const email =
-          (payload.email as string) ||
-          edgeEmail ||
-          (payload.sub as string) ||
-          "authenticated-user";
-        const sub = (payload.sub as string) || edgeUserId || "access-user";
-        const name = (payload.name as string) || undefined;
-
-        return {
-          user: {
-            email,
-            sub,
-            name,
-            isMock: false,
-          },
-          status: 200,
-        };
-      } catch (err: any) {
-        // If JWT validation threw, but Cloudflare Edge has already verified the user
-        if (edgeEmail) {
-          return {
-            user: {
-              email: edgeEmail,
-              sub: edgeUserId || "access-user",
-              isMock: false,
-            },
-            status: 200,
-          };
-        }
-
-        return {
-          error: `Cloudflare Access 凭证无效或已过期: ${err?.message || "Invalid JWT"}`,
-          status: 403,
-        };
-      }
-    } else if (edgeEmail) {
-      // If teamDomain is not yet configured, but Edge forwarded an authenticated user
-      return {
-        user: {
-          email: edgeEmail,
-          sub: edgeUserId || "access-user",
-          isMock: false,
-        },
-        status: 200,
-      };
-    } else {
-      // Production without teamDomain and without edgeEmail
-      if (allowLocalMock) {
-        return {
-          user: {
-            email: "developer@oblivion.local",
-            sub: "dev-user-local",
-            name: "本地开发者",
-            isMock: true,
-          },
-          status: 200,
-        };
-      }
-
-      return {
-        error: "服务器错误：Cloudflare Access 生产配置缺失 (未配置 CF_ACCESS_TEAM_DOMAIN 环境变量)",
-        status: 500,
-      };
-    }
-  }
-
-  // 2. If no token, but Edge has authenticated header
-  if (edgeEmail) {
-    return {
-      user: {
-        email: edgeEmail,
-        sub: edgeUserId || "access-user",
-        isMock: false,
-      },
-      status: 200,
-    };
-  }
-
-  // 3. Local development fallback
-  if (allowLocalMock) {
+  if (isLocalHost && env.DEV_MODE === "true") {
     return {
       user: {
         email: "developer@oblivion.local",
@@ -202,26 +73,40 @@ export async function verifyCloudflareAccess(
     };
   }
 
-  // 4. Unauthorized
-  return {
-    error: "未授权：未检测到 Cloudflare Access 身份凭证 (Cf-Access-Jwt-Assertion)",
-    status: 401,
-  };
-}
+  const teamDomain = typeof env.CF_ACCESS_TEAM_DOMAIN === "string" ? env.CF_ACCESS_TEAM_DOMAIN.trim() : "";
+  const audience = typeof env.CF_ACCESS_AUD === "string" ? env.CF_ACCESS_AUD.trim() : "";
 
-/** Strict JWT verification for blog administration, including issuer and audience.
- * Existing Moments authentication behavior is kept unchanged. */
-export async function verifyBlogAccess(request: Request, env: Record<string, any>) {
-  const local = ['localhost', '127.0.0.1', '0.0.0.0'].includes(new URL(request.url).hostname);
-  if (local && (env.DEV_MODE === 'true' || env.ALLOW_LOCAL_MOCK_AUTH === 'true')) return verifyCloudflareAccess(request, env);
-  if (!env.CF_ACCESS_TEAM_DOMAIN || !env.CF_ACCESS_AUD) return { status: 503, error: '博客管理需要配置 CF_ACCESS_TEAM_DOMAIN 与 CF_ACCESS_AUD', user: undefined };
-  const token = request.headers.get('cf-access-jwt-assertion') || request.headers.get('Cookie')?.match(/(?:^|;\s*)CF_Authorization=([^;]+)/)?.[1];
-  if (!token) return { status: 401, error: '未授权：缺少 Cloudflare Access 凭证', user: undefined };
+  if (!teamDomain || !audience) {
+    return {
+      status: 503,
+      error: "服务器错误：未配置 Cloudflare Access (CF_ACCESS_TEAM_DOMAIN / CF_ACCESS_AUD)",
+    };
+  }
+
+  const token = extractToken(request);
+  if (!token) {
+    return {
+      status: 401,
+      error: "未授权：未检测到 Cloudflare Access 身份凭证 (Cf-Access-Jwt-Assertion)",
+    };
+  }
+
   try {
-    const { jwks, issuer } = getJWKS(env.CF_ACCESS_TEAM_DOMAIN);
-    const { payload } = await jwtVerify(token, jwks, { issuer, audience: env.CF_ACCESS_AUD.trim() });
-    return { status: 200, user: { sub: payload.sub || '', email: String(payload.email || ''), isMock: false } };
+    const { jwks, issuer } = getJWKS(teamDomain);
+    const { payload } = await jwtVerify(token, jwks, { issuer, audience });
+    return {
+      status: 200,
+      user: {
+        email: String(payload.email || payload.sub || "access-user"),
+        sub: String(payload.sub || "access-user"),
+        name: typeof payload.name === "string" ? payload.name : undefined,
+        isMock: false,
+      },
+    };
   } catch {
-    return { status: 403, error: 'Cloudflare Access 凭证无效或已过期', user: undefined };
+    return {
+      status: 403,
+      error: "Cloudflare Access 凭证无效或已过期",
+    };
   }
 }

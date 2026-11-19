@@ -1,59 +1,25 @@
-import { DEFAULT_SITE_BRAND, formatDocumentTitle } from "./siteBrand";
-
 export type CmsThemeMode = "light" | "dark" | "system";
 export type AccentColorPreset = "indigo" | "emerald" | "sky" | "amber" | "rose";
-type StartupModuleMode = "last" | "moments" | "posts";
 export type EditorViewMode = "edit" | "split" | "preview";
-type EditorFontFamily = "default" | "sans" | "serif" | "mono";
-type SortOrder = "desc" | "asc";
-export type MomentDateFormat = "full" | "short";
-type BatchMediaMode = "auto" | "img" | "vid";
+export type EditorFontFamily = "default" | "sans" | "serif" | "mono";
+export type SortOrder = "desc" | "asc";
 
 export interface CmsSettings {
-  // 1. 站点品牌 & 外观界面
-  siteName: string;
-  siteSubtitle: string;
-  siteIcon: string;
   theme: CmsThemeMode;
   accentColor: AccentColorPreset;
-  startupMode: StartupModuleMode;
-  defaultMomentsView: EditorViewMode;
-  defaultPostsView: EditorViewMode;
-  defaultSidebarOpen: boolean;
-  autoCloseSidebarOnMobile: boolean;
+  defaultView: EditorViewMode;
   defaultSortOrder: SortOrder;
   compactList: boolean;
-
-  // 2. 编辑器与预览
   editorFontFamily: EditorFontFamily;
   editorFontSize: number;
-  editorLineHeight: number;
-  showLineNumbers: boolean;
   tabIndentSpaces: 2 | 4;
-  spellCheck: boolean;
   previewTocDefaultOpen: boolean;
-  readingSpeedCpm: number;
-  autoSaveDelayMs: number;
-  notifyOnDraftRestore: boolean;
-
-  // 3. 个人资料 & 新建默认值
   momentAuthorName: string;
   momentAuthorAvatar: string;
-  momentDateFormat: MomentDateFormat;
   defaultMomentTags: string[];
   defaultMomentLocation: string;
-  cloneAppendSuffix: boolean;
-  cloneSuffixText: string;
-  defaultBatchMediaType: BatchMediaMode;
   defaultPostAuthor: string;
-  defaultPostLanguage: string;
-  autoGenerateSlug: boolean;
-
-  // 4. 工作流保护 & 快捷键
   confirmBeforePublish: boolean;
-  preventEmptyPublish: boolean;
-  defaultCommitMessage: string;
-  clearCommitAfterPublish: boolean;
   enableShortcuts: boolean;
 }
 
@@ -63,59 +29,32 @@ export const DEFAULT_MOMENT_AVATAR =
   "https://raw.githubusercontent.com/AndyCort/PicGo/master/img/6C93394B-9A64-4DCE-BA19-3E6A316120D1_1_201_a.jpeg";
 
 export const DEFAULT_CMS_SETTINGS: CmsSettings = {
-  siteName: DEFAULT_SITE_BRAND.name,
-  siteSubtitle: DEFAULT_SITE_BRAND.subtitle,
-  siteIcon: DEFAULT_SITE_BRAND.icon,
   theme: "system",
   accentColor: "indigo",
-  startupMode: "last",
-  defaultMomentsView: "split",
-  defaultPostsView: "split",
-  defaultSidebarOpen: true,
-  autoCloseSidebarOnMobile: true,
+  defaultView: "split",
   defaultSortOrder: "desc",
   compactList: false,
-
   editorFontFamily: "default",
   editorFontSize: 14,
-  editorLineHeight: 1.75,
-  showLineNumbers: true,
   tabIndentSpaces: 2,
-  spellCheck: false,
   previewTocDefaultOpen: true,
-  readingSpeedCpm: 400,
-  autoSaveDelayMs: 700,
-  notifyOnDraftRestore: true,
-
   momentAuthorName: "Andy",
   momentAuthorAvatar: DEFAULT_MOMENT_AVATAR,
-  momentDateFormat: "full",
   defaultMomentTags: ["日常"],
   defaultMomentLocation: "",
-  cloneAppendSuffix: true,
-  cloneSuffixText: "（副本）",
-  defaultBatchMediaType: "auto",
   defaultPostAuthor: "",
-  defaultPostLanguage: "zh",
-  autoGenerateSlug: false,
-
   confirmBeforePublish: false,
-  preventEmptyPublish: false,
-  defaultCommitMessage: "",
-  clearCommitAfterPublish: true,
   enableShortcuts: true,
 };
 
-const INDIGO_SHADES = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950] as const;
+interface AccentTokens {
+  label: string;
+  swatch: string;
+  light?: Record<string, string>;
+  dark?: Record<string, string>;
+}
 
-export const ACCENT_PRESETS: Record<
-  AccentColorPreset,
-  {
-    label: string;
-    swatch: string;
-    ramp?: Record<(typeof INDIGO_SHADES)[number], string>;
-  }
-> = {
+export const ACCENT_PRESETS: Record<AccentColorPreset, AccentTokens> = {
   indigo: {
     label: "靛蓝",
     swatch: "#4f46e5",
@@ -123,72 +62,84 @@ export const ACCENT_PRESETS: Record<
   emerald: {
     label: "翠绿",
     swatch: "#059669",
-    ramp: {
-      50: "oklch(97.9% 0.021 166.113)",
-      100: "oklch(95% 0.052 163.051)",
-      200: "oklch(90.5% 0.093 164.15)",
-      300: "oklch(84.5% 0.143 164.978)",
-      400: "oklch(76.5% 0.177 163.223)",
-      500: "oklch(69.6% 0.17 162.48)",
-      600: "oklch(59.6% 0.145 163.225)",
-      700: "oklch(50.8% 0.118 165.612)",
-      800: "oklch(43.2% 0.095 166.913)",
-      900: "oklch(37.8% 0.077 168.94)",
-      950: "oklch(26.2% 0.051 172.552)",
+    light: {
+      "--accent": "#059669",
+      "--accent-hover": "#10b981",
+      "--accent-soft": "rgb(5 150 105 / 0.12)",
+      "--accent-text": "#047857",
+      "--accent-ring": "rgb(16 185 129 / 0.22)",
+    },
+    dark: {
+      "--accent": "#059669",
+      "--accent-hover": "#10b981",
+      "--accent-soft": "rgb(16 185 129 / 0.2)",
+      "--accent-text": "#6ee7b7",
+      "--accent-ring": "rgb(52 211 153 / 0.24)",
     },
   },
   sky: {
     label: "天青",
     swatch: "#0284c7",
-    ramp: {
-      50: "oklch(97.7% 0.013 236.62)",
-      100: "oklch(95.1% 0.026 236.824)",
-      200: "oklch(90.1% 0.058 230.902)",
-      300: "oklch(82.8% 0.111 230.318)",
-      400: "oklch(74.6% 0.16 232.661)",
-      500: "oklch(68.5% 0.169 237.323)",
-      600: "oklch(58.8% 0.158 241.966)",
-      700: "oklch(50% 0.134 242.749)",
-      800: "oklch(44.3% 0.11 240.79)",
-      900: "oklch(39.1% 0.09 240.876)",
-      950: "oklch(29.3% 0.066 243.157)",
+    light: {
+      "--accent": "#0284c7",
+      "--accent-hover": "#0ea5e9",
+      "--accent-soft": "rgb(2 132 199 / 0.12)",
+      "--accent-text": "#0369a1",
+      "--accent-ring": "rgb(14 165 233 / 0.22)",
+    },
+    dark: {
+      "--accent": "#0284c7",
+      "--accent-hover": "#0ea5e9",
+      "--accent-soft": "rgb(14 165 233 / 0.2)",
+      "--accent-text": "#7dd3fc",
+      "--accent-ring": "rgb(56 189 248 / 0.24)",
     },
   },
   amber: {
     label: "琥珀",
     swatch: "#d97706",
-    ramp: {
-      50: "oklch(98.7% 0.022 95.277)",
-      100: "oklch(96.2% 0.059 95.617)",
-      200: "oklch(92.4% 0.12 95.746)",
-      300: "oklch(87.9% 0.169 91.605)",
-      400: "oklch(82.8% 0.189 84.429)",
-      500: "oklch(76.9% 0.188 70.08)",
-      600: "oklch(66.6% 0.179 58.318)",
-      700: "oklch(55.5% 0.163 48.998)",
-      800: "oklch(47.3% 0.137 46.201)",
-      900: "oklch(41.4% 0.112 45.904)",
-      950: "oklch(27.9% 0.077 45.635)",
+    light: {
+      "--accent": "#d97706",
+      "--accent-hover": "#f59e0b",
+      "--accent-soft": "rgb(217 119 6 / 0.12)",
+      "--accent-text": "#b45309",
+      "--accent-ring": "rgb(245 158 11 / 0.22)",
+    },
+    dark: {
+      "--accent": "#d97706",
+      "--accent-hover": "#f59e0b",
+      "--accent-soft": "rgb(245 158 11 / 0.2)",
+      "--accent-text": "#fcd34d",
+      "--accent-ring": "rgb(251 191 36 / 0.24)",
     },
   },
   rose: {
     label: "玫瑰",
     swatch: "#e11d48",
-    ramp: {
-      50: "oklch(96.9% 0.015 12.422)",
-      100: "oklch(94.1% 0.03 12.58)",
-      200: "oklch(89.2% 0.058 10.001)",
-      300: "oklch(81% 0.117 11.638)",
-      400: "oklch(71.2% 0.194 13.428)",
-      500: "oklch(64.5% 0.246 16.439)",
-      600: "oklch(58.6% 0.253 17.585)",
-      700: "oklch(51.4% 0.222 16.935)",
-      800: "oklch(45.5% 0.188 13.697)",
-      900: "oklch(41% 0.159 10.272)",
-      950: "oklch(27.1% 0.105 12.094)",
+    light: {
+      "--accent": "#e11d48",
+      "--accent-hover": "#f43f5e",
+      "--accent-soft": "rgb(225 29 72 / 0.12)",
+      "--accent-text": "#be123c",
+      "--accent-ring": "rgb(244 63 94 / 0.22)",
+    },
+    dark: {
+      "--accent": "#e11d48",
+      "--accent-hover": "#f43f5e",
+      "--accent-soft": "rgb(244 63 94 / 0.2)",
+      "--accent-text": "#fda4af",
+      "--accent-ring": "rgb(251 113 133 / 0.24)",
     },
   },
 };
+
+const ACCENT_VAR_NAMES = [
+  "--accent",
+  "--accent-hover",
+  "--accent-soft",
+  "--accent-text",
+  "--accent-ring",
+] as const;
 
 function oneOf<T extends string>(val: unknown, allowed: readonly T[], fallback: T): T {
   return typeof val === "string" && (allowed as readonly string[]).includes(val)
@@ -222,45 +173,16 @@ export function sanitizeCmsSettings(raw: unknown): CmsSettings {
     : DEFAULT_CMS_SETTINGS.defaultMomentTags;
 
   return {
-    siteName: cleanString(input.siteName, DEFAULT_CMS_SETTINGS.siteName, false),
-    siteSubtitle: cleanString(
-      input.siteSubtitle,
-      DEFAULT_CMS_SETTINGS.siteSubtitle,
-      true,
-    ),
-    siteIcon: cleanString(input.siteIcon, DEFAULT_CMS_SETTINGS.siteIcon, false),
-    theme: oneOf(
-      input.theme,
-      ["light", "dark", "system"],
-      DEFAULT_CMS_SETTINGS.theme,
-    ),
+    theme: oneOf(input.theme, ["light", "dark", "system"], DEFAULT_CMS_SETTINGS.theme),
     accentColor: oneOf(
       input.accentColor,
       ["indigo", "emerald", "sky", "amber", "rose"],
       DEFAULT_CMS_SETTINGS.accentColor,
     ),
-    startupMode: oneOf(
-      input.startupMode,
-      ["last", "moments", "posts"],
-      DEFAULT_CMS_SETTINGS.startupMode,
-    ),
-    defaultMomentsView: oneOf(
-      input.defaultMomentsView,
+    defaultView: oneOf(
+      input.defaultView ?? input.defaultMomentsView ?? input.defaultPostsView,
       ["edit", "split", "preview"],
-      DEFAULT_CMS_SETTINGS.defaultMomentsView,
-    ),
-    defaultPostsView: oneOf(
-      input.defaultPostsView,
-      ["edit", "split", "preview"],
-      DEFAULT_CMS_SETTINGS.defaultPostsView,
-    ),
-    defaultSidebarOpen: cleanBool(
-      input.defaultSidebarOpen,
-      DEFAULT_CMS_SETTINGS.defaultSidebarOpen,
-    ),
-    autoCloseSidebarOnMobile: cleanBool(
-      input.autoCloseSidebarOnMobile,
-      DEFAULT_CMS_SETTINGS.autoCloseSidebarOnMobile,
+      DEFAULT_CMS_SETTINGS.defaultView,
     ),
     defaultSortOrder: oneOf(
       input.defaultSortOrder,
@@ -268,7 +190,6 @@ export function sanitizeCmsSettings(raw: unknown): CmsSettings {
       DEFAULT_CMS_SETTINGS.defaultSortOrder,
     ),
     compactList: cleanBool(input.compactList, DEFAULT_CMS_SETTINGS.compactList),
-
     editorFontFamily: oneOf(
       input.editorFontFamily,
       ["default", "sans", "serif", "mono"],
@@ -280,40 +201,12 @@ export function sanitizeCmsSettings(raw: unknown): CmsSettings {
       20,
       DEFAULT_CMS_SETTINGS.editorFontSize,
     ),
-    editorLineHeight: clampNumber(
-      input.editorLineHeight,
-      1.3,
-      2.2,
-      DEFAULT_CMS_SETTINGS.editorLineHeight,
-    ),
-    showLineNumbers: cleanBool(
-      input.showLineNumbers,
-      DEFAULT_CMS_SETTINGS.showLineNumbers,
-    ),
     tabIndentSpaces:
       input.tabIndentSpaces === 4 ? 4 : DEFAULT_CMS_SETTINGS.tabIndentSpaces,
-    spellCheck: cleanBool(input.spellCheck, DEFAULT_CMS_SETTINGS.spellCheck),
     previewTocDefaultOpen: cleanBool(
       input.previewTocDefaultOpen,
       DEFAULT_CMS_SETTINGS.previewTocDefaultOpen,
     ),
-    readingSpeedCpm: clampNumber(
-      input.readingSpeedCpm,
-      100,
-      1200,
-      DEFAULT_CMS_SETTINGS.readingSpeedCpm,
-    ),
-    autoSaveDelayMs: clampNumber(
-      input.autoSaveDelayMs,
-      150,
-      5000,
-      DEFAULT_CMS_SETTINGS.autoSaveDelayMs,
-    ),
-    notifyOnDraftRestore: cleanBool(
-      input.notifyOnDraftRestore,
-      DEFAULT_CMS_SETTINGS.notifyOnDraftRestore,
-    ),
-
     momentAuthorName: cleanString(
       input.momentAuthorName,
       DEFAULT_CMS_SETTINGS.momentAuthorName,
@@ -324,60 +217,20 @@ export function sanitizeCmsSettings(raw: unknown): CmsSettings {
       DEFAULT_CMS_SETTINGS.momentAuthorAvatar,
       true,
     ),
-    momentDateFormat: oneOf(
-      input.momentDateFormat,
-      ["full", "short"],
-      DEFAULT_CMS_SETTINGS.momentDateFormat,
-    ),
     defaultMomentTags: [...new Set(rawTags)],
     defaultMomentLocation: cleanString(
       input.defaultMomentLocation,
       DEFAULT_CMS_SETTINGS.defaultMomentLocation,
       true,
     ),
-    cloneAppendSuffix: cleanBool(
-      input.cloneAppendSuffix,
-      DEFAULT_CMS_SETTINGS.cloneAppendSuffix,
-    ),
-    cloneSuffixText:
-      typeof input.cloneSuffixText === "string"
-        ? input.cloneSuffixText
-        : DEFAULT_CMS_SETTINGS.cloneSuffixText,
-    defaultBatchMediaType: oneOf(
-      input.defaultBatchMediaType,
-      ["auto", "img", "vid"],
-      DEFAULT_CMS_SETTINGS.defaultBatchMediaType,
-    ),
     defaultPostAuthor: cleanString(
       input.defaultPostAuthor,
       DEFAULT_CMS_SETTINGS.defaultPostAuthor,
       true,
     ),
-    defaultPostLanguage:
-      typeof input.defaultPostLanguage === "string" &&
-      /^[a-z]{2,3}(?:-[a-z0-9]{2,8})*$/i.test(input.defaultPostLanguage.trim())
-        ? input.defaultPostLanguage.trim()
-        : DEFAULT_CMS_SETTINGS.defaultPostLanguage,
-    autoGenerateSlug: cleanBool(
-      input.autoGenerateSlug,
-      DEFAULT_CMS_SETTINGS.autoGenerateSlug,
-    ),
-
     confirmBeforePublish: cleanBool(
       input.confirmBeforePublish,
       DEFAULT_CMS_SETTINGS.confirmBeforePublish,
-    ),
-    preventEmptyPublish: cleanBool(
-      input.preventEmptyPublish,
-      DEFAULT_CMS_SETTINGS.preventEmptyPublish,
-    ),
-    defaultCommitMessage:
-      typeof input.defaultCommitMessage === "string"
-        ? input.defaultCommitMessage
-        : DEFAULT_CMS_SETTINGS.defaultCommitMessage,
-    clearCommitAfterPublish: cleanBool(
-      input.clearCommitAfterPublish,
-      DEFAULT_CMS_SETTINGS.clearCommitAfterPublish,
     ),
     enableShortcuts: cleanBool(
       input.enableShortcuts,
@@ -412,14 +265,6 @@ export function resetCmsSettings(): CmsSettings {
   return fresh;
 }
 
-export function parseCmsSettingsImport(jsonText: string): CmsSettings {
-  const parsed: unknown = JSON.parse(jsonText);
-  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-    throw new Error("无效的设置 JSON 格式：需要配置对象");
-  }
-  return sanitizeCmsSettings(parsed);
-}
-
 export function resolveEditorFontCss(font: EditorFontFamily, mode: "moments" | "posts"): string {
   if (font === "sans") return "var(--font-sans)";
   if (font === "serif") return "var(--font-serif)";
@@ -427,66 +272,26 @@ export function resolveEditorFontCss(font: EditorFontFamily, mode: "moments" | "
   return mode === "posts" ? "var(--font-mono)" : "var(--font-sans)";
 }
 
-export function applySiteBrand(settings: Pick<CmsSettings, "siteName" | "siteSubtitle" | "siteIcon">) {
-  if (typeof document === "undefined") return;
-
-  const siteName = settings.siteName.trim() || DEFAULT_SITE_BRAND.name;
-  document.title = formatDocumentTitle(siteName, settings.siteSubtitle);
-
-  const webAppTitle = document.querySelector<HTMLMetaElement>(
-    'meta[name="apple-mobile-web-app-title"]',
-  );
-  if (webAppTitle) {
-    webAppTitle.content = siteName;
-  }
-
-  const iconUrl = settings.siteIcon.trim() || DEFAULT_SITE_BRAND.icon;
-  let iconLink = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
-  if (!iconLink && document.head) {
-    iconLink = document.createElement("link");
-    iconLink.rel = "icon";
-    document.head.appendChild(iconLink);
-  }
-  if (iconLink) {
-    iconLink.href = iconUrl;
-    if (/\.svg(\?|$)/i.test(iconUrl)) {
-      iconLink.type = "image/svg+xml";
-    } else {
-      iconLink.removeAttribute("type");
-    }
-  }
-
-  const appleLink = document.querySelector<HTMLLinkElement>('link[rel="apple-touch-icon"]');
-  if (appleLink) {
-    appleLink.href = /\.svg(\?|$)/i.test(iconUrl)
-      ? DEFAULT_SITE_BRAND.appleTouchIcon
-      : iconUrl;
-  }
-}
-
 export function applyThemeAndAccent(settings: Pick<CmsSettings, "theme" | "accentColor">) {
   if (typeof document === "undefined") return;
 
   const root = document.documentElement;
-  if (settings.theme === "dark") {
-    root.classList.add("dark");
-  } else if (settings.theme === "light") {
-    root.classList.remove("dark");
-  } else if (typeof window !== "undefined" && typeof window.matchMedia === "function") {
-    if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
-      root.classList.add("dark");
-    } else {
-      root.classList.remove("dark");
-    }
-  }
+  const prefersDark =
+    typeof window !== "undefined" &&
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(prefers-color-scheme: dark)").matches;
+  const isDark =
+    settings.theme === "dark" || (settings.theme === "system" && prefersDark);
+
+  root.classList.toggle("dark", isDark);
 
   const preset = ACCENT_PRESETS[settings.accentColor];
-  for (const shade of INDIGO_SHADES) {
-    const varName = `--color-indigo-${shade}`;
-    if (preset?.ramp) {
-      root.style.setProperty(varName, preset.ramp[shade]);
+  const palette = isDark ? preset?.dark : preset?.light;
+  for (const name of ACCENT_VAR_NAMES) {
+    if (palette?.[name]) {
+      root.style.setProperty(name, palette[name]);
     } else {
-      root.style.removeProperty(varName);
+      root.style.removeProperty(name);
     }
   }
 }

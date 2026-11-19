@@ -1,14 +1,14 @@
-import * as S from "../../App.styles";
+import * as S from "./LeftRail.styles";
 import {
-  PanelLeft,
-  MessageCircle,
   FileText,
-  Plus,
-  Sun,
-  Moon,
   Laptop,
-  Settings,
   LogOut,
+  MessageCircle,
+  Moon,
+  PanelLeft,
+  Plus,
+  Settings,
+  Sun,
 } from "lucide-react";
 import type { CmsThemeMode } from "../../lib/settings/cmsSettings";
 
@@ -18,8 +18,7 @@ interface LeftRailProps {
   contentMode: "moments" | "posts";
   onSwitchMode: (mode: "moments" | "posts") => void;
   onCreate: () => void;
-  isD1?: boolean;
-  d1Mode?: "native" | "http" | "mock";
+  isD1: boolean;
   theme: CmsThemeMode;
   onCycleTheme: () => void;
   onOpenSettings: () => void;
@@ -33,7 +32,6 @@ export function LeftRail({
   onSwitchMode,
   onCreate,
   isD1,
-  d1Mode,
   theme,
   onCycleTheme,
   onOpenSettings,
@@ -46,16 +44,10 @@ export function LeftRail({
         ? "主题：深色"
         : "主题：跟随系统";
 
-  const statusTitle = isD1
-    ? d1Mode === "http"
-      ? "Cloudflare D1 (REST 直连)"
-      : "Cloudflare D1 已联机"
-    : "未绑定 D1 (离线模拟模式)";
-
   return (
-    <S.LeftRailColumn>
-      <S.RailTopToggleSlot>
-        <S.RailIconButton
+    <S.RailColumn>
+      <S.TopSlot>
+        <S.IconBtn
           type="button"
           $active={sidebarOpen}
           onClick={onToggleSidebar}
@@ -63,12 +55,12 @@ export function LeftRail({
           title={sidebarOpen ? "收起列表 (Ctrl+B)" : "展开列表 (Ctrl+B)"}
         >
           <PanelLeft size={15} />
-        </S.RailIconButton>
-      </S.RailTopToggleSlot>
+        </S.IconBtn>
+      </S.TopSlot>
 
-      <S.RailNav>
-        <S.RailGroup>
-          <S.RailIconButton
+      <S.Nav>
+        <S.Group>
+          <S.IconBtn
             type="button"
             $active={contentMode === "moments"}
             onClick={() => onSwitchMode("moments")}
@@ -76,8 +68,8 @@ export function LeftRail({
             title="说说动态"
           >
             <MessageCircle size={15} />
-          </S.RailIconButton>
-          <S.RailIconButton
+          </S.IconBtn>
+          <S.IconBtn
             type="button"
             $active={contentMode === "posts"}
             onClick={() => onSwitchMode("posts")}
@@ -85,9 +77,9 @@ export function LeftRail({
             title="博客长文"
           >
             <FileText size={15} />
-          </S.RailIconButton>
-          <S.RailMiniDivider />
-          <S.RailIconButton
+          </S.IconBtn>
+          <S.Divider />
+          <S.IconBtn
             type="button"
             $primary
             onClick={onCreate}
@@ -95,19 +87,19 @@ export function LeftRail({
             title={contentMode === "moments" ? "新建说说" : "新建文章"}
           >
             <Plus size={15} />
-          </S.RailIconButton>
-        </S.RailGroup>
+          </S.IconBtn>
+        </S.Group>
 
-        <S.RailGroup>
-          <S.RailIconButton
+        <S.Group>
+          <S.IconBtn
             type="button"
             onClick={onOpenSettings}
             aria-label="存储状态"
-            title={statusTitle}
+            title={isD1 ? "Cloudflare D1 已联机" : "未绑定 D1 (离线模拟模式)"}
           >
-            <S.StatusDot $connected={Boolean(isD1)} />
-          </S.RailIconButton>
-          <S.RailIconButton
+            <S.StatusDot $connected={isD1} />
+          </S.IconBtn>
+          <S.IconBtn
             type="button"
             onClick={onCycleTheme}
             aria-label="切换主题"
@@ -120,16 +112,16 @@ export function LeftRail({
             ) : (
               <Laptop size={15} />
             )}
-          </S.RailIconButton>
-          <S.RailIconButton
+          </S.IconBtn>
+          <S.IconBtn
             type="button"
             onClick={onOpenSettings}
             aria-label="系统设置"
             title="CMS 设置"
           >
             <Settings size={15} />
-          </S.RailIconButton>
-          <S.RailIconButton
+          </S.IconBtn>
+          <S.IconBtn
             type="button"
             $danger
             onClick={onLogout}
@@ -137,9 +129,9 @@ export function LeftRail({
             title="退出登录"
           >
             <LogOut size={15} />
-          </S.RailIconButton>
-        </S.RailGroup>
-      </S.RailNav>
-    </S.LeftRailColumn>
+          </S.IconBtn>
+        </S.Group>
+      </S.Nav>
+    </S.RailColumn>
   );
 }

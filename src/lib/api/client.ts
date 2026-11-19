@@ -1,9 +1,7 @@
-import {
-  DEFAULT_MOCK_ARTICLES,
-  type Article,
-  type PublishRequest,
-  type PublishResponse,
-  type ConflictErrorResponse,
+import type {
+  Article,
+  MomentMutationResponse,
+  MomentSaveRequest,
 } from "../../types/article";
 
 export interface UserSession {
@@ -13,14 +11,10 @@ export interface UserSession {
   isMock?: boolean;
 }
 
-export interface FetchArticlesResponse {
-  articles: Article[];
-  sha: string;
+export interface FetchMomentsResponse {
+  moments: Article[];
   isMock: boolean;
   isD1?: boolean;
-  d1Mode?: "native" | "http" | "mock";
-  bindingName?: string;
-  envKeys?: string[];
   warning?: string;
   total: number;
   user?: UserSession;
@@ -28,7 +22,7 @@ export interface FetchArticlesResponse {
 
 const DEV_MOCK_TOKEN_KEY = "oblivion_cf_mock_token";
 
-function isLocalHostname(): boolean {
+export function isLocalHostname(): boolean {
   return (
     window.location.hostname === "localhost" ||
     window.location.hostname === "127.0.0.1"
@@ -46,49 +40,101 @@ export function getDevMockToken(): string | null {
 function setDevMockToken(token: string): void {
   try {
     localStorage.setItem(DEV_MOCK_TOKEN_KEY, token);
-  } catch {}
+  } catch {
+    /* restricted storage */
+  }
 }
 
 function clearDevMockToken(): void {
   try {
     localStorage.removeItem(DEV_MOCK_TOKEN_KEY);
-  } catch {}
+  } catch {
+    /* restricted storage */
+  }
 }
 
-function getAuthHeaders(): Record<string, string> {
+function isViteHtmlFallback(res: Response): boolean {
+  const contentType = res.headers.get("Content-Type") || "";
+  return (
+    import.meta.env.DEV &&
+    isLocalHostname() &&
+    ((res.status === 404 && !contentType.includes("json")) ||
+      (res.ok && contentType.includes("text/html")))
+  );
+}
+
+/** Shared JSON fetch helper; returns null only for explicit Vite local HTML/404 dev fallback. */
+export async function requestJson<T>(
+  url: string,
+  options: { method?: string; body?: unknown } = {},
+  fallbackError = "请求失败",
+): Promise<T | null> {
   const headers: Record<string, string> = { Accept: "application/json" };
   const mockToken = getDevMockToken();
-  if (mockToken) headers["Authorization"] = `Bearer ${mockToken}`;
-  return headers;
-}
+  if (mockToken) headers.Authorization = `Bearer ${mockToken}`;
+  if (options.body !== undefined) headers["Content-Type"] = "application/json";
 
-export function computeClientFallbackSha(articles: Article[]): string {
-  if (!articles || articles.length === 0) return "local-sha-empty";
-  let hash = 0;
-  const serialized = JSON.stringify(articles);
-  for (let i = 0; i < serialized.length; i++) {
-    hash = (hash << 5) - hash + serialized.charCodeAt(i);
-    hash |= 0;
+  const res = await fetch(url, {
+    method: options.method || "GET",
+    headers,
+    ...(options.body !== undefined ? { body: JSON.stringify(options.body) } : {}),
+  });
+
+  if (isViteHtmlFallback(res)) return null;
+
+  const contentType = res.headers.get("Content-Type") || "";
+  if (res.ok && !contentType.includes("json")) {
+    throw new Error("服务端返回了非 JSON 响应");
   }
-  return `local-sha-${articles.length}-${Math.abs(hash).toString(36)}`;
+
+  const data = (await res.json().catch(() => null)) || {};
+  if (!res.ok) {
+    const err = new Error(
+      data.message || data.error || `${fallbackError} (${res.status})`,
+    );
+    if (res.status === 401 || res.status === 403) {
+      Object.assign(err, { isAuthError: true });
+    }
+    throw err;
+  }
+
+  return data as T;
 }
 
-let localFallbackArticles: Article[] = structuredClone(DEFAULT_MOCK_ARTICLES);
-
-const DEV_MOCK_USER: UserSession = {
-  email: "developer@oblivion.local",
-  sub: "dev-local-user",
-  name: "本地开发模拟 (CF Access)",
-  isMock: true,
-};
+export async function checkAuthStatus(): Promise<{
+  user: UserSession | null;
+  d1Bound?: boolean;
+  error?: string;
+}> {
+  try {
+    const data = await requestJson<{
+      authenticated?: boolean;
+      user?: UserSession;
+      d1Bound?: boolean;
+    }>("/api/auth/me", {}, "身份验证未通过");
+    if (data === null && import.meta.env.DEV) {
+      if (!getDevMockToken()) return { user: null };
+      const { DEV_MOCK_USER } = await import("./localMock");
+      return { user: { ...DEV_MOCK_USER }, d1Bound: false };
+    }
+    if (data?.authenticated && data.user) {
+      return { user: data.user, d1Bound: data.d1Bound };
+    }
+    return { user: null, error: "身份验证未通过" };
+  } catch (err: any) {
+    if (import.meta.env.DEV && isLocalHostname() && getDevMockToken()) {
+      const { DEV_MOCK_USER } = await import("./localMock");
+      return { user: { ...DEV_MOCK_USER }, d1Bound: false };
+    }
+    return { user: null, error: err?.message || "网络请求失败" };
+  }
+}
 
 export async function loginWithCloudflareAccess(): Promise<UserSession> {
-  if (isLocalHostname()) {
+  if (import.meta.env.DEV && isLocalHostname()) {
     setDevMockToken("mock-dev-token");
-    return {
-      ...DEV_MOCK_USER,
-      name: "本地模拟认证 (CF Access)",
-    };
+    const { DEV_MOCK_USER } = await import("./localMock");
+    return { ...DEV_MOCK_USER, name: "本地模拟认证 (CF Access)" };
   }
 
   const status = await checkAuthStatus();
@@ -112,207 +158,51 @@ export async function logoutUser(): Promise<void> {
     if (data.logoutUrl && !data.logoutUrl.includes("localhost")) {
       window.location.href = data.logoutUrl;
     }
-  } catch {}
-}
-
-export async function checkAuthStatus(): Promise<{
-  user: UserSession | null;
-  error?: string;
-}> {
-  const isLocalHost = isLocalHostname();
-  try {
-    const res = await fetch("/api/auth/me", { headers: getAuthHeaders() });
-    if (res.ok) {
-      const data = await res.json();
-      if (data.authenticated && data.user) return { user: data.user };
-    }
-
-    if (res.status === 404 && isLocalHost) {
-      return { user: getDevMockToken() ? { ...DEV_MOCK_USER } : null };
-    }
-
-    const errData = await res.json().catch(() => ({}));
-    return {
-      user: null,
-      error: errData.error || `身份验证未通过 (${res.status})`,
-    };
-  } catch (err: any) {
-    if (isLocalHost && getDevMockToken()) {
-      return { user: { ...DEV_MOCK_USER } };
-    }
-    return { user: null, error: err?.message || "网络请求失败" };
+  } catch {
+    /* ignore logout network errors */
   }
 }
 
-// Vite serves HTML for missing API routes; only explicit local HTML/404 enables mock fallback.
-function isLocalFallbackResponse(res: Response): boolean {
-  const contentType = res.headers.get("Content-Type") || "";
-  return (
-    isLocalHostname() &&
-    ((res.status === 404 && !contentType.includes("json")) ||
-      (res.ok && contentType.includes("text/html")))
+export async function fetchMoments(): Promise<FetchMomentsResponse> {
+  const data = await requestJson<FetchMomentsResponse>("/api/moments");
+  if (data !== null) return data;
+  if (import.meta.env.DEV) {
+    const { mockFetchMoments } = await import("./localMock");
+    return mockFetchMoments();
+  }
+  throw new Error("无法加载说说列表");
+}
+
+export async function saveMoment(
+  moment: Article,
+  originalTime?: number,
+): Promise<MomentMutationResponse> {
+  const payload: MomentSaveRequest = { moment, originalTime };
+  const data = await requestJson<MomentMutationResponse>(
+    "/api/moments",
+    { method: "POST", body: payload },
+    "发布失败",
   );
+  if (data !== null) return data;
+  if (import.meta.env.DEV) {
+    const { mockSaveMoment } = await import("./localMock");
+    return mockSaveMoment(moment, originalTime);
+  }
+  throw new Error("无法保存说说");
 }
 
-function getLocalFallbackArticles(): FetchArticlesResponse {
-  return {
-    articles: structuredClone(localFallbackArticles),
-    sha: computeClientFallbackSha(localFallbackArticles),
-    isMock: true,
-    isD1: false,
-    d1Mode: "mock",
-    warning: "当前运行于 Vite 本地开发模式，未连接 Cloudflare D1 数据库。",
-    total: localFallbackArticles.length,
-    user: {
-      email: "developer@oblivion.local",
-      sub: "dev-local",
-      name: "本地开发模式",
-      isMock: true,
-    },
-  };
-}
-
-export async function fetchArticles(): Promise<FetchArticlesResponse> {
-  const res = await fetch("/api/articles", { headers: getAuthHeaders() });
-  if (isLocalFallbackResponse(res)) return getLocalFallbackArticles();
-  if (!res.ok) await throwApiError(res, "请求失败");
-  return await res.json();
-}
-
-async function throwApiError(res: Response, message: string): Promise<never> {
-  const data = (await res.json().catch(() => null)) || {};
-  const err = new Error(
-    data.message || data.error || `${message} (${res.status})`,
+export async function deleteMoment(
+  time: number,
+): Promise<MomentMutationResponse> {
+  const data = await requestJson<MomentMutationResponse>(
+    `/api/moments/${encodeURIComponent(String(time))}`,
+    { method: "DELETE" },
+    "删除失败",
   );
-  if (res.status === 401 || res.status === 403) {
-    Object.assign(err, { isAuthError: true });
-  } else if (res.status === 409) {
-    Object.assign(err, {
-      isConflict: true,
-      conflictData: data as ConflictErrorResponse,
-    });
+  if (data !== null) return data;
+  if (import.meta.env.DEV) {
+    const { mockDeleteMoment } = await import("./localMock");
+    return mockDeleteMoment(time);
   }
-  throw err;
-}
-
-export async function publishArticleToServer(
-  request: PublishRequest,
-): Promise<PublishResponse> {
-  const res = await fetch("/api/publish", {
-    method: "POST",
-    headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
-    body: JSON.stringify(request),
-  });
-  if (isLocalFallbackResponse(res)) return handleLocalFallbackPublish(request);
-  if (!res.ok) await throwApiError(res, "发布失败");
-  return await res.json();
-}
-
-function handleLocalFallbackPublish(req: PublishRequest): PublishResponse {
-  const currentSha = computeClientFallbackSha(localFallbackArticles);
-  if (!req.force && req.baseSha && req.baseSha !== currentSha) {
-    const err = new Error("版本冲突：本地数据已被更改，请刷新后重试");
-    Object.assign(err, {
-      isConflict: true,
-      conflictData: {
-        error: "CONFLICT",
-        message: "本地版本基准不一致",
-        remoteSha: currentSha,
-        clientBaseSha: req.baseSha,
-      },
-    });
-    throw err;
-  }
-
-  if (req.action === "create" && req.article) {
-    if (localFallbackArticles.some((a) => a.time === req.article!.time)) {
-      throw new Error("相同时间的文章已存在");
-    }
-    localFallbackArticles = [
-      structuredClone(req.article),
-      ...localFallbackArticles,
-    ];
-  } else if (
-    (req.action === "update" && req.article) ||
-    req.action === "delete"
-  ) {
-    const index = localFallbackArticles.findIndex((a) =>
-      req.targetFingerprint?.startsWith(`${a.time}-`),
-    );
-    if (index === -1) throw new Error("目标文章不存在或已更改，请刷新后重试");
-    if (req.action === "update") {
-      if (
-        localFallbackArticles.some(
-          (a, i) => i !== index && a.time === req.article!.time,
-        )
-      ) {
-        throw new Error("相同时间的文章已存在");
-      }
-      localFallbackArticles[index] = structuredClone(req.article!);
-    } else {
-      localFallbackArticles.splice(index, 1);
-    }
-  } else {
-    throw new Error("无效的文章操作或缺少文章数据");
-  }
-
-  return {
-    success: true,
-    newSha: computeClientFallbackSha(localFallbackArticles),
-    commitMessage:
-      req.commitMessage || `content: ${req.action} article (local mock)`,
-    articleCount: localFallbackArticles.length,
-  };
-}
-
-interface ImportArticlesResponse {
-  success: boolean;
-  count: number;
-  total: number;
-  newSha: string;
-  mode: "merge" | "overwrite";
-  message: string;
-}
-
-export async function batchImportArticles(
-  articles: Article[],
-  mode: "merge" | "overwrite",
-): Promise<ImportArticlesResponse> {
-  const res = await fetch("/api/import", {
-    method: "POST",
-    headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
-    body: JSON.stringify({ articles, mode }),
-  });
-  if (isLocalFallbackResponse(res))
-    return handleLocalFallbackImport(articles, mode);
-  if (!res.ok) await throwApiError(res, "导入失败");
-  return await res.json();
-}
-
-function handleLocalFallbackImport(
-  articles: Article[],
-  mode: "merge" | "overwrite",
-): ImportArticlesResponse {
-  if (mode === "overwrite") {
-    localFallbackArticles = structuredClone(articles).sort(
-      (a, b) => b.time - a.time,
-    );
-  } else {
-    const map = new Map<number, Article>();
-    for (const a of localFallbackArticles) map.set(a.time, structuredClone(a));
-    for (const a of articles) map.set(a.time, structuredClone(a));
-    localFallbackArticles = Array.from(map.values()).sort(
-      (a, b) => b.time - a.time,
-    );
-  }
-
-  const modeLabel = mode === "overwrite" ? "全量覆盖" : "增量合并";
-  return {
-    success: true,
-    count: articles.length,
-    total: localFallbackArticles.length,
-    newSha: computeClientFallbackSha(localFallbackArticles),
-    mode,
-    message: `成功${modeLabel}导入 ${articles.length} 篇文章（本地开发模拟，共计 ${localFallbackArticles.length} 篇）`,
-  };
+  throw new Error("无法删除说说");
 }

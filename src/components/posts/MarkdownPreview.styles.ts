@@ -6,17 +6,18 @@ export const Preview = styled.section`
   min-width: 0;
   max-height: 900px;
   overflow: auto;
+  color: var(--text);
 }
 .post-toc {
   padding: 14px 18px;
-  border: 1px solid var(--post-border);
+  border: 1px solid var(--border);
   border-radius: 10px;
   font-size: 12px;
   margin-bottom: 30px;
 }
 .post-toc summary {
   cursor: pointer;
-  color: var(--post-muted);
+  color: var(--text-muted);
 }
 .post-toc nav {
   display: flex;
@@ -25,7 +26,7 @@ export const Preview = styled.section`
   margin-top: 12px;
 }
 .post-toc a {
-  color: var(--color-indigo-400);
+  color: var(--accent-text);
 }
 .post-prose {
   line-height: 1.9;
@@ -45,7 +46,7 @@ export const Preview = styled.section`
 }
 .post-prose h2 {
   font-size: 1.5em;
-  border-bottom: 1px solid var(--post-border);
+  border-bottom: 1px solid var(--border);
   padding-bottom: 0.4em;
 }
 .post-prose h3 {
@@ -67,12 +68,12 @@ export const Preview = styled.section`
 }
 .post-prose blockquote {
   padding: 2px 18px;
-  border-left: 3px solid var(--color-indigo-400);
-  color: var(--post-muted);
-  background: color-mix(in oklab, var(--color-indigo-500) 6%, transparent);
+  border-left: 3px solid var(--accent);
+  color: var(--text-muted);
+  background: var(--accent-soft);
 }
 .post-prose a {
-  color: var(--color-indigo-400);
+  color: var(--accent-text);
   text-decoration: underline;
 }
 .post-prose img {
@@ -107,14 +108,14 @@ export const Preview = styled.section`
 .post-prose th,
 .post-prose td {
   padding: 8px 12px;
-  border: 1px solid var(--post-border);
+  border: 1px solid var(--border);
 }
 .post-prose th {
-  background: #6366f10a;
+  background: var(--accent-soft);
 }
 .post-prose hr {
   border: 0;
-  border-top: 1px solid var(--post-border);
+  border-top: 1px solid var(--border);
   margin: 28px 0;
 }
 

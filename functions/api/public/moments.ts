@@ -1,5 +1,5 @@
 import { jsonResponse } from "../../lib/access";
-import { getD1Articles } from "../../lib/d1";
+import { listMoments } from "../../lib/d1";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -15,20 +15,19 @@ export const onRequestGet = async (context: {
   request: Request;
   env: Record<string, any>;
 }) => {
-  const { request, env } = context;
   const isWrapped =
-    new URL(request.url).searchParams.get("format") === "wrapped";
+    new URL(context.request.url).searchParams.get("format") === "wrapped";
 
   try {
-    const { articles, sha } = await getD1Articles(env);
+    const { moments, revision } = await listMoments(context.env);
     const payload = isWrapped
       ? {
-          moments: articles,
-          total: articles.length,
-          revision: sha,
+          moments,
+          total: moments.length,
+          revision,
           source: "Cloudflare D1 Database",
         }
-      : articles;
+      : moments;
 
     return jsonResponse(payload, 200, {
       "Content-Type": "application/json; charset=utf-8",
@@ -40,7 +39,7 @@ export const onRequestGet = async (context: {
     return jsonResponse(
       {
         error: "Failed to fetch moments from database",
-        message: err.message,
+        message: err?.message || "Unknown error",
       },
       500,
       CORS_HEADERS,

@@ -1,12 +1,11 @@
-import { jsonResponse, verifyCloudflareAccess } from "../../lib/access";
+import { jsonResponse, verifyAccess } from "../../lib/access";
+import { getMomentsDb } from "../../lib/d1";
 
 export const onRequestGet = async (context: {
   request: Request;
   env: Record<string, any>;
 }) => {
-  const { request, env } = context;
-  const auth = await verifyCloudflareAccess(request, env);
-
+  const auth = await verifyAccess(context.request, context.env);
   if (auth.error || !auth.user) {
     return jsonResponse(
       { authenticated: false, error: auth.error || "未登录" },
@@ -14,11 +13,11 @@ export const onRequestGet = async (context: {
     );
   }
 
+  const { db } = getMomentsDb(context.env);
   return jsonResponse({
     authenticated: true,
     user: auth.user,
-    configured: true,
-    d1Bound: Boolean(env.DB),
-    storage: env.DB ? "Cloudflare D1" : "Local Mock Store",
+    d1Bound: Boolean(db),
+    storage: db ? "Cloudflare D1" : "Local Mock Store",
   });
 };

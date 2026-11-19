@@ -1,60 +1,63 @@
 import * as S from "./LoginPage.styles";
-import React, { useState, useEffect, useMemo } from "react";
-import { loginWithCloudflareAccess, checkAuthStatus } from "../../lib/api/client";
+import { useEffect, useState } from "react";
 import {
-  loadCmsSettings,
-  applySiteBrand,
+  AlertCircle,
+  ArrowRight,
+  Cloud,
+  Lock,
+  PenTool,
+  RotateCcw,
+} from "lucide-react";
+import {
+  checkAuthStatus,
+  loginWithCloudflareAccess,
+  type UserSession,
+} from "../../lib/api/client";
+import {
   applyThemeAndAccent,
+  loadCmsSettings,
 } from "../../lib/settings/cmsSettings";
 
 interface LoginPageProps {
-  onLoginSuccess: (user: any) => void;
+  onLoginSuccess: (user: UserSession, d1Bound?: boolean) => void;
   initialError?: string | null;
   onRetry?: () => void;
 }
 
-export const LoginPage: React.FC<LoginPageProps> = ({
+export function LoginPage({
   onLoginSuccess,
   initialError,
   onRetry,
-}) => {
-  const brand = useMemo(() => loadCmsSettings(), []);
-  const [iconError, setIconError] = useState(false);
+}: LoginPageProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(initialError || null);
 
   useEffect(() => {
-    applySiteBrand(brand);
-    applyThemeAndAccent(brand);
-  }, [brand]);
+    applyThemeAndAccent(loadCmsSettings());
+  }, []);
 
   useEffect(() => {
-    if (initialError) {
-      setErrorMsg(initialError);
-    }
+    if (initialError) setErrorMsg(initialError);
   }, [initialError]);
 
   const isLocalHost =
     typeof window !== "undefined" &&
-    (window.location.hostname === "localhost" ||
-      window.location.hostname === "127.0.0.1");
+    ["localhost", "127.0.0.1"].includes(window.location.hostname);
 
-  const handleAccessLogin = async () => {
+  const handleLogin = async () => {
     setIsLoading(true);
     setErrorMsg(null);
     try {
       const user = await loginWithCloudflareAccess();
-      if (user) {
-        onLoginSuccess(user);
-      }
+      if (user) onLoginSuccess(user);
     } catch (err: any) {
-      setErrorMsg(err.message || "登录请求失败");
+      setErrorMsg(err?.message || "登录请求失败");
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleRetryCheck = async () => {
+  const handleRetry = async () => {
     setIsLoading(true);
     setErrorMsg(null);
     try {
@@ -63,13 +66,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({
         return;
       }
       const res = await checkAuthStatus();
-      if (res.user) {
-        onLoginSuccess(res.user);
-      } else if (res.error) {
-        setErrorMsg(res.error);
-      }
+      if (res.user) onLoginSuccess(res.user, res.d1Bound);
+      else if (res.error) setErrorMsg(res.error);
     } catch (err: any) {
-      setErrorMsg(err.message || "检查会话失败");
+      setErrorMsg(err?.message || "检查会话失败");
     } finally {
       setIsLoading(false);
     }
@@ -77,117 +77,69 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 
   const isConfigError =
     errorMsg?.includes("CF_ACCESS_TEAM_DOMAIN") ||
-    errorMsg?.includes("生产配置缺失") ||
-    errorMsg?.includes("服务器错误");
+    errorMsg?.includes("CF_ACCESS_AUD");
 
   return (
     <S.PageWrap>
-      <S.GlowPrimary />
-      <S.GlowSecondary />
+      <S.Card>
+        <S.Header>
+          <S.LogoBox>
+            <PenTool size={22} />
+          </S.LogoBox>
+          <div>
+            <S.Title>
+              <span>Oblivion-CMS</span>
+              <S.Badge>Zero Trust</S.Badge>
+            </S.Title>
+            <S.Subtitle>受 Cloudflare Access 零信任策略保护</S.Subtitle>
+          </div>
+        </S.Header>
 
-      <S.CardContainer>
-        <S.Card>
-          <S.HeaderSection>
-            <S.LogoBox>
-              {brand.siteIcon && !iconError ? (
-                <S.BrandImg
-                  src={brand.siteIcon}
-                  alt={brand.siteName}
-                  onError={() => setIconError(true)}
-                />
-              ) : (
-                <S.PenTool />
-              )}
-            </S.LogoBox>
+        {errorMsg && (
+          <S.ErrorBox role="alert">
+            <S.ErrorHead>
+              <AlertCircle size={15} style={{ flexShrink: 0, marginTop: 1 }} />
+              <span>{errorMsg}</span>
+            </S.ErrorHead>
+            {isConfigError && (
+              <S.EnvHint>
+                请在 Cloudflare Pages 环境变量中配置 CF_ACCESS_TEAM_DOMAIN 与
+                CF_ACCESS_AUD
+              </S.EnvHint>
+            )}
+          </S.ErrorBox>
+        )}
 
-            <div>
-              <S.Title>
-                <span>{brand.siteName}</span>
-                <S.Badge>Zero Trust</S.Badge>
-              </S.Title>
-              <S.Subtitle>本站点受 Cloudflare Access 零信任策略保护</S.Subtitle>
-            </div>
-          </S.HeaderSection>
+        <S.Actions>
+          <S.PrimaryBtn
+            type="button"
+            onClick={() => void handleLogin()}
+            disabled={isLoading}
+          >
+            <Cloud size={15} />
+            <span>
+              {isLocalHost ? "进入本地模拟模式" : "通过 Cloudflare Access 登录"}
+            </span>
+            <ArrowRight size={14} />
+          </S.PrimaryBtn>
 
-          <S.StatusBox>
-            <S.StatusTitle>
-              <S.ShieldCheck />
-              <span>当前状态：等待身份凭证验证</span>
-            </S.StatusTitle>
-            <S.StatusDesc>
-              请通过 Cloudflare Access 验证身份。可在 Access 登录页选择已启用的邮箱验证码、SSO 或 Passkey 通行密钥。
-            </S.StatusDesc>
-          </S.StatusBox>
-
-          {errorMsg && (
-            <S.ErrorBox role="alert">
-              <S.ErrorHeader>
-                <S.AlertCircle />
-                <S.ErrorText>{errorMsg}</S.ErrorText>
-              </S.ErrorHeader>
-              {isConfigError && (
-                <S.TroubleshootingBox>
-                  <S.TroubleshootingTitle>
-                    <S.KeyRound /> 环境变量排查建议：
-                  </S.TroubleshootingTitle>
-                  <p>1. 检查 Cloudflare Pages 控制台设置中的环境变量</p>
-                  <p>2. 确保在 Settings &rarr; Environment variables 中配置了：</p>
-                  <S.EnvKeyLine>&bull; CF_ACCESS_TEAM_DOMAIN</S.EnvKeyLine>
-                  <S.EnvKeyLine>&bull; CF_ACCESS_AUD</S.EnvKeyLine>
-                </S.TroubleshootingBox>
-              )}
-            </S.ErrorBox>
-          )}
-
-          <S.ActionsSection>
-            <S.PrimaryBtn
+          {!isLocalHost && (
+            <S.SecondaryBtn
               type="button"
-              onClick={handleAccessLogin}
+              onClick={() => void handleRetry()}
               disabled={isLoading}
             >
-              {isLoading ? <S.Spinner /> : <S.Cloud />}
-              <span>
-                {isLocalHost
-                  ? "一键进入本地模拟模式 (Local Mock)"
-                  : "通过 Cloudflare Access 验证登录"}
-              </span>
-              <S.ArrowRight />
-            </S.PrimaryBtn>
+              <RotateCcw size={13} />
+              <span>重新检测会话</span>
+            </S.SecondaryBtn>
+          )}
+        </S.Actions>
+      </S.Card>
 
-            {!isLocalHost && (
-              <>
-                <S.PasskeyHint>
-                  使用 Passkey：进入 Access 登录页后选择「Sign in with a passkey」。
-                  首次使用可选择「Don't have a passkey? Set one up」，验证身份后绑定。
-                  若未显示该选项，需要管理员在 Access 中启用 Passkeys 登录方式。
-                </S.PasskeyHint>
-                <S.SecondaryBtn
-                  type="button"
-                  onClick={handleRetryCheck}
-                  disabled={isLoading}
-                >
-                  <S.RotateCcw />
-                  <span>重新检测当前会话 (Retry)</span>
-                </S.SecondaryBtn>
-              </>
-            )}
-
-            {isLocalHost && (
-              <S.LocalHintWrap>
-                <S.LocalHintBadge>
-                  <S.Terminal />
-                  检测到本地 localhost 环境，支持离线模拟登录
-                </S.LocalHintBadge>
-              </S.LocalHintWrap>
-            )}
-          </S.ActionsSection>
-        </S.Card>
-
-        <S.FooterNote>
-          <S.Lock />
-          <span>服务端实时验证 Cloudflare Access 官方 JWKS 证书</span>
-        </S.FooterNote>
-      </S.CardContainer>
+      <S.FooterNote>
+        <Lock size={12} />
+        <span>Cloudflare Access JWKS 服务端验签</span>
+      </S.FooterNote>
     </S.PageWrap>
   );
-};
+}
