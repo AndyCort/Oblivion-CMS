@@ -36,77 +36,68 @@ export const MomentPreview: React.FC<MomentPreviewProps> = ({
   const displayAvatar = authorAvatar?.trim() || DEFAULT_MOMENT_AVATAR;
 
   return (
-    <S.Div>
-      <S.Div3>
-        {/* Card Header: Avatar & Author */}
+    <S.PreviewRoot>
+      <S.Card>
         <S.Header>
-          <S.Div4>
-            <S.Img
-              src={displayAvatar}
-              alt={`${displayAuthor} Avatar`}
-            />
-          </S.Div4>
-          <S.Div5>{displayAuthor}</S.Div5>
+          <S.AvatarWrap>
+            <S.CoverImg src={displayAvatar} alt={`${displayAuthor} Avatar`} />
+          </S.AvatarWrap>
+          <S.AuthorName>{displayAuthor}</S.AuthorName>
         </S.Header>
 
-        {/* Content text: whitespace-pre-wrap */}
-        <S.Div6>
-          {article.content || <S.Span3>（暂无正文内容）</S.Span3>}
-        </S.Div6>
+        <S.ContentBody>
+          {article.content || <S.EmptyText>（暂无正文内容）</S.EmptyText>}
+        </S.ContentBody>
 
-        {/* 3-Column Media Grid */}
         {article.media && article.media.length > 0 && (
-          <S.Div7>
+          <S.MediaGrid>
             {article.media.map((item, idx) => (
-              <S.Div8 key={idx}>
+              <S.MediaCell key={idx}>
                 {item.type === "img" ? (
-                  <S.Img src={item.url} alt="" />
+                  <S.CoverImg src={item.url} alt="" />
                 ) : (
-                  <S.Div9>
-                    <S.Video src={item.url} />
-                    <S.Div10>
-                      <S.Div11>
+                  <S.VideoWrap>
+                    <S.VideoEl src={item.url} />
+                    <S.VideoOverlay>
+                      <S.PlayBadge>
                         <S.Play />
-                      </S.Div11>
-                    </S.Div10>
-                  </S.Div9>
+                      </S.PlayBadge>
+                    </S.VideoOverlay>
+                  </S.VideoWrap>
                 )}
-              </S.Div8>
+              </S.MediaCell>
             ))}
-          </S.Div7>
+          </S.MediaGrid>
         )}
 
-        {/* Tags */}
         {article.tags && article.tags.length > 0 && (
-          <S.Div12>
+          <S.TagList>
             {article.tags.map((t) => (
-              <S.Span4 key={t}>#{t}</S.Span4>
+              <S.TagItem key={t}>#{t}</S.TagItem>
             ))}
-          </S.Div12>
+          </S.TagList>
         )}
 
-        {/* Location */}
         {article.location && (
-          <S.Div13>
+          <S.LocationRow>
             <S.MapPin />
             <span>{article.location}</span>
-          </S.Div13>
+          </S.LocationRow>
         )}
 
-        {/* Card Footer: Time & Music */}
         <S.Footer>
           <span>{formatDisplayDate(article.time, dateFormat)}</span>
 
           {article.music && (
-            <S.Span5>
+            <S.MusicBadge>
               <S.Music2 />
-              <S.Span6>
+              <S.MusicTitle>
                 {article.music.title} - {article.music.artist}
-              </S.Span6>
-            </S.Span5>
+              </S.MusicTitle>
+            </S.MusicBadge>
           )}
         </S.Footer>
-      </S.Div3>
-    </S.Div>
+      </S.Card>
+    </S.PreviewRoot>
   );
 };

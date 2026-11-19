@@ -1,8 +1,7 @@
-import { ContentModeSwitch } from '../src/components/articles/ContentModeSwitch';
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { ServerStyleSheet } from 'styled-components';
-import { MomentsWorkspace } from '../src/App.styles';
+import { MomentsWorkspace, RailIconButton } from '../src/App.styles';
 import { Workspace } from '../src/components/posts/PostsWorkspace.styles';
 
 function renderStyles(element: React.ReactElement) {
@@ -16,12 +15,20 @@ function renderStyles(element: React.ReactElement) {
 }
 
 describe('styled CMS integration', () => {
-  it('keeps selected-mode colors separate from shared transition declarations', () => {
-    const { html, styles } = renderStyles(<ContentModeSwitch mode="posts" onChange={() => {}} />);
-    expect(styles).toMatch(/[;{]background:var\(--color-indigo-600\);/);
-    expect(styles).toMatch(/[;{]color:white;/);
-    expect(html).not.toContain('$active');
-    expect(html).toContain('aria-pressed="true"');
+  it('renders active and primary RailIconButton states without leaking transient props', () => {
+    const { html: activeHtml, styles: activeStyles } = renderStyles(
+      <RailIconButton type="button" $active aria-pressed={true} />,
+    );
+    expect(activeStyles).toMatch(/color:\s*var\(--color-indigo-600\)/);
+    expect(activeHtml).not.toContain('$active');
+    expect(activeHtml).toContain('aria-pressed="true"');
+
+    const { html: primaryHtml, styles: primaryStyles } = renderStyles(
+      <RailIconButton type="button" $primary />,
+    );
+    expect(primaryStyles).toMatch(/background-color:\s*var\(--color-indigo-600\)/);
+    expect(primaryStyles).toMatch(/color:\s*var\(--color-white\)/);
+    expect(primaryHtml).not.toContain('$primary');
   });
 
   it('hides the inactive moments workspace without unmounting its contents', () => {

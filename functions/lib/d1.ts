@@ -1,4 +1,7 @@
-import type { Article } from "../../src/types/article";
+import {
+  DEFAULT_MOCK_ARTICLES,
+  type Article,
+} from "../../src/types/article";
 
 export interface D1Database {
   prepare(query: string): D1PreparedStatement;
@@ -47,7 +50,10 @@ export class D1HttpClient implements D1Database {
     this.apiToken = apiToken;
   }
 
-  private async querySql<T = unknown>(sql: string, params: unknown[] = []): Promise<D1Result<T>> {
+  private async querySql<T = unknown>(
+    sql: string,
+    params: unknown[] = [],
+  ): Promise<D1Result<T>> {
     const url = `https://api.cloudflare.com/client/v4/accounts/${this.accountId}/d1/database/${this.databaseId}/query`;
     const res = await fetch(url, {
       method: "POST",
@@ -55,10 +61,7 @@ export class D1HttpClient implements D1Database {
         Authorization: `Bearer ${this.apiToken}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        sql,
-        params,
-      }),
+      body: JSON.stringify({ sql, params }),
     });
 
     if (!res.ok) {
@@ -98,20 +101,21 @@ export class D1HttpClient implements D1Database {
         const res = await self.querySql<any>(query, boundParams);
         const first = res.results?.[0];
         if (!first) return null;
-        if (colName) return first[colName] ?? null;
-        return first;
+        return colName ? (first[colName] ?? null) : first;
       },
       async run<T = unknown>(): Promise<D1Result<T>> {
-        return await self.querySql<T>(query, boundParams);
+        return self.querySql<T>(query, boundParams);
       },
       async all<T = unknown>(): Promise<D1Result<T>> {
-        return await self.querySql<T>(query, boundParams);
+        return self.querySql<T>(query, boundParams);
       },
     };
     return stmt;
   }
 
-  async batch<T = unknown>(statements: D1PreparedStatement[]): Promise<D1Result<T>[]> {
+  async batch<T = unknown>(
+    statements: D1PreparedStatement[],
+  ): Promise<D1Result<T>[]> {
     const results: D1Result<T>[] = [];
     for (const stmt of statements) {
       results.push(await stmt.run<T>());
@@ -141,7 +145,6 @@ export function isD1DatabaseInstance(key: string, val: any): boolean {
   if (!val || typeof val !== "object") return false;
 
   const upperKey = key.toUpperCase();
-  // 1. Never treat internal Cloudflare system bindings as D1
   if (
     upperKey === "ASSETS" ||
     upperKey === "CF_PAGES" ||
@@ -152,81 +155,74 @@ export function isD1DatabaseInstance(key: string, val: any): boolean {
     return false;
   }
 
-  // 2. Cloudflare Service Bindings, Workers, and Asset fetchers ALWAYS have a .fetch method.
-  // Native Cloudflare D1 databases NEVER have a .fetch method.
-  if (typeof (val as any).fetch === "function") {
-    return false;
-  }
-
-  // 3. Must implement .prepare function
-  if (typeof (val as any).prepare !== "function") {
-    return false;
-  }
-
-  // 4. Must not be KV (has .get and .put) or R2 (has .head)
-  if (typeof (val as any).head === "function") {
-    return false;
-  }
+  // Service Bindings, Workers, and Asset fetchers expose .fetch; native D1 never does.
+  if (typeof val.fetch === "function") return false;
+  if (typeof val.prepare !== "function") return false;
+  // Exclude R2 buckets (which expose .head)
+  if (typeof val.head === "function") return false;
 
   return true;
 }
 
-export function getD1UnboundErrorMessage(
-  env: Record<string, any>,
-  serviceBindingWarning?: string
-): string {
-  if (serviceBindingWarning) {
-    return serviceBindingWarning;
-  }
-  const keys = Object.keys(env).filter(
+function visibleEnvKeys(env: Record<string, any>): string[] {
+  return Object.keys(env).filter(
     (k) =>
       !k.toLowerCase().includes("token") &&
       !k.toLowerCase().includes("secret") &&
-      !k.toLowerCase().includes("password")
+      !k.toLowerCase().includes("password"),
   );
-  return `未检测到 Cloudflare D1 数据库绑定！当前容器检测到的配置键: [${keys.join(", ")}]。请在 Cloudflare Pages 控制台（Settings -> Functions -> D1 database bindings）将 D1 数据库绑定为变量名 'DB'，并重新部署（Deployments -> Retry deployment）。`;
 }
 
-/**
- * Resolves the active D1 database connection (native binding or HTTP REST API direct client)
- */
+export function getD1UnboundErrorMessage(
+  env: Record<string, any>,
+  serviceBindingWarning?: string,
+): string {
+  if (serviceBindingWarning) return serviceBindingWarning;
+  return `未检测到 Cloudflare D1 数据库绑定！当前容器检测到的配置键: [${visibleEnvKeys(env).join(", ")}]。请在 Cloudflare Pages 控制台（Settings -> Functions -> D1 database bindings）将 D1 数据库绑定为变量名 'DB'，并重新部署（Deployments -> Retry deployment）。`;
+}
+
 export function getD1Database(env: Record<string, any>): {
   db: D1Database | null;
   mode: "native" | "http" | "mock";
   bindingName?: string;
   serviceBindingWarning?: string;
 } {
-  // Check if user accidentally bound DB or d1 as a Service binding (Worker RPC stub)
-  let serviceBindingWarning: string | undefined = undefined;
-  for (const name of ["DB", "db", "d1", "D1", "database", "DATABASE"]) {
-    if (env[name] && typeof env[name] === "object" && typeof env[name].fetch === "function") {
+  let serviceBindingWarning: string | undefined;
+  const candidateNames = [
+    "DB",
+    "db",
+    "d1",
+    "D1",
+    "database",
+    "DATABASE",
+    "DB_PROD",
+    "d1_db",
+  ];
+
+  for (const name of candidateNames.slice(0, 6)) {
+    if (
+      env[name] &&
+      typeof env[name] === "object" &&
+      typeof env[name].fetch === "function"
+    ) {
       serviceBindingWarning = `检测到环境变量 '${name}' 绑定的是 Service binding (Worker RPC)，而非 D1 数据库绑定！请前往 Cloudflare Pages 设置中的 'D1 database bindings' 区域添加 D1 绑定，并删除该错误的 Service binding。`;
       break;
     }
   }
 
-  // 1. Check standard uppercase env.DB first
-  if (isD1DatabaseInstance("DB", env.DB)) {
-    return { db: env.DB, mode: "native", bindingName: "DB" };
-  }
-
-  // 2. Check common D1 binding names in priority order
-  const commonNames = ["db", "d1", "D1", "database", "DATABASE", "DB_PROD", "d1_db"];
-  for (const name of commonNames) {
+  for (const name of candidateNames) {
     if (isD1DatabaseInstance(name, env[name])) {
       return { db: env[name] as D1Database, mode: "native", bindingName: name };
     }
   }
 
-  // 3. Scan all remaining environment keys for any valid D1 database
   for (const [key, val] of Object.entries(env)) {
-    if (key === "BLOG_DB") continue; // Reserved for Posts; never use it as the Moments database.
+    if (key === "BLOG_DB") continue; // Reserved for Posts; never use it as Moments DB.
     if (isD1DatabaseInstance(key, val)) {
       return { db: val as D1Database, mode: "native", bindingName: key };
     }
   }
 
-  // 4. Cloudflare D1 REST API direct connection (for local dev or remote direct connection)
   const accountId = env.CF_ACCOUNT_ID || env.CLOUDFLARE_ACCOUNT_ID;
   const databaseId = env.CF_D1_DATABASE_ID || env.D1_DATABASE_ID;
   const apiToken = env.CF_API_TOKEN || env.CLOUDFLARE_API_TOKEN;
@@ -239,81 +235,15 @@ export function getD1Database(env: Record<string, any>): {
     };
   }
 
-  // 5. Fallback mock only for unit testing or when explicitly enabled
   return { db: null, mode: "mock", serviceBindingWarning };
 }
 
-// In-memory fallback for local development or when D1 is not yet bound
-let inMemoryArticles: Article[] = [
-  {
-    time: 1791400876000,
-    content: `我从来都不是为了和谁在一起\n      我想要的是你能真心实意地告诉我\n      “我曾爱你”\n      “我依然爱你”\n      “我爱你”`,
-    media: [],
-    tags: ["日常", "随想"],
-    location: "天府",
-    music: {
-      title: "Sorrow Love",
-      artist: "Someone",
-      url: "https://example.com/music",
-    },
-  },
-  {
-    time: 1789445239000,
-    content: "好的结果也可以是一种诅咒，而坏的结果也许是一种缓冲。",
-    media: [],
-    tags: ["日常", "随想"],
-    location: "Estonia",
-    music: {
-      title: "Sorrow Love",
-      artist: "Someone",
-      url: "https://example.com/music",
-    },
-  },
-  {
-    time: 1789122720000,
-    content: "今天出去走了走。",
-    media: [
-      {
-        type: "img",
-        url: "https://raw.githubusercontent.com/AndyCort/PicGo/master/img/0497B09F-1CD0-40F7-82A1-9F719F5223A1_1_105_c.jpeg",
-      },
-      {
-        type: "vid",
-        url: "https://www.pexels.com/download/video/38417492/",
-      },
-    ],
-    tags: ["日常", "随想"],
-    location: "东京",
-    music: {
-      title: "Sorrow Love",
-      artist: "Someone",
-      url: "https://example.com/music",
-    },
-  },
-  {
-    time: 1789110240000,
-    content: `如果本就走在与众不同的道路\n那就不该期望自己会有什么传统意义上、或是流行文化中的那种功成名就。`,
-    media: [],
-    tags: ["日常", "随想"],
-    location: "Tokyo",
-    music: {
-      title: "Sorrow Love",
-      artist: "Someone",
-      url: "https://example.com/music",
-    },
-  },
-];
+let inMemoryArticles: Article[] = structuredClone(DEFAULT_MOCK_ARTICLES);
 
-/**
- * Computes a deterministic revision SHA from a list of articles.
- * Ensures consistent version tracking across worker isolates and serverless instances.
- */
 export function computeArticlesSha(articles: Article[]): string {
   if (!articles || articles.length === 0) return "d1-empty-v1";
-  const count = articles.length;
   let hash = 0;
-  for (let i = 0; i < articles.length; i++) {
-    const a = articles[i];
+  for (const a of articles) {
     const itemStr = `${a.time}|${a.location || ""}|${(a.tags || []).join(",")}|${(a.media || []).map((m) => m.url).join(",")}|${a.content || ""}|${a.music?.title || ""}`;
     for (let j = 0; j < itemStr.length; j++) {
       hash = (hash << 5) - hash + itemStr.charCodeAt(j);
@@ -321,15 +251,20 @@ export function computeArticlesSha(articles: Article[]): string {
     }
   }
   const newest = articles[0]?.time || 0;
-  return `d1-${count}-${newest.toString(16)}-${Math.abs(hash).toString(36)}`;
+  return `d1-${articles.length}-${newest.toString(16)}-${Math.abs(hash).toString(36)}`;
 }
 
-// Keep initialization scoped to the actual binding, and share concurrent checks.
-// Failed checks must be retryable after an operator repairs the schema.
 export type D1ArticleTable = "articles" | "oblivion_cms_moments";
 const schemaInitializations = new WeakMap<D1Database, Promise<D1ArticleTable>>();
 const requiredArticleColumns = [
-  "time", "content", "media", "tags", "location", "music", "created_at", "updated_at",
+  "time",
+  "content",
+  "media",
+  "tags",
+  "location",
+  "music",
+  "created_at",
+  "updated_at",
 ];
 
 export async function ensureD1Schema(db: D1Database): Promise<D1ArticleTable> {
@@ -348,82 +283,128 @@ export async function ensureD1Schema(db: D1Database): Promise<D1ArticleTable> {
   }
 }
 
-async function tableColumns(db: D1Database, table: D1ArticleTable): Promise<string[]> {
-  const info = await db.prepare(`PRAGMA table_info(${table})`).all<{ name: string }>();
+async function tableColumns(
+  db: D1Database,
+  table: D1ArticleTable,
+): Promise<string[]> {
+  const info = await db
+    .prepare(`PRAGMA table_info(${table})`)
+    .all<{ name: string }>();
   return (info.results || []).map((column) => column.name);
 }
 
 async function initializeD1Schema(db: D1Database): Promise<D1ArticleTable> {
-  // Prefer the dedicated table once it exists. Only reuse "articles" when it
-  // has the legacy CMS layout; a blog's articles table must remain untouched.
   const dedicatedColumns = await tableColumns(db, "oblivion_cms_moments");
-  const legacyColumns = dedicatedColumns.length === 0 ? await tableColumns(db, "articles") : [];
-  const table: D1ArticleTable = dedicatedColumns.length === 0 &&
+  const legacyColumns =
+    dedicatedColumns.length === 0 ? await tableColumns(db, "articles") : [];
+  const table: D1ArticleTable =
+    dedicatedColumns.length === 0 &&
     requiredArticleColumns.every((name) => legacyColumns.includes(name))
-      ? "articles" : "oblivion_cms_moments";
+      ? "articles"
+      : "oblivion_cms_moments";
 
-  await db.prepare(
-    `CREATE TABLE IF NOT EXISTS ${table} (
-      time INTEGER PRIMARY KEY,
-      content TEXT NOT NULL DEFAULT '',
-      media TEXT NOT NULL DEFAULT '[]',
-      tags TEXT NOT NULL DEFAULT '[]',
-      location TEXT NOT NULL DEFAULT '',
-      music TEXT,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    )`
-  ).run();
+  await db
+    .prepare(
+      `CREATE TABLE IF NOT EXISTS ${table} (
+        time INTEGER PRIMARY KEY,
+        content TEXT NOT NULL DEFAULT '',
+        media TEXT NOT NULL DEFAULT '[]',
+        tags TEXT NOT NULL DEFAULT '[]',
+        location TEXT NOT NULL DEFAULT '',
+        music TEXT,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      )`,
+    )
+    .run();
 
   const columns = await tableColumns(db, table);
-  const missing = requiredArticleColumns.filter((name) => !columns.includes(name));
+  const missing = requiredArticleColumns.filter(
+    (name) => !columns.includes(name),
+  );
   if (missing.length > 0) {
     throw new Error(
       `D1 表 ${table} 结构不兼容，缺少字段: ${missing.join(", ")}。` +
-      `现有字段: ${columns.join(", ") || "（无）"}。` +
-      `请执行 PRAGMA table_info(${table}); 检查表结构后进行数据迁移。` +
-      "重复执行 CREATE TABLE IF NOT EXISTS 不会更新已有表结构；现有数据未被修改。"
+        `现有字段: ${columns.join(", ") || "（无）"}。` +
+        `请执行 PRAGMA table_info(${table}); 检查表结构后进行数据迁移。` +
+        "重复执行 CREATE TABLE IF NOT EXISTS 不会更新已有表结构；现有数据未被修改。",
     );
   }
 
-  await db.prepare(`CREATE INDEX IF NOT EXISTS idx_${table}_time ON ${table}(time DESC)`).run();
+  await db
+    .prepare(
+      `CREATE INDEX IF NOT EXISTS idx_${table}_time ON ${table}(time DESC)`,
+    )
+    .run();
   return table;
 }
 
-/**
- * Parse a SQLite database row into a structured Article object
- */
-export function rowToArticle(row: D1ArticleRow): Article {
-  let media = [];
+function parseJsonField<T>(raw: string | null | undefined, fallback: T): T {
+  if (!raw) return fallback;
   try {
-    media = JSON.parse(row.media || "[]");
-  } catch {}
-
-  let tags = [];
-  try {
-    tags = JSON.parse(row.tags || "[]");
-  } catch {}
-
-  let music = undefined;
-  if (row.music) {
-    try {
-      music = JSON.parse(row.music);
-    } catch {}
+    return JSON.parse(raw) as T;
+  } catch {
+    return fallback;
   }
+}
 
+export function rowToArticle(row: D1ArticleRow): Article {
   return {
     time: Number(row.time),
     content: row.content || "",
-    media,
-    tags,
+    media: parseJsonField(row.media, []),
+    tags: parseJsonField(row.tags, []),
     location: row.location || "",
-    music,
+    music: parseJsonField(row.music, undefined),
   };
 }
 
-/**
- * Fetch all articles from Cloudflare D1 (or in-memory mock if D1 is not bound)
- */
+function serializeArticleFields(article: Article) {
+  return {
+    content: article.content || "",
+    mediaJson: JSON.stringify(article.media || []),
+    tagsJson: JSON.stringify(article.tags || []),
+    location: article.location || "",
+    musicJson: article.music ? JSON.stringify(article.music) : null,
+  };
+}
+
+function assertDevModeForMockWrite(
+  env: Record<string, any>,
+  serviceBindingWarning?: string,
+) {
+  if (env.DEV_MODE !== "true") {
+    throw new Error(getD1UnboundErrorMessage(env, serviceBindingWarning));
+  }
+}
+
+async function upsertArticleRow(
+  db: D1Database,
+  table: D1ArticleTable,
+  article: Article,
+  now: number,
+) {
+  const { content, mediaJson, tagsJson, location, musicJson } =
+    serializeArticleFields(article);
+  await db
+    .prepare(
+      `INSERT OR REPLACE INTO ${table}
+       (time, content, media, tags, location, music, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .bind(
+      article.time,
+      content,
+      mediaJson,
+      tagsJson,
+      location,
+      musicJson,
+      article.time,
+      now,
+    )
+    .run();
+}
+
 export async function getD1Articles(env: Record<string, any>): Promise<{
   articles: Article[];
   sha: string;
@@ -436,23 +417,12 @@ export async function getD1Articles(env: Record<string, any>): Promise<{
 }> {
   const { db, mode, bindingName, serviceBindingWarning } = getD1Database(env);
 
-  const envKeys = Object.keys(env).filter(
-    (k) =>
-      !k.toLowerCase().includes("token") &&
-      !k.toLowerCase().includes("secret") &&
-      !k.toLowerCase().includes("password")
-  );
-
   if (db && typeof db.prepare === "function") {
     const table = await ensureD1Schema(db);
-
     const query = await db
       .prepare(`SELECT * FROM ${table} ORDER BY time DESC`)
       .all<D1ArticleRow>();
-
-    const rows = query.results || [];
-
-    const articles = rows.map(rowToArticle);
+    const articles = (query.results || []).map(rowToArticle);
 
     return {
       articles,
@@ -464,7 +434,6 @@ export async function getD1Articles(env: Record<string, any>): Promise<{
     };
   }
 
-  // Fallback when D1 is not bound
   const fallback = [...inMemoryArticles].sort((a, b) => b.time - a.time);
   return {
     articles: fallback,
@@ -472,78 +441,41 @@ export async function getD1Articles(env: Record<string, any>): Promise<{
     isD1: false,
     d1Mode: "mock",
     bindingName,
-    envKeys,
+    envKeys: visibleEnvKeys(env),
     warning:
       serviceBindingWarning ||
       "未检测到 Cloudflare D1 数据库绑定。当前处于只读模拟模式，数据不会写入真实 D1。",
   };
 }
 
-/**
- * Save / Create an article in Cloudflare D1
- */
 export async function saveD1Article(
   env: Record<string, any>,
   article: Article,
-  isInsert = true
+  isInsert = true,
 ): Promise<string> {
   const { db, serviceBindingWarning } = getD1Database(env);
   const now = Date.now();
 
-  const mediaJson = JSON.stringify(article.media || []);
-  const tagsJson = JSON.stringify(article.tags || []);
-  const musicJson = article.music ? JSON.stringify(article.music) : null;
-
   if (db && typeof db.prepare === "function") {
     const table = await ensureD1Schema(db);
-
     if (isInsert) {
-      await db
-        .prepare(
-          `INSERT OR REPLACE INTO ${table}
-           (time, content, media, tags, location, music, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-        )
-        .bind(
-          article.time,
-          article.content || "",
-          mediaJson,
-          tagsJson,
-          article.location || "",
-          musicJson,
-          article.time,
-          now
-        )
-        .run();
+      await upsertArticleRow(db, table, article, now);
     } else {
+      const { content, mediaJson, tagsJson, location, musicJson } =
+        serializeArticleFields(article);
       await db
         .prepare(
           `UPDATE ${table}
            SET content = ?, media = ?, tags = ?, location = ?, music = ?, updated_at = ?
-           WHERE time = ?`
+           WHERE time = ?`,
         )
-        .bind(
-          article.content || "",
-          mediaJson,
-          tagsJson,
-          article.location || "",
-          musicJson,
-          now,
-          article.time
-        )
+        .bind(content, mediaJson, tagsJson, location, musicJson, now, article.time)
         .run();
     }
-
-    const { sha } = await getD1Articles(env);
-    return sha;
+    return (await getD1Articles(env)).sha;
   }
 
-  // If in production mode and D1 is not bound, DO NOT fake success!
-  if (env.DEV_MODE !== "true") {
-    throw new Error(getD1UnboundErrorMessage(env, serviceBindingWarning));
-  }
-
-  // In-memory fallback ONLY for unit tests
+  assertDevModeForMockWrite(env, serviceBindingWarning);
   const existingIdx = inMemoryArticles.findIndex((a) => a.time === article.time);
   if (existingIdx >= 0) {
     inMemoryArticles[existingIdx] = article;
@@ -553,58 +485,43 @@ export async function saveD1Article(
   return computeArticlesSha(inMemoryArticles);
 }
 
-/**
- * Update an existing article in Cloudflare D1
- */
 export async function updateD1Article(
   env: Record<string, any>,
   targetTime: number,
-  article: Article
+  article: Article,
 ): Promise<string> {
   const { db, serviceBindingWarning } = getD1Database(env);
   const now = Date.now();
 
-  const mediaJson = JSON.stringify(article.media || []);
-  const tagsJson = JSON.stringify(article.tags || []);
-  const musicJson = article.music ? JSON.stringify(article.music) : null;
-
   if (db && typeof db.prepare === "function") {
     const table = await ensureD1Schema(db);
-
-    // If the timestamp itself was updated, update all fields including time
+    const { content, mediaJson, tagsJson, location, musicJson } =
+      serializeArticleFields(article);
     const updateResult = await db
       .prepare(
         `UPDATE ${table}
          SET time = ?, content = ?, media = ?, tags = ?, location = ?, music = ?, updated_at = ?
-         WHERE time = ?`
+         WHERE time = ?`,
       )
       .bind(
         article.time,
-        article.content || "",
+        content,
         mediaJson,
         tagsJson,
-        article.location || "",
+        location,
         musicJson,
         now,
-        targetTime
+        targetTime,
       )
       .run();
 
-    // If targetTime was not found in D1, fallback to insert/replace to prevent data loss
     if (updateResult.meta && updateResult.meta.changes === 0) {
-      await saveD1Article(env, article, true);
+      await upsertArticleRow(db, table, article, now);
     }
-
-    const { sha } = await getD1Articles(env);
-    return sha;
+    return (await getD1Articles(env)).sha;
   }
 
-  // If in production mode and D1 is not bound, DO NOT fake success!
-  if (env.DEV_MODE !== "true") {
-    throw new Error(getD1UnboundErrorMessage(env, serviceBindingWarning));
-  }
-
-  // In-memory fallback ONLY for unit tests
+  assertDevModeForMockWrite(env, serviceBindingWarning);
   const existingIdx = inMemoryArticles.findIndex((a) => a.time === targetTime);
   if (existingIdx >= 0) {
     inMemoryArticles[existingIdx] = article;
@@ -614,65 +531,41 @@ export async function updateD1Article(
   return computeArticlesSha(inMemoryArticles);
 }
 
-/**
- * Delete an article in Cloudflare D1 by timestamp
- */
 export async function deleteD1Article(
   env: Record<string, any>,
-  targetTime: number
+  targetTime: number,
 ): Promise<string> {
   const { db, serviceBindingWarning } = getD1Database(env);
 
   if (db && typeof db.prepare === "function") {
     const table = await ensureD1Schema(db);
-
     await db
       .prepare(`DELETE FROM ${table} WHERE time = ?`)
       .bind(targetTime)
       .run();
-
-    const { sha } = await getD1Articles(env);
-    return sha;
+    return (await getD1Articles(env)).sha;
   }
 
-  // If in production mode and D1 is not bound, DO NOT fake success!
-  if (env.DEV_MODE !== "true") {
-    throw new Error(getD1UnboundErrorMessage(env, serviceBindingWarning));
-  }
-
-  // In-memory fallback ONLY for unit tests
+  assertDevModeForMockWrite(env, serviceBindingWarning);
   inMemoryArticles = inMemoryArticles.filter((a) => a.time !== targetTime);
   return computeArticlesSha(inMemoryArticles);
 }
 
-/**
- * Extract timestamp from fingerprint or numeric string
- */
 export function extractTimeFromFingerprint(targetFingerprint: string): number {
   const match = targetFingerprint.match(/^(\d+)/);
-  if (match) {
-    return Number(match[1]);
-  }
+  if (match) return Number(match[1]);
   const parsed = Number(targetFingerprint);
   return Number.isNaN(parsed) ? 0 : parsed;
 }
 
-/**
- * Batch import articles into Cloudflare D1
- * @param env Cloudflare Pages env
- * @param articles Array of Article objects to import
- * @param mode "merge" (insert or update) | "overwrite" (wipe database first)
- */
 export async function batchImportD1Articles(
   env: Record<string, any>,
   articles: Article[],
-  mode: "merge" | "overwrite" = "merge"
+  mode: "merge" | "overwrite" = "merge",
 ): Promise<{ count: number; total: number; sha: string }> {
   const { db, serviceBindingWarning } = getD1Database(env);
-
-  // Validate and sanitize articles
   const validArticles = articles.filter(
-    (a) => a && typeof a.time === "number" && !isNaN(a.time) && a.time > 0
+    (a) => a && typeof a.time === "number" && !isNaN(a.time) && a.time > 0,
   );
 
   if (validArticles.length === 0) {
@@ -681,94 +574,58 @@ export async function batchImportD1Articles(
 
   if (db && typeof db.prepare === "function") {
     const table = await ensureD1Schema(db);
-
     if (mode === "overwrite") {
       await db.prepare(`DELETE FROM ${table}`).run();
     }
 
-    // In Cloudflare D1 RPC bindings, db.batch(statements) throws:
-    // "Could not serialize object of type 'JsRpcPromise'" because D1PreparedStatement cannot be cloned across RPC.
-    // Instead, we execute multi-row parameterized INSERT OR REPLACE queries (10 rows = 80 params per chunk, safely <= 100 D1 param limit)
-    // with direct .run() execution, with sequential fallback.
+    // D1 RPC rejects db.batch(statements); use 10-row chunks (80 params <= 100 limit).
     const CHUNK_SIZE = 10;
     const now = Date.now();
     for (let i = 0; i < validArticles.length; i += CHUNK_SIZE) {
       const chunk = validArticles.slice(i, i + CHUNK_SIZE);
-      const placeholders = chunk.map(() => "(?, ?, ?, ?, ?, ?, ?, ?)").join(", ");
+      const placeholders = chunk
+        .map(() => "(?, ?, ?, ?, ?, ?, ?, ?)")
+        .join(", ");
       const sql = `INSERT OR REPLACE INTO ${table}
         (time, content, media, tags, location, music, created_at, updated_at)
         VALUES ${placeholders}`;
 
       const params: unknown[] = [];
       for (const a of chunk) {
-        const mediaJson = JSON.stringify(a.media || []);
-        const tagsJson = JSON.stringify(a.tags || []);
-        const musicJson = a.music ? JSON.stringify(a.music) : null;
+        const { content, mediaJson, tagsJson, location, musicJson } =
+          serializeArticleFields(a);
         params.push(
           a.time,
-          a.content || "",
+          content,
           mediaJson,
           tagsJson,
-          a.location || "",
+          location,
           musicJson,
           a.time,
-          now
+          now,
         );
       }
 
       try {
         await db.prepare(sql).bind(...params).run();
       } catch {
-        // Fallback to sequential individual row insert if multi-row syntax fails on any environment
         for (const a of chunk) {
-          const mediaJson = JSON.stringify(a.media || []);
-          const tagsJson = JSON.stringify(a.tags || []);
-          const musicJson = a.music ? JSON.stringify(a.music) : null;
-          await db
-            .prepare(
-              `INSERT OR REPLACE INTO ${table}
-               (time, content, media, tags, location, music, created_at, updated_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-            )
-            .bind(
-              a.time,
-              a.content || "",
-              mediaJson,
-              tagsJson,
-              a.location || "",
-              musicJson,
-              a.time,
-              now
-            )
-            .run();
+          await upsertArticleRow(db, table, a, now);
         }
       }
     }
 
     const { articles: allArticles, sha } = await getD1Articles(env);
-    return {
-      count: validArticles.length,
-      total: allArticles.length,
-      sha,
-    };
+    return { count: validArticles.length, total: allArticles.length, sha };
   }
 
-  // If in production mode and D1 is not bound, reject!
-  if (env.DEV_MODE !== "true") {
-    throw new Error(getD1UnboundErrorMessage(env, serviceBindingWarning));
-  }
-
-  // In-memory fallback ONLY for unit tests
+  assertDevModeForMockWrite(env, serviceBindingWarning);
   if (mode === "overwrite") {
     inMemoryArticles = [...validArticles].sort((a, b) => b.time - a.time);
   } else {
     const map = new Map<number, Article>();
-    for (const a of inMemoryArticles) {
-      map.set(a.time, a);
-    }
-    for (const a of validArticles) {
-      map.set(a.time, a);
-    }
+    for (const a of inMemoryArticles) map.set(a.time, a);
+    for (const a of validArticles) map.set(a.time, a);
     inMemoryArticles = Array.from(map.values()).sort((a, b) => b.time - a.time);
   }
 

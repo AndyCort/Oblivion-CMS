@@ -1,4 +1,4 @@
-import * as S from './ArticleListSidebar.styles';
+import * as S from "./ArticleListSidebar.styles";
 import React, { useState, useMemo, useEffect } from "react";
 import type { Article, ArticleDraft } from "../../types/article";
 
@@ -36,10 +36,10 @@ export const ArticleListSidebar: React.FC<ArticleListSidebarProps> = ({
   useEffect(() => {
     setSortOrder(defaultSortOrder);
   }, [defaultSortOrder]);
+
   const [filterDraftOnly, setFilterDraftOnly] = useState(false);
   const [filterMediaOnly, setFilterMediaOnly] = useState(false);
 
-  // Collect all unique tags and counts
   const allTagsWithCount = useMemo(() => {
     const map = new Map<string, number>();
     for (const a of articles) {
@@ -52,31 +52,38 @@ export const ArticleListSidebar: React.FC<ArticleListSidebarProps> = ({
       .sort((a, b) => b.count - a.count);
   }, [articles]);
 
-  // Filtered and sorted articles
   const filteredArticles = useMemo(() => {
     return articles
       .filter((article) => {
         const fp = getFingerprint(article);
-        const hasDraft = drafts.has(fp);
-
-        if (filterDraftOnly && !hasDraft) return false;
-        if (filterMediaOnly && (!article.media || article.media.length === 0)) return false;
-        if (selectedTag && (!article.tags || !article.tags.includes(selectedTag))) return false;
+        if (filterDraftOnly && !drafts.has(fp)) return false;
+        if (filterMediaOnly && (!article.media || article.media.length === 0))
+          return false;
+        if (
+          selectedTag &&
+          (!article.tags || !article.tags.includes(selectedTag))
+        )
+          return false;
 
         if (searchQuery.trim()) {
           const q = searchQuery.toLowerCase();
-          const matchContent = (article.content || "").toLowerCase().includes(q);
+          const matchContent = (article.content || "")
+            .toLowerCase()
+            .includes(q);
           const matchLoc = (article.location || "").toLowerCase().includes(q);
-          const matchMusic = (article.music?.title || "").toLowerCase().includes(q);
-          const matchTags = (article.tags || []).some((t) => t.toLowerCase().includes(q));
-          if (!matchContent && !matchLoc && !matchMusic && !matchTags) return false;
+          const matchMusic = (article.music?.title || "")
+            .toLowerCase()
+            .includes(q);
+          const matchTags = (article.tags || []).some((t) =>
+            t.toLowerCase().includes(q),
+          );
+          if (!matchContent && !matchLoc && !matchMusic && !matchTags)
+            return false;
         }
 
         return true;
       })
-      .sort((a, b) => {
-        return sortOrder === "desc" ? b.time - a.time : a.time - b.time;
-      });
+      .sort((a, b) => (sortOrder === "desc" ? b.time - a.time : a.time - b.time));
   }, [
     articles,
     searchQuery,
@@ -90,114 +97,98 @@ export const ArticleListSidebar: React.FC<ArticleListSidebarProps> = ({
 
   const formatDate = (timestamp: number) => {
     const d = new Date(timestamp);
-    const m = String(d.getMonth() + 1).padStart(2, "0");
-    const day = String(d.getDate()).padStart(2, "0");
-    const hour = String(d.getHours()).padStart(2, "0");
-    const min = String(d.getMinutes()).padStart(2, "0");
-    return `${d.getFullYear()}.${m}.${day} ${hour}:${min}`;
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
   };
 
   return (
-    <S.Div>
+    <S.SidebarContainer>
       {listNavigation}
-      {/* Sidebar Header & New Article Button */}
-      <S.Div2>
-        <S.Div3>
-          <S.Div4>
-            <S.H2>
-              文章列表
-            </S.H2>
-            <S.Span>
+      <S.SidebarHeader>
+        <S.SidebarTitleRow>
+          <S.SidebarTitleGroup>
+            <S.SidebarTitle>文章列表</S.SidebarTitle>
+            <S.CountBadge>
               {filteredArticles.length} / {articles.length}
-            </S.Span>
-          </S.Div4>
-          <S.Div5>
-            <S.Button2
-              type="button"
-              onClick={onNewArticle}
-
-            >
+            </S.CountBadge>
+          </S.SidebarTitleGroup>
+          <S.CreateButtonGroup>
+            <S.CreateButton type="button" onClick={onNewArticle}>
               <S.Plus />
               发表新说说
-            </S.Button2>
-          </S.Div5>
-        </S.Div3>
+            </S.CreateButton>
+          </S.CreateButtonGroup>
+        </S.SidebarTitleRow>
 
-        {/* Search input */}
-        <S.Div6>
-          <S.Search />
-          <S.Input
+        <S.SearchBox>
+          <S.SearchIcon />
+          <S.SearchInput
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="搜索正文、地点、标签、音乐..."
+          />
+        </S.SearchBox>
 
- />
-        </S.Div6>
-
-        {/* Filter chips & Sort toggle */}
-        <S.Div7>
-          <S.Div8>
-            <S.Button3
+        <S.FilterRow>
+          <S.FilterChipsScroll>
+            <S.FilterChip
               type="button"
               onClick={() => setFilterDraftOnly(!filterDraftOnly)}
-              $variant={((filterDraftOnly)) ? "v0" : "v1"}
+              $active={filterDraftOnly}
+              $tone="amber"
             >
               草稿 ({drafts.size})
-            </S.Button3>
-            <S.Button4
+            </S.FilterChip>
+            <S.FilterChip
               type="button"
               onClick={() => setFilterMediaOnly(!filterMediaOnly)}
-              $variant={((filterMediaOnly)) ? "v0" : "v1"}
+              $active={filterMediaOnly}
+              $tone="indigo"
             >
               带媒体
-            </S.Button4>
+            </S.FilterChip>
             {selectedTag && (
-              <S.Button5
+              <S.ActiveTagChip
                 type="button"
                 onClick={() => setSelectedTag(null)}
-
               >
                 #{selectedTag} ×
-              </S.Button5>
+              </S.ActiveTagChip>
             )}
-          </S.Div8>
+          </S.FilterChipsScroll>
 
-          <S.Button6
+          <S.SortButton
             type="button"
             onClick={() => setSortOrder(sortOrder === "desc" ? "asc" : "desc")}
-
             title="切换时间排序"
           >
             <S.ArrowUpDown />
             {sortOrder === "desc" ? "最新优先" : "最早优先"}
-          </S.Button6>
-        </S.Div7>
+          </S.SortButton>
+        </S.FilterRow>
 
-        {/* Tag pills bar */}
         {allTagsWithCount.length > 0 && !selectedTag && (
-          <S.Div8>
+          <S.FilterChipsScroll>
             {allTagsWithCount.slice(0, 6).map((t) => (
-              <S.Button7
+              <S.TagChip
                 key={t.tag}
                 type="button"
                 onClick={() => setSelectedTag(t.tag)}
-
               >
                 #{t.tag}
-              </S.Button7>
+              </S.TagChip>
             ))}
-          </S.Div8>
+          </S.FilterChipsScroll>
         )}
-      </S.Div2>
+      </S.SidebarHeader>
 
-      {/* Article List Cards */}
-      <S.Div9>
+      <S.ArticleListScroll>
         {filteredArticles.length === 0 ? (
-          <S.Div10>
+          <S.EmptyState>
             <S.Sparkles />
-            <S.P>暂无符合条件的文章</S.P>
-          </S.Div10>
+            <S.EmptyText>暂无符合条件的文章</S.EmptyText>
+          </S.EmptyState>
         ) : (
           filteredArticles.map((article) => {
             const fp = getFingerprint(article);
@@ -205,118 +196,101 @@ export const ArticleListSidebar: React.FC<ArticleListSidebarProps> = ({
             const draft = drafts.get(fp);
 
             return (
-              <S.Div11
+              <S.ArticleCard
                 key={fp}
                 onClick={() => onSelectArticle(fp)}
-                $variant={((isSelected)) ? "v0" : "v1"}
+                $selected={isSelected}
                 $compact={compactList}
                 data-style-group
               >
-                {/* Meta row: Date & status */}
-                <S.Div12>
-                  <S.Div13>
+                <S.CardMetaRow>
+                  <S.DateLabel>
                     <S.Clock />
                     <span>{formatDate(article.time)}</span>
-                  </S.Div13>
+                  </S.DateLabel>
                   {draft ? (
-                    <S.Span2>
+                    <S.DraftBadge>
                       <S.FileEdit />
                       未发布草稿
-                    </S.Span2>
+                    </S.DraftBadge>
                   ) : (
-                    <S.Span3>
+                    <S.PublishedBadge>
                       <S.CheckCircle2 />
                       已发布
-                    </S.Span3>
+                    </S.PublishedBadge>
                   )}
-                </S.Div12>
+                </S.CardMetaRow>
 
-                {/* Content Excerpt - 1:1 aligned with frontend preview */}
-                <S.Div14 $compact={compactList}>
+                <S.CardExcerpt $compact={compactList}>
                   {article.content || (
-                    <S.Span4>
-                      （暂无正文内容）
-                    </S.Span4>
+                    <S.EmptyContentHint>（暂无正文内容）</S.EmptyContentHint>
                   )}
-                </S.Div14>
+                </S.CardExcerpt>
 
-                {/* Media thumbnail preview snippet */}
                 {article.media && article.media.length > 0 && (
-                  <S.Div15>
+                  <S.MediaStrip>
                     {article.media.slice(0, 3).map((m, idx) => (
-                      <S.Div16
-                        key={idx}
-
-                      >
+                      <S.MediaThumbBox key={idx}>
                         {m.type === "img" ? (
-                          <S.Img
-                            src={m.url}
-                            alt=""
-
- />
+                          <S.MediaThumbImg src={m.url} alt="" />
                         ) : (
-                          <S.Div17>
-                            VID
-                          </S.Div17>
+                          <S.VideoThumbTag>VID</S.VideoThumbTag>
                         )}
-                      </S.Div16>
+                      </S.MediaThumbBox>
                     ))}
                     {article.media.length > 3 && (
-                      <S.Span5>
+                      <S.ExtraMediaCount>
                         +{article.media.length - 3}
-                      </S.Span5>
+                      </S.ExtraMediaCount>
                     )}
-                  </S.Div15>
+                  </S.MediaStrip>
                 )}
 
-                {/* Bottom Badges & Hover Actions */}
-                <S.Div18>
-                  <S.Div19>
+                <S.CardFooter>
+                  <S.MetaBadges>
                     {article.location && (
-                      <S.Span6>
+                      <S.MetaBadge>
                         <S.MapPin />
-                        <S.Span7>{article.location}</S.Span7>
-                      </S.Span6>
+                        <S.MetaText>{article.location}</S.MetaText>
+                      </S.MetaBadge>
                     )}
                     {article.music && (
-                      <S.Span6>
+                      <S.MetaBadge>
                         <S.Music2 />
-                        <S.Span7>{article.music.title}</S.Span7>
-                      </S.Span6>
+                        <S.MetaText>{article.music.title}</S.MetaText>
+                      </S.MetaBadge>
                     )}
-                  </S.Div19>
+                  </S.MetaBadges>
 
-                  {/* Actions visible on hover or mobile touch */}
-                  <S.Div20>
-                    <S.Button8
+                  <S.CardHoverActions>
+                    <S.CardHoverBtn
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
                         onCloneArticle(article);
                       }}
-
                       title="复制文章"
                     >
                       <S.Copy />
-                    </S.Button8>
-                    <S.Button9
+                    </S.CardHoverBtn>
+                    <S.CardHoverBtn
                       type="button"
+                      $danger
                       onClick={(e) => {
                         e.stopPropagation();
                         onDeleteArticle(article, fp);
                       }}
-
                       title="删除文章"
                     >
                       <S.Trash2 />
-                    </S.Button9>
-                  </S.Div20>
-                </S.Div18>
-              </S.Div11>
+                    </S.CardHoverBtn>
+                  </S.CardHoverActions>
+                </S.CardFooter>
+              </S.ArticleCard>
             );
           })
         )}
-      </S.Div9>
-    </S.Div>
+      </S.ArticleListScroll>
+    </S.SidebarContainer>
   );
 };

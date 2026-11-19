@@ -285,6 +285,7 @@ export const ModePill = styled.span`
 `;
 
 export const StatusTextPill = styled.span`
+  min-width: 0;
   font-size: 11px;
   font-family: var(--font-mono);
   color: var(--color-stone-500);
@@ -298,6 +299,7 @@ export const StatusTextPill = styled.span`
 `;
 
 export const DirtyBadge = styled.span`
+  flex-shrink: 0;
   font-size: 10.5px;
   font-weight: 600;
   padding: 1px 7px;
@@ -306,12 +308,18 @@ export const DirtyBadge = styled.span`
   color: var(--color-amber-700);
   white-space: nowrap;
 
+  @media (max-width: 420px) {
+    font-size: 10px;
+    padding: 1px 5px;
+  }
+
   &:where(.dark, .dark *) {
     color: var(--color-amber-300);
   }
 `;
 
 export const HeaderModeButton = styled.button`
+  flex-shrink: 0;
   font-size: 10.5px;
   font-weight: 600;
   padding: 2px 8px;
@@ -321,6 +329,10 @@ export const HeaderModeButton = styled.button`
   color: var(--color-amber-700);
   cursor: pointer;
   white-space: nowrap;
+
+  @media (max-width: 420px) {
+    display: none;
+  }
 
   &:hover {
     background-color: rgb(245 158 11 / 0.2);
@@ -455,7 +467,7 @@ export const Toast = styled.div<{ $variant: keyof typeof ToastVariants }>`
   position: fixed;
   top: calc(52px + env(safe-area-inset-top, 0px));
   right: 16px;
-  z-index: 60;
+  z-index: 90;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -532,7 +544,6 @@ export const MomentsSidebarWrap = styled.aside<{ $open: boolean }>`
   ${workspaceSidebar};
   display: ${(p) => (p.$open ? "flex" : "none")};
   flex-direction: column;
-  width: 300px;
   height: 100%;
 
   @media (max-width: 767px) {
@@ -663,6 +674,10 @@ export const Textarea = styled.textarea`
   font-size: 14px;
   line-height: 1.7;
   color: var(--color-stone-900);
+
+  @media (max-width: 767px) {
+    min-height: 120px;
+  }
 
   &::placeholder {
     color: var(--color-stone-400);

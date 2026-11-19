@@ -1,4 +1,4 @@
-import * as S from './LoginPage.styles';
+import * as S from "./LoginPage.styles";
 import React, { useState, useEffect, useMemo } from "react";
 import { loginWithCloudflareAccess, checkAuthStatus } from "../../lib/api/client";
 import {
@@ -6,7 +6,6 @@ import {
   applySiteBrand,
   applyThemeAndAccent,
 } from "../../lib/settings/cmsSettings";
-
 
 interface LoginPageProps {
   onLoginSuccess: (user: any) => void;
@@ -83,132 +82,113 @@ export const LoginPage: React.FC<LoginPageProps> = ({
     errorMsg?.includes("服务器错误");
 
   return (
-    <S.Div>
-      {/* Ambient background glows */}
-      <S.Div2 />
-      <S.Div3 />
+    <S.PageWrap>
+      <S.GlowPrimary />
+      <S.GlowSecondary />
 
-      {/* Main Login Card */}
-      <S.Div4>
-        <S.Div5>
-          {/* Header */}
-          <S.Div6>
-            <S.Div7>
+      <S.CardContainer>
+        <S.Card>
+          <S.HeaderSection>
+            <S.LogoBox>
               {brand.siteIcon && !iconError ? (
-                <img
+                <S.BrandImg
                   src={brand.siteIcon}
                   alt={brand.siteName}
                   onError={() => setIconError(true)}
-                  style={{ width: "26px", height: "26px", borderRadius: "6px", objectFit: "cover" }}
                 />
               ) : (
                 <S.PenTool />
               )}
-            </S.Div7>
+            </S.LogoBox>
 
             <div>
-              <S.H1>
+              <S.Title>
                 <span>{brand.siteName}</span>
-                <S.Span>
-                  Zero Trust
-                </S.Span>
-              </S.H1>
-              <S.P>
-                本站点受 Cloudflare Access 零信任策略保护
-              </S.P>
+                <S.Badge>Zero Trust</S.Badge>
+              </S.Title>
+              <S.Subtitle>本站点受 Cloudflare Access 零信任策略保护</S.Subtitle>
             </div>
-          </S.Div6>
+          </S.HeaderSection>
 
-          {/* Status info box */}
-          <S.Div8>
-            <S.Div9>
+          <S.StatusBox>
+            <S.StatusTitle>
               <S.ShieldCheck />
               <span>当前状态：等待身份凭证验证</span>
-            </S.Div9>
-            <S.P2>
+            </S.StatusTitle>
+            <S.StatusDesc>
               请通过 Cloudflare Access 验证身份。可在 Access 登录页选择已启用的邮箱验证码、SSO 或 Passkey 通行密钥。
-            </S.P2>
-          </S.Div8>
+            </S.StatusDesc>
+          </S.StatusBox>
 
-          {/* Error Banner */}
           {errorMsg && (
-            <S.Div10 role="alert">
-              <S.Div11>
+            <S.ErrorBox role="alert">
+              <S.ErrorHeader>
                 <S.AlertCircle />
-                <S.Span2>{errorMsg}</S.Span2>
-              </S.Div11>
+                <S.ErrorText>{errorMsg}</S.ErrorText>
+              </S.ErrorHeader>
               {isConfigError && (
-                <S.Div12>
-                  <S.P3>
+                <S.TroubleshootingBox>
+                  <S.TroubleshootingTitle>
                     <S.KeyRound /> 环境变量排查建议：
-                  </S.P3>
+                  </S.TroubleshootingTitle>
                   <p>1. 检查 Cloudflare Pages 控制台设置中的环境变量</p>
                   <p>2. 确保在 Settings &rarr; Environment variables 中配置了：</p>
-                  <S.P4>&bull; CF_ACCESS_TEAM_DOMAIN</S.P4>
-                  <S.P4>&bull; CF_ACCESS_AUD</S.P4>
-                </S.Div12>
+                  <S.EnvKeyLine>&bull; CF_ACCESS_TEAM_DOMAIN</S.EnvKeyLine>
+                  <S.EnvKeyLine>&bull; CF_ACCESS_AUD</S.EnvKeyLine>
+                </S.TroubleshootingBox>
               )}
-            </S.Div10>
+            </S.ErrorBox>
           )}
 
-          {/* Action Buttons */}
-          <S.Div13>
-            <S.Button
+          <S.ActionsSection>
+            <S.PrimaryBtn
               type="button"
               onClick={handleAccessLogin}
               disabled={isLoading}
-
             >
-              {isLoading ? (
-                <S.Div14 />
-              ) : (
-                <S.Cloud />
-              )}
+              {isLoading ? <S.Spinner /> : <S.Cloud />}
               <span>
                 {isLocalHost
                   ? "一键进入本地模拟模式 (Local Mock)"
                   : "通过 Cloudflare Access 验证登录"}
               </span>
               <S.ArrowRight />
-            </S.Button>
+            </S.PrimaryBtn>
 
             {!isLocalHost && (
-              <S.PasskeyHint>
-                使用 Passkey：进入 Access 登录页后选择「Sign in with a passkey」。
-                首次使用可选择「Don't have a passkey? Set one up」，验证身份后绑定。
-                若未显示该选项，需要管理员在 Access 中启用 Passkeys 登录方式。
-              </S.PasskeyHint>
-            )}
-
-            {!isLocalHost && (
-              <S.Button2
-                type="button"
-                onClick={handleRetryCheck}
-                disabled={isLoading}
-
-              >
-                <S.RotateCcw />
-                <span>重新检测当前会话 (Retry)</span>
-              </S.Button2>
+              <>
+                <S.PasskeyHint>
+                  使用 Passkey：进入 Access 登录页后选择「Sign in with a passkey」。
+                  首次使用可选择「Don't have a passkey? Set one up」，验证身份后绑定。
+                  若未显示该选项，需要管理员在 Access 中启用 Passkeys 登录方式。
+                </S.PasskeyHint>
+                <S.SecondaryBtn
+                  type="button"
+                  onClick={handleRetryCheck}
+                  disabled={isLoading}
+                >
+                  <S.RotateCcw />
+                  <span>重新检测当前会话 (Retry)</span>
+                </S.SecondaryBtn>
+              </>
             )}
 
             {isLocalHost && (
-              <S.Div15>
-                <S.Span3>
+              <S.LocalHintWrap>
+                <S.LocalHintBadge>
                   <S.Terminal />
                   检测到本地 localhost 环境，支持离线模拟登录
-                </S.Span3>
-              </S.Div15>
+                </S.LocalHintBadge>
+              </S.LocalHintWrap>
             )}
-          </S.Div13>
-        </S.Div5>
+          </S.ActionsSection>
+        </S.Card>
 
-        {/* Footer info */}
-        <S.Div16>
+        <S.FooterNote>
           <S.Lock />
           <span>服务端实时验证 Cloudflare Access 官方 JWKS 证书</span>
-        </S.Div16>
-      </S.Div4>
-    </S.Div>
+        </S.FooterNote>
+      </S.CardContainer>
+    </S.PageWrap>
   );
 };

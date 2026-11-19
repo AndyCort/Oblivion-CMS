@@ -1,7 +1,6 @@
-import * as S from './DeleteConfirmModal.styles';
+import * as S from "./DeleteConfirmModal.styles";
 import React from "react";
 import type { Article } from "../../types/article";
-
 
 interface DeleteConfirmModalProps {
   isOpen: boolean;
@@ -27,54 +26,38 @@ export const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({
   if (!isOpen || (!article && !previewText)) return null;
 
   return (
-    <S.Div>
-      <S.Div2>
-        <S.Div3>
-          <S.Div4>
+    <S.Overlay>
+      <S.Dialog>
+        <S.HeaderRow>
+          <S.IconBox>
             <S.AlertTriangle />
-          </S.Div4>
-          <S.Div5>
-            <S.H3>
-              {title || "确认删除该文章？"}
-            </S.H3>
-            <S.P>
-              {description || "此操作将直接从 Cloudflare D1 数据库中删除该文章记录。"}
-            </S.P>
-          </S.Div5>
-          <S.Button
-            type="button"
-            onClick={onClose}
-
-          >
+          </S.IconBox>
+          <S.TitleBox>
+            <S.Title>{title || "确认删除该文章？"}</S.Title>
+            <S.Description>
+              {description ||
+                "此操作将直接从 Cloudflare D1 数据库中删除该文章记录。"}
+            </S.Description>
+          </S.TitleBox>
+          <S.CloseBtn type="button" onClick={onClose}>
             <S.X />
-          </S.Button>
-        </S.Div3>
+          </S.CloseBtn>
+        </S.HeaderRow>
 
-        {/* Content Preview */}
-        <S.Div6>
+        <S.PreviewBox>
           {previewText ?? article?.content ?? "（无文本内容）"}
-        </S.Div6>
+        </S.PreviewBox>
 
-        <S.Div7>
-          <S.Button2
-            type="button"
-            onClick={onClose}
-            disabled={isDeleting}
-
-          >
+        <S.FooterRow>
+          <S.CancelBtn type="button" onClick={onClose} disabled={isDeleting}>
             取消
-          </S.Button2>
-          <S.Button3
-            type="button"
-            onClick={onConfirm}
-            disabled={isDeleting}
-
-          >
+          </S.CancelBtn>
+          <S.ConfirmBtn type="button" onClick={onConfirm} disabled={isDeleting}>
             <S.Trash2 />
             {isDeleting ? "正在删除..." : "确认删除"}
-          </S.Button3>
-        </S.Div7>
-      </S.Div2>
-    </S.Div>
+          </S.ConfirmBtn>
+        </S.FooterRow>
+      </S.Dialog>
+    </S.Overlay>
   );
 };

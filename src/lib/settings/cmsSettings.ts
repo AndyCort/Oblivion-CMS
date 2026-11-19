@@ -207,23 +207,43 @@ function cleanString(val: unknown, fallback: string, allowEmpty = true): string 
   return !allowEmpty && !trimmed ? fallback : trimmed;
 }
 
+function cleanBool(val: unknown, fallback: boolean): boolean {
+  return typeof val === "boolean" ? val : fallback;
+}
+
 export function sanitizeCmsSettings(raw: unknown): CmsSettings {
-  const input = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  const input =
+    raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
   const rawTags = Array.isArray(input.defaultMomentTags)
-    ? input.defaultMomentTags.filter((t): t is string => typeof t === "string").map((t) => t.trim()).filter(Boolean)
+    ? input.defaultMomentTags
+        .filter((t): t is string => typeof t === "string")
+        .map((t) => t.trim())
+        .filter(Boolean)
     : DEFAULT_CMS_SETTINGS.defaultMomentTags;
 
   return {
     siteName: cleanString(input.siteName, DEFAULT_CMS_SETTINGS.siteName, false),
-    siteSubtitle: cleanString(input.siteSubtitle, DEFAULT_CMS_SETTINGS.siteSubtitle, true),
+    siteSubtitle: cleanString(
+      input.siteSubtitle,
+      DEFAULT_CMS_SETTINGS.siteSubtitle,
+      true,
+    ),
     siteIcon: cleanString(input.siteIcon, DEFAULT_CMS_SETTINGS.siteIcon, false),
-    theme: oneOf(input.theme, ["light", "dark", "system"], DEFAULT_CMS_SETTINGS.theme),
+    theme: oneOf(
+      input.theme,
+      ["light", "dark", "system"],
+      DEFAULT_CMS_SETTINGS.theme,
+    ),
     accentColor: oneOf(
       input.accentColor,
       ["indigo", "emerald", "sky", "amber", "rose"],
       DEFAULT_CMS_SETTINGS.accentColor,
     ),
-    startupMode: oneOf(input.startupMode, ["last", "moments", "posts"], DEFAULT_CMS_SETTINGS.startupMode),
+    startupMode: oneOf(
+      input.startupMode,
+      ["last", "moments", "posts"],
+      DEFAULT_CMS_SETTINGS.startupMode,
+    ),
     defaultMomentsView: oneOf(
       input.defaultMomentsView,
       ["edit", "split", "preview"],
@@ -234,41 +254,49 @@ export function sanitizeCmsSettings(raw: unknown): CmsSettings {
       ["edit", "split", "preview"],
       DEFAULT_CMS_SETTINGS.defaultPostsView,
     ),
-    defaultSidebarOpen:
-      typeof input.defaultSidebarOpen === "boolean"
-        ? input.defaultSidebarOpen
-        : DEFAULT_CMS_SETTINGS.defaultSidebarOpen,
-    autoCloseSidebarOnMobile:
-      typeof input.autoCloseSidebarOnMobile === "boolean"
-        ? input.autoCloseSidebarOnMobile
-        : DEFAULT_CMS_SETTINGS.autoCloseSidebarOnMobile,
-    defaultSortOrder: oneOf(input.defaultSortOrder, ["desc", "asc"], DEFAULT_CMS_SETTINGS.defaultSortOrder),
-    compactList:
-      typeof input.compactList === "boolean" ? input.compactList : DEFAULT_CMS_SETTINGS.compactList,
+    defaultSidebarOpen: cleanBool(
+      input.defaultSidebarOpen,
+      DEFAULT_CMS_SETTINGS.defaultSidebarOpen,
+    ),
+    autoCloseSidebarOnMobile: cleanBool(
+      input.autoCloseSidebarOnMobile,
+      DEFAULT_CMS_SETTINGS.autoCloseSidebarOnMobile,
+    ),
+    defaultSortOrder: oneOf(
+      input.defaultSortOrder,
+      ["desc", "asc"],
+      DEFAULT_CMS_SETTINGS.defaultSortOrder,
+    ),
+    compactList: cleanBool(input.compactList, DEFAULT_CMS_SETTINGS.compactList),
 
     editorFontFamily: oneOf(
       input.editorFontFamily,
       ["default", "sans", "serif", "mono"],
       DEFAULT_CMS_SETTINGS.editorFontFamily,
     ),
-    editorFontSize: clampNumber(input.editorFontSize, 12, 20, DEFAULT_CMS_SETTINGS.editorFontSize),
+    editorFontSize: clampNumber(
+      input.editorFontSize,
+      12,
+      20,
+      DEFAULT_CMS_SETTINGS.editorFontSize,
+    ),
     editorLineHeight: clampNumber(
       input.editorLineHeight,
       1.3,
       2.2,
       DEFAULT_CMS_SETTINGS.editorLineHeight,
     ),
-    showLineNumbers:
-      typeof input.showLineNumbers === "boolean"
-        ? input.showLineNumbers
-        : DEFAULT_CMS_SETTINGS.showLineNumbers,
-    tabIndentSpaces: input.tabIndentSpaces === 4 ? 4 : DEFAULT_CMS_SETTINGS.tabIndentSpaces,
-    spellCheck:
-      typeof input.spellCheck === "boolean" ? input.spellCheck : DEFAULT_CMS_SETTINGS.spellCheck,
-    previewTocDefaultOpen:
-      typeof input.previewTocDefaultOpen === "boolean"
-        ? input.previewTocDefaultOpen
-        : DEFAULT_CMS_SETTINGS.previewTocDefaultOpen,
+    showLineNumbers: cleanBool(
+      input.showLineNumbers,
+      DEFAULT_CMS_SETTINGS.showLineNumbers,
+    ),
+    tabIndentSpaces:
+      input.tabIndentSpaces === 4 ? 4 : DEFAULT_CMS_SETTINGS.tabIndentSpaces,
+    spellCheck: cleanBool(input.spellCheck, DEFAULT_CMS_SETTINGS.spellCheck),
+    previewTocDefaultOpen: cleanBool(
+      input.previewTocDefaultOpen,
+      DEFAULT_CMS_SETTINGS.previewTocDefaultOpen,
+    ),
     readingSpeedCpm: clampNumber(
       input.readingSpeedCpm,
       100,
@@ -281,10 +309,10 @@ export function sanitizeCmsSettings(raw: unknown): CmsSettings {
       5000,
       DEFAULT_CMS_SETTINGS.autoSaveDelayMs,
     ),
-    notifyOnDraftRestore:
-      typeof input.notifyOnDraftRestore === "boolean"
-        ? input.notifyOnDraftRestore
-        : DEFAULT_CMS_SETTINGS.notifyOnDraftRestore,
+    notifyOnDraftRestore: cleanBool(
+      input.notifyOnDraftRestore,
+      DEFAULT_CMS_SETTINGS.notifyOnDraftRestore,
+    ),
 
     momentAuthorName: cleanString(
       input.momentAuthorName,
@@ -307,10 +335,10 @@ export function sanitizeCmsSettings(raw: unknown): CmsSettings {
       DEFAULT_CMS_SETTINGS.defaultMomentLocation,
       true,
     ),
-    cloneAppendSuffix:
-      typeof input.cloneAppendSuffix === "boolean"
-        ? input.cloneAppendSuffix
-        : DEFAULT_CMS_SETTINGS.cloneAppendSuffix,
+    cloneAppendSuffix: cleanBool(
+      input.cloneAppendSuffix,
+      DEFAULT_CMS_SETTINGS.cloneAppendSuffix,
+    ),
     cloneSuffixText:
       typeof input.cloneSuffixText === "string"
         ? input.cloneSuffixText
@@ -330,31 +358,31 @@ export function sanitizeCmsSettings(raw: unknown): CmsSettings {
       /^[a-z]{2,3}(?:-[a-z0-9]{2,8})*$/i.test(input.defaultPostLanguage.trim())
         ? input.defaultPostLanguage.trim()
         : DEFAULT_CMS_SETTINGS.defaultPostLanguage,
-    autoGenerateSlug:
-      typeof input.autoGenerateSlug === "boolean"
-        ? input.autoGenerateSlug
-        : DEFAULT_CMS_SETTINGS.autoGenerateSlug,
+    autoGenerateSlug: cleanBool(
+      input.autoGenerateSlug,
+      DEFAULT_CMS_SETTINGS.autoGenerateSlug,
+    ),
 
-    confirmBeforePublish:
-      typeof input.confirmBeforePublish === "boolean"
-        ? input.confirmBeforePublish
-        : DEFAULT_CMS_SETTINGS.confirmBeforePublish,
-    preventEmptyPublish:
-      typeof input.preventEmptyPublish === "boolean"
-        ? input.preventEmptyPublish
-        : DEFAULT_CMS_SETTINGS.preventEmptyPublish,
+    confirmBeforePublish: cleanBool(
+      input.confirmBeforePublish,
+      DEFAULT_CMS_SETTINGS.confirmBeforePublish,
+    ),
+    preventEmptyPublish: cleanBool(
+      input.preventEmptyPublish,
+      DEFAULT_CMS_SETTINGS.preventEmptyPublish,
+    ),
     defaultCommitMessage:
       typeof input.defaultCommitMessage === "string"
         ? input.defaultCommitMessage
         : DEFAULT_CMS_SETTINGS.defaultCommitMessage,
-    clearCommitAfterPublish:
-      typeof input.clearCommitAfterPublish === "boolean"
-        ? input.clearCommitAfterPublish
-        : DEFAULT_CMS_SETTINGS.clearCommitAfterPublish,
-    enableShortcuts:
-      typeof input.enableShortcuts === "boolean"
-        ? input.enableShortcuts
-        : DEFAULT_CMS_SETTINGS.enableShortcuts,
+    clearCommitAfterPublish: cleanBool(
+      input.clearCommitAfterPublish,
+      DEFAULT_CMS_SETTINGS.clearCommitAfterPublish,
+    ),
+    enableShortcuts: cleanBool(
+      input.enableShortcuts,
+      DEFAULT_CMS_SETTINGS.enableShortcuts,
+    ),
   };
 }
 

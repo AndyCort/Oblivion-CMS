@@ -1,7 +1,6 @@
-import * as S from './BatchAddModal.styles';
+import * as S from "./BatchAddModal.styles";
 import React, { useEffect, useState } from "react";
 import type { ArticleMedia, ArticleMediaType } from "../../types/article";
-
 
 interface BatchAddModalProps {
   isOpen: boolean;
@@ -17,7 +16,9 @@ export const BatchAddModal: React.FC<BatchAddModalProps> = ({
   defaultMediaMode = "auto",
 }) => {
   const [urlsText, setUrlsText] = useState("");
-  const [defaultType, setDefaultType] = useState<"auto" | ArticleMediaType>(defaultMediaMode);
+  const [defaultType, setDefaultType] = useState<"auto" | ArticleMediaType>(
+    defaultMediaMode,
+  );
 
   useEffect(() => {
     if (isOpen) {
@@ -32,7 +33,13 @@ export const BatchAddModal: React.FC<BatchAddModalProps> = ({
     const lines = urlsText
       .split("\n")
       .map((l) => l.trim())
-      .filter((l) => l.length > 0 && (l.startsWith("http://") || l.startsWith("https://") || l.startsWith("/")));
+      .filter(
+        (l) =>
+          l.length > 0 &&
+          (l.startsWith("http://") ||
+            l.startsWith("https://") ||
+            l.startsWith("/")),
+      );
 
     if (lines.length === 0) return;
 
@@ -48,8 +55,6 @@ export const BatchAddModal: React.FC<BatchAddModalProps> = ({
           lower.includes("download/video")
         ) {
           type = "vid";
-        } else {
-          type = "img";
         }
       } else {
         type = defaultType;
@@ -64,87 +69,65 @@ export const BatchAddModal: React.FC<BatchAddModalProps> = ({
   };
 
   return (
-    <S.Div>
-      <S.Div2>
-        <S.Div3>
-          <S.Div4>
+    <S.Overlay>
+      <S.Dialog>
+        <S.HeaderRow>
+          <S.TitleGroup>
             <S.Layers />
-            <S.H3>
-              批量添加媒体链接
-            </S.H3>
-          </S.Div4>
-          <S.Button
-            onClick={onClose}
-            type="button"
-
-          >
+            <S.Title>批量添加媒体链接</S.Title>
+          </S.TitleGroup>
+          <S.CloseBtn onClick={onClose} type="button">
             <S.X />
-          </S.Button>
-        </S.Div3>
+          </S.CloseBtn>
+        </S.HeaderRow>
 
-        <S.Form onSubmit={handleSubmit} >
+        <S.Form onSubmit={handleSubmit}>
           <div>
-            <S.Label>
+            <S.FieldLabel>
               每行粘贴一个图片或视频 URL（支持多行）
-            </S.Label>
+            </S.FieldLabel>
             <S.Textarea
               value={urlsText}
               onChange={(e) => setUrlsText(e.target.value)}
               placeholder="https://example.com/image1.jpg&#10;https://example.com/video1.mp4"
               rows={5}
-
               autoFocus
- />
+            />
           </div>
 
-          <S.Div5>
-            <S.Span>
-              媒体类型判断：
-            </S.Span>
-            <S.Div6>
-              <S.Button2
-                type="button"
-                onClick={() => setDefaultType("auto")}
-                $variant={((defaultType === "auto")) ? "v0" : "v1"}
-              >
-                智能推测
-              </S.Button2>
-              <S.Button2
-                type="button"
-                onClick={() => setDefaultType("img")}
-                $variant={((defaultType === "img")) ? "v0" : "v1"}
-              >
-                全部作为图片
-              </S.Button2>
-              <S.Button2
-                type="button"
-                onClick={() => setDefaultType("vid")}
-                $variant={((defaultType === "vid")) ? "v0" : "v1"}
-              >
-                全部作为视频
-              </S.Button2>
-            </S.Div6>
-          </S.Div5>
+          <S.ModeRow>
+            <S.ModeLabel>媒体类型判断：</S.ModeLabel>
+            <S.ModeButtons>
+              {(
+                [
+                  ["auto", "智能推测"],
+                  ["img", "全部作为图片"],
+                  ["vid", "全部作为视频"],
+                ] as const
+              ).map(([mode, label]) => (
+                <S.ModeButton
+                  key={mode}
+                  type="button"
+                  onClick={() => setDefaultType(mode)}
+                  $active={defaultType === mode}
+                >
+                  {label}
+                </S.ModeButton>
+              ))}
+            </S.ModeButtons>
+          </S.ModeRow>
 
-          <S.Div7>
-            <S.Button3
-              type="button"
-              onClick={onClose}
-
-            >
+          <S.FooterRow>
+            <S.CancelBtn type="button" onClick={onClose}>
               取消
-            </S.Button3>
-            <S.Button4
-              type="submit"
-              disabled={!urlsText.trim()}
-
-            >
+            </S.CancelBtn>
+            <S.SubmitBtn type="submit" disabled={!urlsText.trim()}>
               <S.Plus />
               添加至媒体库
-            </S.Button4>
-          </S.Div7>
+            </S.SubmitBtn>
+          </S.FooterRow>
         </S.Form>
-      </S.Div2>
-    </S.Div>
+      </S.Dialog>
+    </S.Overlay>
   );
 };

@@ -1,6 +1,5 @@
-import * as S from './ConflictResolutionModal.styles';
+import * as S from "./ConflictResolutionModal.styles";
 import React, { useState } from "react";
-
 import type { Article } from "../../types/article";
 
 interface ConflictResolutionModalProps {
@@ -35,74 +34,61 @@ export const ConflictResolutionModal: React.FC<ConflictResolutionModalProps> = (
   };
 
   return (
-    <S.Div>
-      <S.Div2>
-        <S.Div3>
-          <S.Div4>
+    <S.Overlay>
+      <S.Dialog>
+        <S.HeaderRow>
+          <S.IconBox>
             <S.AlertCircle />
-          </S.Div4>
-          <S.Div5>
-            <S.H3>
-              检测到远程发布冲突 (409 Conflict)
-            </S.H3>
-            <S.P>
+          </S.IconBox>
+          <S.TitleBox>
+            <S.Title>检测到远程发布冲突 (409 Conflict)</S.Title>
+            <S.Description>
               在您编辑期间，数据库中的文章数据版本与您编辑基准不一致。您的本地草稿已妥善保存在当前浏览器中。您可以拉取最新数据，或以当前草稿强制覆盖发布。
-            </S.P>
-          </S.Div5>
-          <S.Button
-            type="button"
-            onClick={onClose}
-
-          >
+            </S.Description>
+          </S.TitleBox>
+          <S.CloseBtn type="button" onClick={onClose}>
             <S.X />
-          </S.Button>
-        </S.Div3>
+          </S.CloseBtn>
+        </S.HeaderRow>
 
-        <S.Div6>
+        <S.ShaBox>
           <div>客户端基准版本: {clientBaseSha?.slice(0, 16) || "未知"}</div>
           <div>远程最新版本: {remoteSha?.slice(0, 16) || "已更新"}</div>
-        </S.Div6>
+        </S.ShaBox>
 
-        <S.Div7>
-          <S.Button2
-            type="button"
-            onClick={handleCopyDraft}
-
-          >
+        <S.FooterRow>
+          <S.CopyBtn type="button" onClick={handleCopyDraft}>
             {copied ? <S.Check /> : <S.Copy />}
             {copied ? "已复制本地草稿" : "复制草稿 JSON 备份"}
-          </S.Button2>
+          </S.CopyBtn>
 
-          <S.Div8>
-            <S.Button3
+          <S.ActionGroup>
+            <S.LaterBtn
               type="button"
               disabled={isPublishing}
               onClick={onClose}
-
             >
               稍后处理
-            </S.Button3>
-            <S.Button4
+            </S.LaterBtn>
+            <S.ReloadBtn
               type="button"
               disabled={isPublishing}
               onClick={onReloadRemote}
-
             >
               <S.RefreshCw />
               拉取最新远程数据
-            </S.Button4>
-            <S.Button5
+            </S.ReloadBtn>
+            <S.ForceBtn
               type="button"
               disabled={isPublishing}
               onClick={onForcePublish}
-
             >
               <S.UploadCloud />
               {isPublishing ? "正在覆盖..." : "强制覆盖发布"}
-            </S.Button5>
-          </S.Div8>
-        </S.Div7>
-      </S.Div2>
-    </S.Div>
+            </S.ForceBtn>
+          </S.ActionGroup>
+        </S.FooterRow>
+      </S.Dialog>
+    </S.Overlay>
   );
 };

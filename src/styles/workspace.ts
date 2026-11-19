@@ -12,13 +12,13 @@ export const sidebarSurface = css`
 
 export const workspaceSidebar = css`
   width: 100%;
-  height: calc(100dvh - 56px);
+  height: 100%;
   flex-shrink: 0;
   @media (min-width: 768px) {
-    width: 320px;
+    width: 300px;
   }
-  @media (min-width: 1024px) {
-    width: 384px;
+  @media (min-width: 1280px) {
+    width: 340px;
   }
 `;
 
@@ -466,6 +466,49 @@ export const dockInlineButton = css`
   @media (max-width: 767px) {
     height: 22px;
     padding: 0 8px;
+  }
+`;
+
+export const modalOverlay = css`
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: color-mix(in oklab, var(--color-black) 60%, transparent);
+  backdrop-filter: blur(var(--blur-sm));
+  -webkit-backdrop-filter: blur(var(--blur-sm));
+  padding: calc(var(--spacing) * 3);
+  padding-top: max(calc(var(--spacing) * 3), env(safe-area-inset-top, 0px));
+  padding-bottom: max(calc(var(--spacing) * 3), env(safe-area-inset-bottom, 0px));
+
+  @media (width >= 40rem) {
+    padding: calc(var(--spacing) * 4);
+    padding-top: max(calc(var(--spacing) * 4), env(safe-area-inset-top, 0px));
+    padding-bottom: max(calc(var(--spacing) * 4), env(safe-area-inset-bottom, 0px));
+  }
+`;
+
+export const modalCard = css`
+  width: 100%;
+  border-radius: var(--radius-2xl);
+  border: 1px solid var(--color-stone-200);
+  background-color: var(--color-white);
+  padding: calc(var(--spacing) * 4.5);
+  box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+
+  & > :not(:last-child) {
+    margin-bottom: calc(var(--spacing) * 4);
+  }
+
+  @media (width >= 40rem) {
+    padding: calc(var(--spacing) * 6);
+  }
+
+  &:where(.dark, .dark *) {
+    border-color: var(--color-stone-800);
+    background-color: var(--color-stone-900);
   }
 `;
 

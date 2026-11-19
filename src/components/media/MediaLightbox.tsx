@@ -1,7 +1,6 @@
-import * as S from './MediaLightbox.styles';
+import * as S from "./MediaLightbox.styles";
 import React, { useEffect, useRef } from "react";
 import type { ArticleMedia } from "../../types/article";
-
 
 interface MediaLightboxProps {
   media: ArticleMedia[];
@@ -17,6 +16,7 @@ export const MediaLightbox: React.FC<MediaLightboxProps> = ({
   onNavigate,
 }) => {
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const touchStartXRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (currentIndex === null) return;
@@ -24,20 +24,17 @@ export const MediaLightbox: React.FC<MediaLightboxProps> = ({
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         onClose();
-      } else if (e.key === "ArrowLeft") {
-        if (currentIndex > 0) onNavigate(currentIndex - 1);
-      } else if (e.key === "ArrowRight") {
-        if (currentIndex < media.length - 1) onNavigate(currentIndex + 1);
+      } else if (e.key === "ArrowLeft" && currentIndex > 0) {
+        onNavigate(currentIndex - 1);
+      } else if (e.key === "ArrowRight" && currentIndex < media.length - 1) {
+        onNavigate(currentIndex + 1);
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
-      // Clean up video playback
-      if (videoRef.current) {
-        videoRef.current.pause();
-      }
+      videoRef.current?.pause();
     };
   }, [currentIndex, media.length, onClose, onNavigate]);
 
@@ -47,14 +44,14 @@ export const MediaLightbox: React.FC<MediaLightboxProps> = ({
   const hasPrev = currentIndex > 0;
   const hasNext = currentIndex < media.length - 1;
 
-  const handleBackdropClick = (e: React.MouseEvent) => {
-    if (e.target === e.currentTarget) {
-      if (videoRef.current) videoRef.current.pause();
-      onClose();
-    }
+  const handleClose = () => {
+    videoRef.current?.pause();
+    onClose();
   };
 
-  const touchStartXRef = useRef<number | null>(null);
+  const handleBackdropClick = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) handleClose();
+  };
 
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartXRef.current = e.touches[0].clientX;
@@ -63,81 +60,63 @@ export const MediaLightbox: React.FC<MediaLightboxProps> = ({
   const handleTouchEnd = (e: React.TouchEvent) => {
     if (touchStartXRef.current === null) return;
     const diff = e.changedTouches[0].clientX - touchStartXRef.current;
-    if (diff > 50 && hasPrev) {
-      onNavigate(currentIndex - 1);
-    } else if (diff < -50 && hasNext) {
-      onNavigate(currentIndex + 1);
-    }
+    if (diff > 50 && hasPrev) onNavigate(currentIndex - 1);
+    else if (diff < -50 && hasNext) onNavigate(currentIndex + 1);
     touchStartXRef.current = null;
   };
 
   return (
-    <S.Div
+    <S.Overlay
       onClick={handleBackdropClick}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
-
     >
-      {/* Top action bar */}
-      <S.Div2>
-        <S.Span>
+      <S.TopBar>
+        <S.CounterBadge>
           {currentIndex + 1} / {media.length}
-        </S.Span>
-        <S.Button
-          onClick={() => {
-            if (videoRef.current) videoRef.current.pause();
-            onClose();
-          }}
-
-          title="关闭 (Esc)"
-        >
+        </S.CounterBadge>
+        <S.CloseBtn type="button" onClick={handleClose} title="关闭 (Esc)">
           <S.X />
-        </S.Button>
-      </S.Div2>
+        </S.CloseBtn>
+      </S.TopBar>
 
-      {/* Prev button */}
       {hasPrev && (
-        <S.Button2
+        <S.NavBtn
+          type="button"
+          $side="left"
           onClick={() => onNavigate(currentIndex - 1)}
-
           title="上一张 (←)"
         >
           <S.ChevronLeft />
-        </S.Button2>
+        </S.NavBtn>
       )}
 
-      {/* Next button */}
       {hasNext && (
-        <S.Button3
+        <S.NavBtn
+          type="button"
+          $side="right"
           onClick={() => onNavigate(currentIndex + 1)}
-
           title="下一张 (→)"
         >
           <S.ChevronRight />
-        </S.Button3>
+        </S.NavBtn>
       )}
 
-      {/* Media content */}
-      <S.Div3>
+      <S.Stage>
         {currentItem.type === "img" ? (
-          <S.Img
-            src={currentItem.url}
-            alt=""
-
- />
+          <S.LightboxImg src={currentItem.url} alt="" />
         ) : (
-          <S.Div4>
-            <S.Video
+          <S.VideoWrap>
+            <S.LightboxVideo
               ref={videoRef}
               src={currentItem.url}
               controls
               autoPlay
               playsInline
-
- />
-          </S.Div4>
+            />
+          </S.VideoWrap>
         )}
-      </S.Div3>
-    </S.Div>
+      </S.Stage>
+    </S.Overlay>
   );
 };

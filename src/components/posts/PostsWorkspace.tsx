@@ -78,6 +78,16 @@ export function slugFromTitle(title: string) {
     .replace(/-$/, "");
 }
 
+function useTrigger(value: number, effect: () => void) {
+  const prev = useRef(value);
+  useEffect(() => {
+    if (value > 0 && value !== prev.current) {
+      prev.current = value;
+      effect();
+    }
+  }, [value]);
+}
+
 interface PostsWorkspaceProps {
   listNavigation?: ReactNode;
   sidebarOpen?: boolean;
@@ -129,11 +139,7 @@ export default function PostsWorkspace({
   const queue = useRef<Promise<void>>(Promise.resolve());
   const saving = useRef(0);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
-  const prevNewTrigger = useRef(newPostTrigger);
   const prevSidebarOpen = useRef(sidebarOpen);
-  const prevSaveTrigger = useRef(saveTrigger);
-  const prevPublishTrigger = useRef(publishTrigger);
-  const prevDraftSync = useRef(draftSyncRevision);
   const slugManuallyEdited = useRef(false);
 
   const [ready, setReady] = useState(false);
@@ -185,35 +191,23 @@ export default function PostsWorkspace({
     setView(settings.defaultPostsView);
   }, [settings.defaultPostsView]);
 
-  useEffect(() => {
-    if (draftSyncRevision !== prevDraftSync.current) {
-      prevDraftSync.current = draftSyncRevision;
-      void getPostDrafts().then(setDrafts).catch(() => {});
-    }
-  }, [draftSyncRevision]);
+  useTrigger(draftSyncRevision, () => {
+    void getPostDrafts().then(setDrafts).catch(() => {});
+  });
 
-  useEffect(() => {
-    if (saveTrigger > 0 && saveTrigger !== prevSaveTrigger.current) {
-      prevSaveTrigger.current = saveTrigger;
-      void flush()
-        .then(() => onToast?.("success", "当前博客草稿已保存至本机"))
-        .catch(() => {});
-    }
-  }, [saveTrigger]);
+  useTrigger(saveTrigger, () => {
+    void flush()
+      .then(() => onToast?.("success", "当前博客草稿已保存至本机"))
+      .catch(() => {});
+  });
 
-  useEffect(() => {
-    if (publishTrigger > 0 && publishTrigger !== prevPublishTrigger.current) {
-      prevPublishTrigger.current = publishTrigger;
-      if (!busy && ready) void publish();
-    }
-  }, [publishTrigger]);
+  useTrigger(publishTrigger, () => {
+    if (!busy && ready) void publish();
+  });
 
-  useEffect(() => {
-    if (newPostTrigger > 0 && newPostTrigger !== prevNewTrigger.current) {
-      prevNewTrigger.current = newPostTrigger;
-      void switchEditor();
-    }
-  }, [newPostTrigger]);
+  useTrigger(newPostTrigger, () => {
+    void switchEditor();
+  });
 
   useEffect(() => {
     if (prevSidebarOpen.current !== sidebarOpen) {
@@ -617,7 +611,11 @@ export default function PostsWorkspace({
           </span>
           {dirty && <span className="posts-dirty-pill">未发布修改</span>}
           {result?.warning && (
-            <span className="posts-warning-pill" role="status">
+            <span
+              className="posts-warning-pill"
+              role="status"
+              title={result.warning}
+            >
               {result.warning}
             </span>
           )}
@@ -689,15 +687,15 @@ export default function PostsWorkspace({
           {listNavigation && (
             <div className="posts-nav-slot">{listNavigation}</div>
           )}
-          <ListUI.Div2>
-            <ListUI.Div3>
-              <ListUI.Div4>
-                <ListUI.H2>文章列表</ListUI.H2>
-                <ListUI.Span>
+          <ListUI.SidebarHeader>
+            <ListUI.SidebarTitleRow>
+              <ListUI.SidebarTitleGroup>
+                <ListUI.SidebarTitle>文章列表</ListUI.SidebarTitle>
+                <ListUI.CountBadge>
                   {filterDraftOnly ? visibleDrafts.length : (result?.total ?? 0)}
-                </ListUI.Span>
-              </ListUI.Div4>
-              <ListUI.Button2
+                </ListUI.CountBadge>
+              </ListUI.SidebarTitleGroup>
+              <ListUI.CreateButton
                 type="button"
                 aria-label="新建文章"
                 disabled={busy || !ready}
@@ -705,11 +703,11 @@ export default function PostsWorkspace({
               >
                 <Plus size={14} />
                 新建文章
-              </ListUI.Button2>
-            </ListUI.Div3>
-            <ListUI.Div6>
-              <ListUI.Search />
-              <ListUI.Input
+              </ListUI.CreateButton>
+            </ListUI.SidebarTitleRow>
+            <ListUI.SearchBox>
+              <ListUI.SearchIcon />
+              <ListUI.SearchInput
                 aria-label="搜索博客"
                 placeholder="搜索标题、摘要、标签…"
                 value={query}
@@ -718,33 +716,35 @@ export default function PostsWorkspace({
                   setPage(1);
                 }}
               />
-            </ListUI.Div6>
-            <ListUI.Div7>
-              <ListUI.Div8>
-                <ListUI.Button3
+            </ListUI.SearchBox>
+            <ListUI.FilterRow>
+              <ListUI.FilterChipsScroll>
+                <ListUI.FilterChip
                   type="button"
                   aria-pressed={filterDraftOnly}
-                  $variant={filterDraftOnly ? "v0" : "v1"}
+                  $active={filterDraftOnly}
+                  $tone="amber"
                   onClick={() => {
                     setFilterDraftOnly((v) => !v);
                     setPage(1);
                   }}
                 >
                   草稿 ({drafts.length})
-                </ListUI.Button3>
-                <ListUI.Button4
+                </ListUI.FilterChip>
+                <ListUI.FilterChip
                   type="button"
                   aria-pressed={coverOnly}
-                  $variant={coverOnly ? "v0" : "v1"}
+                  $active={coverOnly}
+                  $tone="indigo"
                   onClick={() => {
                     setCoverOnly((v) => !v);
                     setPage(1);
                   }}
                 >
                   带封面
-                </ListUI.Button4>
+                </ListUI.FilterChip>
                 {selectedTag && (
-                  <ListUI.Button5
+                  <ListUI.ActiveTagChip
                     type="button"
                     onClick={() => {
                       setSelectedTag(null);
@@ -752,10 +752,10 @@ export default function PostsWorkspace({
                     }}
                   >
                     #{selectedTag} ×
-                  </ListUI.Button5>
+                  </ListUI.ActiveTagChip>
                 )}
-              </ListUI.Div8>
-              <ListUI.Button6
+              </ListUI.FilterChipsScroll>
+              <ListUI.SortButton
                 type="button"
                 title="切换时间排序"
                 onClick={() => {
@@ -765,12 +765,12 @@ export default function PostsWorkspace({
               >
                 <ListUI.ArrowUpDown />
                 {sortOrder === "desc" ? "最新优先" : "最早优先"}
-              </ListUI.Button6>
-            </ListUI.Div7>
+              </ListUI.SortButton>
+            </ListUI.FilterRow>
             {tags.length > 0 && !selectedTag && (
-              <ListUI.Div8>
+              <ListUI.FilterChipsScroll>
                 {tags.slice(0, 6).map((tag) => (
-                  <ListUI.Button7
+                  <ListUI.TagChip
                     key={tag}
                     type="button"
                     onClick={() => {
@@ -779,9 +779,9 @@ export default function PostsWorkspace({
                     }}
                   >
                     #{tag}
-                  </ListUI.Button7>
+                  </ListUI.TagChip>
                 ))}
-              </ListUI.Div8>
+              </ListUI.FilterChipsScroll>
             )}
             <div className="posts-list-status">
               <span role="status">{loading ? "加载中…" : "文章库"}</span>
@@ -793,7 +793,7 @@ export default function PostsWorkspace({
                 <RefreshCw size={13} />
               </button>
             </div>
-          </ListUI.Div2>
+          </ListUI.SidebarHeader>
 
           <div className="posts-list-scroll">
             {visibleDrafts.length > 0 && (
@@ -1120,7 +1120,7 @@ export default function PostsWorkspace({
                         date: replacePostDateDay(post.date, e.target.value),
                       })
                     }
-                    style={{ width: "110px" }}
+                    style={{ minWidth: "118px", width: "auto" }}
                   />
                 </label>
 

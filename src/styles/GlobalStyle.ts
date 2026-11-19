@@ -1,11 +1,11 @@
 import { createGlobalStyle } from 'styled-components';
 
 export const GlobalStyle = createGlobalStyle`
-/* Keep every scroll surface usable without visible scrollbar tracks. */
-*, *::before, *::after { scrollbar-width: none; -ms-overflow-style: none; }
-*::-webkit-scrollbar { display: none; width: 0; height: 0; }
+  /* Keep every scroll surface usable without visible scrollbar tracks. */
+  *, *::before, *::after { scrollbar-width: none; -ms-overflow-style: none; }
+  *::-webkit-scrollbar { display: none; width: 0; height: 0; }
 
-:root, :host {
+  :root, :host {
     --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
       "Noto Sans", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
       "Segoe UI Symbol", "Noto Color Emoji";
@@ -103,7 +103,6 @@ export const GlobalStyle = createGlobalStyle`
     --radius-xl: 0.75rem;
     --radius-2xl: 1rem;
     --radius-3xl: 1.5rem;
-    --animate-spin: spin 1s linear infinite;
     --blur-xs: 4px;
     --blur-sm: 8px;
     --blur-md: 12px;
@@ -114,537 +113,93 @@ export const GlobalStyle = createGlobalStyle`
     --default-transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
     --default-font-family: var(--font-sans);
     --default-mono-font-family: var(--font-mono);
+    --safe-area-top: env(safe-area-inset-top, 0px);
+    --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-area-left: env(safe-area-inset-left, 0px);
+    --safe-area-right: env(safe-area-inset-right, 0px);
   }
-*, ::after, ::before, ::backdrop, ::file-selector-button {
+
+  *, ::after, ::before, ::backdrop, ::file-selector-button {
     box-sizing: border-box;
     margin: 0;
     padding: 0;
     border: 0 solid;
   }
-html, :host {
+
+  html, :host {
     line-height: 1.5;
     -webkit-text-size-adjust: 100%;
     tab-size: 4;
-    font-family: var(--default-font-family, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji");
-    font-feature-settings: var(--default-font-feature-settings, normal);
-    font-variation-settings: var(--default-font-variation-settings, normal);
+    font-family: var(--default-font-family);
     -webkit-tap-highlight-color: transparent;
   }
-hr {
+
+  hr {
     height: 0;
     color: inherit;
     border-top-width: 1px;
   }
-abbr:where([title]) {
-    -webkit-text-decoration: underline dotted;
-    text-decoration: underline dotted;
-  }
-h1, h2, h3, h4, h5, h6 {
-    font-size: inherit;
-    font-weight: inherit;
-  }
-a {
-    color: inherit;
-    -webkit-text-decoration: inherit;
-    text-decoration: inherit;
-  }
-b, strong {
-    font-weight: bolder;
-  }
-code, kbd, samp, pre {
-    font-family: var(--default-mono-font-family, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace);
-    font-feature-settings: var(--default-mono-font-feature-settings, normal);
-    font-variation-settings: var(--default-mono-font-variation-settings, normal);
-    font-size: 1em;
-  }
-small {
-    font-size: 80%;
-  }
-sub, sup {
-    font-size: 75%;
-    line-height: 0;
-    position: relative;
-    vertical-align: baseline;
-  }
-sub {
-    bottom: -0.25em;
-  }
-sup {
-    top: -0.5em;
-  }
-table {
-    text-indent: 0;
-    border-color: inherit;
-    border-collapse: collapse;
-  }
-:-moz-focusring:where(:not(iframe)) {
-    outline: auto;
-  }
-progress {
-    vertical-align: baseline;
-  }
-summary {
-    display: list-item;
-  }
-ol, ul, menu {
-    list-style: none;
-  }
-img, svg, video, canvas, audio, iframe, embed, object {
-    display: block;
-    vertical-align: middle;
-  }
-img, video {
-    max-width: 100%;
-    height: auto;
-  }
-button, input, select, optgroup, textarea, ::file-selector-button {
+
+  abbr:where([title]) { text-decoration: underline dotted; }
+  h1, h2, h3, h4, h5, h6 { font-size: inherit; font-weight: inherit; }
+  a { color: inherit; text-decoration: inherit; }
+  b, strong { font-weight: bolder; }
+  code, kbd, samp, pre { font-family: var(--default-mono-font-family); font-size: 1em; }
+  small { font-size: 80%; }
+  sub, sup { font-size: 75%; line-height: 0; position: relative; vertical-align: baseline; }
+  sub { bottom: -0.25em; }
+  sup { top: -0.5em; }
+  table { text-indent: 0; border-color: inherit; border-collapse: collapse; }
+  :-moz-focusring:where(:not(iframe)) { outline: auto; }
+  progress { vertical-align: baseline; }
+  summary { display: list-item; }
+  ol, ul, menu { list-style: none; }
+  img, svg, video, canvas, audio, iframe, embed, object { display: block; vertical-align: middle; }
+  img, video { max-width: 100%; height: auto; }
+
+  button, input, select, optgroup, textarea, ::file-selector-button {
     font: inherit;
-    font-feature-settings: inherit;
-    font-variation-settings: inherit;
     letter-spacing: inherit;
     color: inherit;
     border-radius: 0;
     background-color: transparent;
     opacity: 1;
   }
-:where(select:is([multiple], [size])) optgroup {
-    font-weight: bolder;
-  }
-:where(select:is([multiple], [size])) optgroup option {
-    padding-inline-start: 20px;
-  }
-::file-selector-button {
-    margin-inline-end: 4px;
-  }
-::placeholder {
-    opacity: 1;
-  }
-@supports (not (-webkit-appearance: -apple-pay-button))  or (contain-intrinsic-size: 1px) {
-    ::placeholder {
-      color: currentcolor;
-      @supports (color: color-mix(in lab, red, red)) {
-        color: color-mix(in oklab, currentcolor 50%, transparent);
-      }
-    }
-  }
-textarea {
-    resize: vertical;
-  }
-::-webkit-search-decoration {
-    -webkit-appearance: none;
-  }
-::-webkit-date-and-time-value {
-    min-height: 1lh;
-    text-align: inherit;
-  }
-::-webkit-datetime-edit {
-    display: inline-flex;
-  }
-::-webkit-datetime-edit-fields-wrapper {
-    padding: 0;
-  }
-::-webkit-datetime-edit, ::-webkit-datetime-edit-year-field, ::-webkit-datetime-edit-month-field, ::-webkit-datetime-edit-day-field, ::-webkit-datetime-edit-hour-field, ::-webkit-datetime-edit-minute-field, ::-webkit-datetime-edit-second-field, ::-webkit-datetime-edit-millisecond-field, ::-webkit-datetime-edit-meridiem-field {
-    padding-block: 0;
-  }
-::-webkit-calendar-picker-indicator {
-    line-height: 1;
-  }
-:-moz-ui-invalid {
-    box-shadow: none;
-  }
-button, input:where([type="button"], [type="reset"], [type="submit"]), ::file-selector-button {
+  ::placeholder { color: color-mix(in oklab, currentcolor 50%, transparent); opacity: 1; }
+  textarea { resize: vertical; }
+  button, input:where([type="button"], [type="reset"], [type="submit"]), ::file-selector-button {
     appearance: button;
   }
-::-webkit-inner-spin-button, ::-webkit-outer-spin-button {
-    height: auto;
-  }
-[hidden]:where(:not([hidden="until-found"])) {
-    display: none !important;
-  }
-:root {
-    --safe-area-top: env(safe-area-inset-top, 0px);
-    --safe-area-bottom: env(safe-area-inset-bottom, 0px);
-    --safe-area-left: env(safe-area-inset-left, 0px);
-    --safe-area-right: env(safe-area-inset-right, 0px);
-  }
-body {
+  [hidden]:where(:not([hidden="until-found"])) { display: none !important; }
+
+  body {
     min-height: 100vh;
     background-color: var(--color-stone-50);
     color: var(--color-stone-900);
+    font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    & *::selection {
-      background-color: color-mix(in srgb, oklch(58.5% 0.233 277.117) 20%, transparent);
-      @supports (color: color-mix(in lab, red, red)) {
-        background-color: color-mix(in oklab, var(--color-indigo-500) 20%, transparent);
-      }
-    }
-    &::selection {
-      background-color: color-mix(in srgb, oklch(58.5% 0.233 277.117) 20%, transparent);
-      @supports (color: color-mix(in lab, red, red)) {
-        background-color: color-mix(in oklab, var(--color-indigo-500) 20%, transparent);
-      }
-    }
-    & *::selection {
+    -webkit-tap-highlight-color: transparent;
+
+    &::selection, & *::selection {
+      background-color: color-mix(in oklab, var(--color-indigo-500) 20%, transparent);
       color: var(--color-indigo-600);
     }
-    &::selection {
-      color: var(--color-indigo-600);
-    }
+
     &:where(.dark, .dark *) {
       background-color: var(--color-stone-950);
-    }
-    &:where(.dark, .dark *) {
       color: var(--color-stone-100);
-    }
-    &:where(.dark, .dark *) {
-      & *::selection {
-        background-color: color-mix(in srgb, oklch(67.3% 0.182 276.935) 20%, transparent);
-        @supports (color: color-mix(in lab, red, red)) {
-          background-color: color-mix(in oklab, var(--color-indigo-400) 20%, transparent);
-        }
-      }
-      &::selection {
-        background-color: color-mix(in srgb, oklch(67.3% 0.182 276.935) 20%, transparent);
-        @supports (color: color-mix(in lab, red, red)) {
-          background-color: color-mix(in oklab, var(--color-indigo-400) 20%, transparent);
-        }
-      }
-    }
-    &:where(.dark, .dark *) {
-      & *::selection {
+
+      &::selection, & *::selection {
+        background-color: color-mix(in oklab, var(--color-indigo-400) 20%, transparent);
         color: var(--color-indigo-300);
       }
-      &::selection {
-        color: var(--color-indigo-300);
-      }
-    }
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    -webkit-tap-highlight-color: transparent;
-  }
-@property --cms-translate-x {
-  syntax: "*";
-  inherits: false;
-  initial-value: 0;
-}
-@property --cms-translate-y {
-  syntax: "*";
-  inherits: false;
-  initial-value: 0;
-}
-@property --cms-translate-z {
-  syntax: "*";
-  inherits: false;
-  initial-value: 0;
-}
-@property --cms-scale-x {
-  syntax: "*";
-  inherits: false;
-  initial-value: 1;
-}
-@property --cms-scale-y {
-  syntax: "*";
-  inherits: false;
-  initial-value: 1;
-}
-@property --cms-scale-z {
-  syntax: "*";
-  inherits: false;
-  initial-value: 1;
-}
-@property --cms-space-y-reverse {
-  syntax: "*";
-  inherits: false;
-  initial-value: 0;
-}
-@property --cms-divide-y-reverse {
-  syntax: "*";
-  inherits: false;
-  initial-value: 0;
-}
-@property --cms-border-style {
-  syntax: "*";
-  inherits: false;
-  initial-value: solid;
-}
-@property --cms-gradient-position {
-  syntax: "*";
-  inherits: false;
-}
-@property --cms-gradient-from {
-  syntax: "<color>";
-  inherits: false;
-  initial-value: #0000;
-}
-@property --cms-gradient-via {
-  syntax: "<color>";
-  inherits: false;
-  initial-value: #0000;
-}
-@property --cms-gradient-to {
-  syntax: "<color>";
-  inherits: false;
-  initial-value: #0000;
-}
-@property --cms-gradient-stops {
-  syntax: "*";
-  inherits: false;
-}
-@property --cms-gradient-via-stops {
-  syntax: "*";
-  inherits: false;
-}
-@property --cms-gradient-from-position {
-  syntax: "<length-percentage>";
-  inherits: false;
-  initial-value: 0%;
-}
-@property --cms-gradient-via-position {
-  syntax: "<length-percentage>";
-  inherits: false;
-  initial-value: 50%;
-}
-@property --cms-gradient-to-position {
-  syntax: "<length-percentage>";
-  inherits: false;
-  initial-value: 100%;
-}
-@property --cms-leading {
-  syntax: "*";
-  inherits: false;
-}
-@property --cms-font-weight {
-  syntax: "*";
-  inherits: false;
-}
-@property --cms-tracking {
-  syntax: "*";
-  inherits: false;
-}
-@property --cms-shadow {
-  syntax: "*";
-  inherits: false;
-  initial-value: 0 0 #0000;
-}
-@property --cms-shadow-color {
-  syntax: "*";
-  inherits: false;
-}
-@property --cms-shadow-alpha {
-  syntax: "<percentage>";
-  inherits: false;
-  initial-value: 100%;
-}
-@property --cms-inset-shadow {
-  syntax: "*";
-  inherits: false;
-  initial-value: 0 0 #0000;
-}
-@property --cms-inset-shadow-color {
-  syntax: "*";
-  inherits: false;
-}
-@property --cms-inset-shadow-alpha {
-  syntax: "<percentage>";
-  inherits: false;
-  initial-value: 100%;
-}
-@property --cms-ring-color {
-  syntax: "*";
-  inherits: false;
-}
-@property --cms-ring-shadow {
-  syntax: "*";
-  inherits: false;
-  initial-value: 0 0 #0000;
-}
-@property --cms-inset-ring-color {
-  syntax: "*";
-  inherits: false;
-}
-@property --cms-inset-ring-shadow {
-  syntax: "*";
-  inherits: false;
-  initial-value: 0 0 #0000;
-}
-@property --cms-ring-inset {
-  syntax: "*";
-  inherits: false;
-}
-@property --cms-ring-offset-width {
-  syntax: "<length>";
-  inherits: false;
-  initial-value: 0px;
-}
-@property --cms-ring-offset-color {
-  syntax: "*";
-  inherits: false;
-  initial-value: #fff;
-}
-@property --cms-ring-offset-shadow {
-  syntax: "*";
-  inherits: false;
-  initial-value: 0 0 #0000;
-}
-@property --cms-blur {
-  syntax: "*";
-  inherits: false;
-}
-@property --cms-brightness {
-  syntax: "*";
-  inherits: false;
-}
-@property --cms-contrast {
-  syntax: "*";
-  inherits: false;
-}
-@property --cms-grayscale {
-  syntax: "*";
-  inherits: false;
-}
-@property --cms-hue-rotate {
-  syntax: "*";
-  inherits: false;
-}
-@property --cms-invert {
-  syntax: "*";
-  inherits: false;
-}
-@property --cms-opacity {
-  syntax: "*";
-  inherits: false;
-}
-@property --cms-saturate {
-  syntax: "*";
-  inherits: false;
-}
-@property --cms-sepia {
-  syntax: "*";
-  inherits: false;
-}
-@property --cms-drop-shadow {
-  syntax: "*";
-  inherits: false;
-}
-@property --cms-drop-shadow-color {
-  syntax: "*";
-  inherits: false;
-}
-@property --cms-drop-shadow-alpha {
-  syntax: "<percentage>";
-  inherits: false;
-  initial-value: 100%;
-}
-@property --cms-drop-shadow-size {
-  syntax: "*";
-  inherits: false;
-}
-@property --cms-backdrop-blur {
-  syntax: "*";
-  inherits: false;
-}
-@property --cms-backdrop-brightness {
-  syntax: "*";
-  inherits: false;
-}
-@property --cms-backdrop-contrast {
-  syntax: "*";
-  inherits: false;
-}
-@property --cms-backdrop-grayscale {
-  syntax: "*";
-  inherits: false;
-}
-@property --cms-backdrop-hue-rotate {
-  syntax: "*";
-  inherits: false;
-}
-@property --cms-backdrop-invert {
-  syntax: "*";
-  inherits: false;
-}
-@property --cms-backdrop-opacity {
-  syntax: "*";
-  inherits: false;
-}
-@property --cms-backdrop-saturate {
-  syntax: "*";
-  inherits: false;
-}
-@property --cms-backdrop-sepia {
-  syntax: "*";
-  inherits: false;
-}
-@property --cms-duration {
-  syntax: "*";
-  inherits: false;
-}
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-@supports ((-webkit-hyphens: none) and (not (margin-trim: inline))) or ((-moz-orient: inline) and (not (color:rgb(from red r g b)))) {
-    *, ::before, ::after, ::backdrop {
-      --cms-translate-x: 0;
-      --cms-translate-y: 0;
-      --cms-translate-z: 0;
-      --cms-scale-x: 1;
-      --cms-scale-y: 1;
-      --cms-scale-z: 1;
-      --cms-space-y-reverse: 0;
-      --cms-divide-y-reverse: 0;
-      --cms-border-style: solid;
-      --cms-gradient-position: initial;
-      --cms-gradient-from: #0000;
-      --cms-gradient-via: #0000;
-      --cms-gradient-to: #0000;
-      --cms-gradient-stops: initial;
-      --cms-gradient-via-stops: initial;
-      --cms-gradient-from-position: 0%;
-      --cms-gradient-via-position: 50%;
-      --cms-gradient-to-position: 100%;
-      --cms-leading: initial;
-      --cms-font-weight: initial;
-      --cms-tracking: initial;
-      --cms-shadow: 0 0 #0000;
-      --cms-shadow-color: initial;
-      --cms-shadow-alpha: 100%;
-      --cms-inset-shadow: 0 0 #0000;
-      --cms-inset-shadow-color: initial;
-      --cms-inset-shadow-alpha: 100%;
-      --cms-ring-color: initial;
-      --cms-ring-shadow: 0 0 #0000;
-      --cms-inset-ring-color: initial;
-      --cms-inset-ring-shadow: 0 0 #0000;
-      --cms-ring-inset: initial;
-      --cms-ring-offset-width: 0px;
-      --cms-ring-offset-color: #fff;
-      --cms-ring-offset-shadow: 0 0 #0000;
-      --cms-blur: initial;
-      --cms-brightness: initial;
-      --cms-contrast: initial;
-      --cms-grayscale: initial;
-      --cms-hue-rotate: initial;
-      --cms-invert: initial;
-      --cms-opacity: initial;
-      --cms-saturate: initial;
-      --cms-sepia: initial;
-      --cms-drop-shadow: initial;
-      --cms-drop-shadow-color: initial;
-      --cms-drop-shadow-alpha: 100%;
-      --cms-drop-shadow-size: initial;
-      --cms-backdrop-blur: initial;
-      --cms-backdrop-brightness: initial;
-      --cms-backdrop-contrast: initial;
-      --cms-backdrop-grayscale: initial;
-      --cms-backdrop-hue-rotate: initial;
-      --cms-backdrop-invert: initial;
-      --cms-backdrop-opacity: initial;
-      --cms-backdrop-saturate: initial;
-      --cms-backdrop-sepia: initial;
-      --cms-duration: initial;
     }
   }
 
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
 `;

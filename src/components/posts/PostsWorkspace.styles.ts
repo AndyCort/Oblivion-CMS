@@ -94,6 +94,7 @@ export const Workspace = styled.div`
     background: var(--color-stone-800);
   }
   .posts-status-pill {
+    min-width: 0;
     font-size: 11px;
     font-family: var(--font-mono);
     color: var(--post-muted);
@@ -102,6 +103,7 @@ export const Workspace = styled.div`
     text-overflow: ellipsis;
   }
   .posts-dirty-pill {
+    flex-shrink: 0;
     font-size: 10.5px;
     font-weight: 600;
     padding: 1px 7px;
@@ -114,6 +116,10 @@ export const Workspace = styled.div`
     color: #fbbf24;
   }
   .posts-warning-pill {
+    flex-shrink: 0;
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
     font-size: 10.5px;
     font-weight: 500;
     padding: 1px 8px;
@@ -167,7 +173,6 @@ export const Workspace = styled.div`
     ${sidebarSurface};
     display: flex;
     flex-direction: column;
-    width: 300px;
     height: 100%;
     overflow: hidden;
   }
@@ -183,28 +188,6 @@ export const Workspace = styled.div`
   }
   .posts-nav-slot {
     padding: 10px 14px 0;
-  }
-  .posts-list-heading {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 8px;
-    padding: 14px;
-    min-height: 62px;
-  }
-  .posts-list-heading h2 {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 14px;
-    font-weight: 600;
-  }
-  .posts-list-heading h2 span {
-    padding: 2px 8px;
-    border-radius: 999px;
-    font: 12px/16px var(--font-mono);
-    color: var(--post-muted);
-    background: var(--color-stone-100);
   }
   .posts-sidebar details summary {
     font-size: 11px;
@@ -281,6 +264,18 @@ export const Workspace = styled.div`
     align-items: center;
     font-size: 11px;
     padding: 12px 14px;
+    border-top: 1px solid var(--post-border);
+  }
+  .posts-pagination button {
+    padding: 4px 10px;
+    border: 1px solid var(--post-border);
+    background: transparent;
+    color: inherit;
+    font-size: 11px;
+  }
+  .posts-pagination button:hover:not(:disabled) {
+    background: color-mix(in oklab, var(--color-indigo-500) 10%, transparent);
+    border-color: var(--color-indigo-400);
   }
   .posts-list-scroll {
     flex: 1;
@@ -522,9 +517,16 @@ export const Workspace = styled.div`
     color: var(--post-muted);
   }
 
+  @media (max-width: 900px) {
+    .posts-canvas-grid:not([data-single='true']):not(.single) .post-source {
+      height: 240px;
+      min-height: 240px;
+      flex: none;
+    }
+  }
   @media (max-width: 767px) {
     & {
-      min-height: calc(100dvh - 108px);
+      min-height: 0;
     }
     .posts-sidebar {
       width: 100%;
@@ -547,7 +549,8 @@ export const Workspace = styled.div`
       display: inline-flex;
     }
     .posts-header-brand,
-    .posts-header-icon {
+    .posts-header-icon,
+    .posts-warning-pill {
       display: none;
     }
     .posts-header-left,
@@ -571,16 +574,20 @@ export const Workspace = styled.div`
     .post-dock-shortcuts {
       display: none;
     }
-    .post-source {
-      min-height: 240px;
-    }
+    .post-source,
     .post-source textarea {
-      min-height: 240px;
+      min-height: 120px;
     }
   }
   @media (max-width: 480px) {
     .posts-mode-pill {
       display: none;
+    }
+  }
+  @media (max-width: 420px) {
+    .posts-dirty-pill {
+      font-size: 10px;
+      padding: 1px 5px;
     }
   }
 `;

@@ -248,7 +248,11 @@ export const SettingInfo = styled.div`
   flex-direction: column;
   gap: 2px;
   min-width: 0;
-  flex: 1;
+  flex: 1 1 200px;
+
+  @media (max-width: 560px) {
+    flex: none;
+  }
 `;
 
 export const SettingLabel = styled.span`
@@ -274,14 +278,21 @@ export const SettingHint = styled.span`
 export const SettingControl = styled.div`
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 8px;
-  flex-shrink: 0;
+  flex: 0 1 auto;
+  max-width: 100%;
   flex-wrap: wrap;
+
+  @media (max-width: 560px) {
+    width: 100%;
+    justify-content: flex-start;
+  }
 `;
 
 export const TextInput = styled.input`
   height: 32px;
-  min-width: 190px;
+  min-width: 180px;
   max-width: 100%;
   padding: 0 10px;
   border-radius: 9px;
@@ -306,8 +317,8 @@ export const TextInput = styled.input`
   }
 
   @media (max-width: 560px) {
-    width: 100%;
-    flex: 1;
+    flex: 1 1 140px;
+    min-width: 0;
   }
 `;
 
@@ -336,6 +347,8 @@ export const SelectInput = styled.select`
 export const SegmentGroup = styled.div`
   display: inline-flex;
   align-items: center;
+  flex-wrap: wrap;
+  max-width: 100%;
   padding: 2px;
   gap: 2px;
   border-radius: 9px;
@@ -655,6 +668,7 @@ export const ShortcutRow = styled.div`
 export const Footer = styled.div`
   flex-shrink: 0;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
