@@ -120,6 +120,7 @@ export function useMomentsWorkspace({
         setAutoSaveStatus(existingDraft ? "已恢复本地草稿" : "尚未修改");
       }
     } catch (err: any) {
+      loadedOnceRef.current = false;
       if (err?.isAuthError) {
         onAuthExpired();
       } else {

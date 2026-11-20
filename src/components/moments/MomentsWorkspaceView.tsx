@@ -141,6 +141,14 @@ export function MomentsWorkspaceView({
       />
 
       {moments.isLoading && <S.Banner role="status">正在加载说说…</S.Banner>}
+      {moments.serverData?.warning && !moments.errorMsg && (
+        <S.Banner role="status">
+          <span>{moments.serverData.warning}</span>
+          <button type="button" onClick={onOpenSettings}>
+            查看状态
+          </button>
+        </S.Banner>
+      )}
       {moments.errorMsg && (
         <S.Banner $error role="alert">
           <span>{moments.errorMsg}</span>
