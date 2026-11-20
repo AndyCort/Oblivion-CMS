@@ -40,7 +40,7 @@ export const DEFAULT_CMS_SETTINGS: CmsSettings = {
   previewTocDefaultOpen: true,
   momentAuthorName: "Andy",
   momentAuthorAvatar: DEFAULT_MOMENT_AVATAR,
-  defaultMomentTags: ["日常"],
+  defaultMomentTags: [],
   defaultMomentLocation: "",
   defaultPostAuthor: "",
   confirmBeforePublish: false,
