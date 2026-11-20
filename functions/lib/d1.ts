@@ -43,87 +43,6 @@ export class MomentHttpError extends Error {
   }
 }
 
-class D1HttpClient implements D1Database {
-  private accountId: string;
-  private databaseId: string;
-  private apiToken: string;
-
-  constructor(accountId: string, databaseId: string, apiToken: string) {
-    this.accountId = accountId;
-    this.databaseId = databaseId;
-    this.apiToken = apiToken;
-  }
-
-  private async querySql<T = unknown>(
-    sql: string,
-    params: unknown[] = [],
-  ): Promise<D1Result<T>> {
-    const url = `https://api.cloudflare.com/client/v4/accounts/${this.accountId}/d1/database/${this.databaseId}/query`;
-    const res = await fetch(url, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${this.apiToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ sql, params }),
-    });
-    if (!res.ok) {
-      const errText = await res.text();
-      let msg = errText;
-      try {
-        msg = JSON.parse(errText).errors?.[0]?.message || errText;
-      } catch {
-        /* raw text */
-      }
-      throw new Error(`Cloudflare D1 API 错误 (${res.status}): ${msg}`);
-    }
-    const data: any = await res.json();
-    if (!data.success) {
-      throw new Error(`D1 API: ${data.errors?.[0]?.message || "D1 执行失败"}`);
-    }
-    const first = data.result?.[0] || {};
-    return {
-      results: (first.results as T[]) || [],
-      success: true,
-      meta: first.meta,
-    };
-  }
-
-  prepare(query: string): D1PreparedStatement {
-    let bound: unknown[] = [];
-    const stmt: D1PreparedStatement = {
-      bind: (...values: unknown[]) => {
-        bound = values;
-        return stmt;
-      },
-      first: async <T = unknown>(colName?: string): Promise<T | null> => {
-        const res = await this.querySql<any>(query, bound);
-        const row = res.results?.[0];
-        if (!row) return null;
-        return (colName ? (row[colName] ?? null) : row) as T | null;
-      },
-      run: <T = unknown>() => this.querySql<T>(query, bound),
-      all: <T = unknown>() => this.querySql<T>(query, bound),
-    };
-    return stmt;
-  }
-
-  async batch<T = unknown>(statements: D1PreparedStatement[]): Promise<D1Result<T>[]> {
-    const results: D1Result<T>[] = [];
-    for (const stmt of statements) results.push(await stmt.run<T>());
-    return results;
-  }
-
-  async exec(query: string): Promise<D1ExecResult> {
-    let count = 0;
-    for (const sql of query.split(";").map((s) => s.trim()).filter(Boolean)) {
-      const res = await this.querySql(sql);
-      count += Number(res.meta?.changes || 0);
-    }
-    return { count, duration: 0 };
-  }
-}
-
 /** Rejects Service Bindings (.fetch), R2 buckets (.head), and non-D1 objects. */
 export function isD1DatabaseInstance(key: string, val: unknown): boolean {
   if (!val || typeof val !== "object") return false;
@@ -147,125 +66,55 @@ export function getMomentsDb(env: Record<string, any>): {
   db: D1Database | null;
   warning?: string;
 } {
-  let warning: string | undefined;
-  const candidates = ["DB", "db", "d1", "D1", "database", "DATABASE", "DB_PROD", "d1_db"];
-
-  for (const name of candidates) {
-    const val = env[name];
-    if (val && typeof val === "object" && typeof val.fetch === "function") {
-      warning = `检测到 '${name}' 绑定的是 Service binding (Worker RPC)，而非 D1 数据库绑定！请在 Cloudflare Pages 设置中将 D1 数据库绑定为 'DB'。`;
-      break;
-    }
-    if (isD1DatabaseInstance(name, val)) {
-      return { db: val as D1Database };
-    }
+  if (env.DB === undefined || env.DB === null) {
+    return { db: null };
   }
-
-  for (const [key, val] of Object.entries(env)) {
-    if (key === "BLOG_DB") continue;
-    if (isD1DatabaseInstance(key, val)) {
-      return { db: val as D1Database };
-    }
+  if (typeof env.DB === "object" && typeof env.DB.fetch === "function") {
+    return {
+      db: null,
+      warning:
+        "检测到 'DB' 绑定的是 Service binding (Worker RPC)，而非 D1 数据库绑定！请在 Cloudflare Pages 设置中将 D1 数据库绑定为 'DB'。",
+    };
   }
-
-  const accountId = env.CF_ACCOUNT_ID || env.CLOUDFLARE_ACCOUNT_ID;
-  const databaseId = env.CF_D1_DATABASE_ID || env.D1_DATABASE_ID;
-  const apiToken = env.CF_API_TOKEN || env.CLOUDFLARE_API_TOKEN;
-  if (accountId && databaseId && apiToken) {
-    return { db: new D1HttpClient(accountId, databaseId, apiToken) };
+  if (!isD1DatabaseInstance("DB", env.DB)) {
+    return {
+      db: null,
+      warning: "环境变量 'DB' 不是有效的 Cloudflare D1 数据库绑定。",
+    };
   }
-
-  return { db: null, warning };
+  return { db: env.DB as D1Database };
 }
 
-type MomentsTable = "oblivion_cms_moments" | "articles";
-const REQUIRED_COLUMNS = [
-  "time",
-  "content",
-  "media",
-  "tags",
-  "location",
-  "music",
-  "created_at",
-  "updated_at",
-];
-const schemaReady = new WeakMap<D1Database, Promise<MomentsTable>>();
+const schemaReady = new WeakMap<D1Database, Promise<void>>();
 
-async function tableColumns(db: D1Database, table: MomentsTable): Promise<string[]> {
-  const info = await db.prepare(`PRAGMA table_info(${table})`).all<{ name: string }>();
-  return (info.results || []).map((col) => col.name);
-}
-
-async function resolveMomentsTable(db: D1Database): Promise<MomentsTable> {
-  const [dedicatedCols, legacyCols] = await Promise.all([
-    tableColumns(db, "oblivion_cms_moments"),
-    tableColumns(db, "articles"),
-  ]);
-  const hasLegacyMomentsTable = REQUIRED_COLUMNS.every((c) => legacyCols.includes(c));
-
-  if (dedicatedCols.length === 0 && hasLegacyMomentsTable) {
-    await db
-      .prepare("CREATE INDEX IF NOT EXISTS idx_articles_time ON articles(time DESC)")
-      .run();
-    return "articles";
-  }
-
-  if (dedicatedCols.length > 0 && hasLegacyMomentsTable) {
-    const [dedicatedRow, legacyRow] = await Promise.all([
-      db
-        .prepare("SELECT COUNT(*) AS count FROM oblivion_cms_moments")
-        .first<{ count: number }>(),
-      db
-        .prepare("SELECT COUNT(*) AS count FROM articles")
-        .first<{ count: number }>(),
-    ]);
-    if (Number(dedicatedRow?.count || 0) === 0 && Number(legacyRow?.count || 0) > 0) {
-      await db
-        .prepare("CREATE INDEX IF NOT EXISTS idx_articles_time ON articles(time DESC)")
-        .run();
-      return "articles";
-    }
-  }
-
-  await db
-    .prepare(
-      `CREATE TABLE IF NOT EXISTS oblivion_cms_moments (
-        time INTEGER PRIMARY KEY,
-        content TEXT NOT NULL DEFAULT '',
-        media TEXT NOT NULL DEFAULT '[]',
-        tags TEXT NOT NULL DEFAULT '[]',
-        location TEXT NOT NULL DEFAULT '',
-        music TEXT,
-        created_at INTEGER NOT NULL,
-        updated_at INTEGER NOT NULL
-      )`,
-    )
-    .run();
-
-  const cols = await tableColumns(db, "oblivion_cms_moments");
-  const missing = REQUIRED_COLUMNS.filter((c) => !cols.includes(c));
-  if (missing.length > 0) {
-    throw new Error(
-      `D1 表 oblivion_cms_moments 结构不兼容，缺少字段: ${missing.join(", ")}`,
-    );
-  }
-
-  await db
-    .prepare(
-      "CREATE INDEX IF NOT EXISTS idx_oblivion_cms_moments_time ON oblivion_cms_moments(time DESC)",
-    )
-    .run();
-  return "oblivion_cms_moments";
-}
-
-export async function ensureMomentsSchema(db: D1Database): Promise<MomentsTable> {
+export async function ensureMomentsSchema(db: D1Database): Promise<void> {
   let pending = schemaReady.get(db);
   if (!pending) {
-    pending = resolveMomentsTable(db);
+    pending = (async () => {
+      await db
+        .prepare(
+          `CREATE TABLE IF NOT EXISTS oblivion_cms_moments (
+            time INTEGER PRIMARY KEY,
+            content TEXT NOT NULL DEFAULT '',
+            media TEXT NOT NULL DEFAULT '[]',
+            tags TEXT NOT NULL DEFAULT '[]',
+            location TEXT NOT NULL DEFAULT '',
+            music TEXT,
+            created_at INTEGER NOT NULL,
+            updated_at INTEGER NOT NULL
+          )`,
+        )
+        .run();
+      await db
+        .prepare(
+          "CREATE INDEX IF NOT EXISTS idx_oblivion_cms_moments_time ON oblivion_cms_moments(time DESC)",
+        )
+        .run();
+    })();
     schemaReady.set(db, pending);
   }
   try {
-    return await pending;
+    await pending;
   } catch (err) {
     if (schemaReady.get(db) === pending) {
       schemaReady.delete(db);
@@ -330,10 +179,10 @@ export async function listMoments(env: Record<string, any>): Promise<{
 }> {
   const { db, warning } = getMomentsDb(env);
   if (db) {
-    const table = await ensureMomentsSchema(db);
+    await ensureMomentsSchema(db);
     const res = await db
       .prepare(
-        `SELECT time, content, media, tags, location, music, updated_at FROM ${table} ORDER BY time DESC`,
+        "SELECT time, content, media, tags, location, music, updated_at FROM oblivion_cms_moments ORDER BY time DESC",
       )
       .all<D1MomentRow>();
     const rows = res.results || [];
@@ -379,7 +228,7 @@ export async function upsertMoment(
   const now = Date.now();
 
   if (db) {
-    const table = await ensureMomentsSchema(db);
+    await ensureMomentsSchema(db);
     const { content, mediaJson, tagsJson, location, musicJson } =
       serializeMoment(moment);
 
@@ -387,7 +236,7 @@ export async function upsertMoment(
       if (originalTime === undefined) {
         await db
           .prepare(
-            `INSERT INTO ${table}
+            `INSERT INTO oblivion_cms_moments
              (time, content, media, tags, location, music, created_at, updated_at)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
           )
@@ -405,7 +254,7 @@ export async function upsertMoment(
       } else {
         const result = await db
           .prepare(
-            `UPDATE ${table}
+            `UPDATE oblivion_cms_moments
              SET time = ?, content = ?, media = ?, tags = ?, location = ?, music = ?, updated_at = ?
              WHERE time = ?`,
           )
@@ -433,7 +282,7 @@ export async function upsertMoment(
     }
 
     const countRow = await db
-      .prepare(`SELECT COUNT(*) AS total FROM ${table}`)
+      .prepare("SELECT COUNT(*) AS total FROM oblivion_cms_moments")
       .first<{ total: number }>();
     return { moment, total: Number(countRow?.total || 0) };
   }
@@ -468,16 +317,16 @@ export async function deleteMoment(
   const { db, warning } = getMomentsDb(env);
 
   if (db) {
-    const table = await ensureMomentsSchema(db);
+    await ensureMomentsSchema(db);
     const result = await db
-      .prepare(`DELETE FROM ${table} WHERE time = ?`)
+      .prepare("DELETE FROM oblivion_cms_moments WHERE time = ?")
       .bind(time)
       .run();
     if (result.meta && Number(result.meta.changes) === 0) {
       throw new MomentHttpError(404, "目标说说不存在，可能已被删除");
     }
     const countRow = await db
-      .prepare(`SELECT COUNT(*) AS total FROM ${table}`)
+      .prepare("SELECT COUNT(*) AS total FROM oblivion_cms_moments")
       .first<{ total: number }>();
     return { total: Number(countRow?.total || 0) };
   }
