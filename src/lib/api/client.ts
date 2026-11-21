@@ -3,84 +3,37 @@ import type {
   MomentMutationResponse,
   MomentSaveRequest,
 } from "../../types/article";
+import type { NeteaseSearchResponse } from "../../types/music";
 
 export interface UserSession {
   email: string;
   sub: string;
   name?: string;
-  isMock?: boolean;
 }
 
 export interface FetchMomentsResponse {
   moments: Article[];
-  isMock: boolean;
   isD1?: boolean;
   warning?: string;
   total: number;
   user?: UserSession;
 }
 
-const DEV_MOCK_TOKEN_KEY = "oblivion_cf_mock_token";
-
-export function isLocalHostname(): boolean {
-  return (
-    window.location.hostname === "localhost" ||
-    window.location.hostname === "127.0.0.1"
-  );
-}
-
-export function getDevMockToken(): string | null {
-  try {
-    return localStorage.getItem(DEV_MOCK_TOKEN_KEY);
-  } catch {
-    return null;
-  }
-}
-
-function setDevMockToken(token: string): void {
-  try {
-    localStorage.setItem(DEV_MOCK_TOKEN_KEY, token);
-  } catch {
-    /* restricted storage */
-  }
-}
-
-function clearDevMockToken(): void {
-  try {
-    localStorage.removeItem(DEV_MOCK_TOKEN_KEY);
-  } catch {
-    /* restricted storage */
-  }
-}
-
-function isViteHtmlFallback(res: Response): boolean {
-  const contentType = res.headers.get("Content-Type") || "";
-  return (
-    import.meta.env.DEV &&
-    isLocalHostname() &&
-    ((res.status === 404 && !contentType.includes("json")) ||
-      (res.ok && contentType.includes("text/html")))
-  );
-}
-
-/** Shared JSON fetch helper; returns null only for explicit Vite local HTML/404 dev fallback. */
+/** Shared JSON fetch helper. */
 export async function requestJson<T>(
   url: string,
-  options: { method?: string; body?: unknown } = {},
+  options: { method?: string; body?: unknown; signal?: AbortSignal } = {},
   fallbackError = "请求失败",
-): Promise<T | null> {
+): Promise<T> {
   const headers: Record<string, string> = { Accept: "application/json" };
-  const mockToken = getDevMockToken();
-  if (mockToken) headers.Authorization = `Bearer ${mockToken}`;
   if (options.body !== undefined) headers["Content-Type"] = "application/json";
 
   const res = await fetch(url, {
     method: options.method || "GET",
     headers,
+    signal: options.signal,
     ...(options.body !== undefined ? { body: JSON.stringify(options.body) } : {}),
   });
-
-  if (isViteHtmlFallback(res)) return null;
 
   const contentType = res.headers.get("Content-Type") || "";
   if (res.ok && !contentType.includes("json")) {
@@ -112,31 +65,16 @@ export async function checkAuthStatus(): Promise<{
       user?: UserSession;
       d1Bound?: boolean;
     }>("/api/auth/me", {}, "身份验证未通过");
-    if (data === null && import.meta.env.DEV) {
-      if (!getDevMockToken()) return { user: null };
-      const { DEV_MOCK_USER } = await import("./localMock");
-      return { user: { ...DEV_MOCK_USER }, d1Bound: false };
-    }
-    if (data?.authenticated && data.user) {
+    if (data.authenticated && data.user) {
       return { user: data.user, d1Bound: data.d1Bound };
     }
     return { user: null, error: "身份验证未通过" };
   } catch (err: any) {
-    if (import.meta.env.DEV && isLocalHostname() && getDevMockToken()) {
-      const { DEV_MOCK_USER } = await import("./localMock");
-      return { user: { ...DEV_MOCK_USER }, d1Bound: false };
-    }
     return { user: null, error: err?.message || "网络请求失败" };
   }
 }
 
 export async function loginWithCloudflareAccess(): Promise<UserSession> {
-  if (import.meta.env.DEV && isLocalHostname()) {
-    setDevMockToken("mock-dev-token");
-    const { DEV_MOCK_USER } = await import("./localMock");
-    return { ...DEV_MOCK_USER, name: "本地模拟认证 (CF Access)" };
-  }
-
   const status = await checkAuthStatus();
   if (status.user) return status.user;
   if (status.error && status.error.includes("服务器错误")) {
@@ -151,11 +89,10 @@ export async function loginWithCloudflareAccess(): Promise<UserSession> {
 }
 
 export async function logoutUser(): Promise<void> {
-  clearDevMockToken();
   try {
     const res = await fetch("/api/auth/logout", { method: "POST" });
     const data = await res.json().catch(() => ({}));
-    if (data.logoutUrl && !data.logoutUrl.includes("localhost")) {
+    if (data.logoutUrl) {
       window.location.href = data.logoutUrl;
     }
   } catch {
@@ -164,13 +101,7 @@ export async function logoutUser(): Promise<void> {
 }
 
 export async function fetchMoments(): Promise<FetchMomentsResponse> {
-  const data = await requestJson<FetchMomentsResponse>("/api/moments");
-  if (data !== null) return data;
-  if (import.meta.env.DEV) {
-    const { mockFetchMoments } = await import("./localMock");
-    return mockFetchMoments();
-  }
-  throw new Error("无法加载说说列表");
+  return requestJson<FetchMomentsResponse>("/api/moments");
 }
 
 export async function saveMoment(
@@ -178,31 +109,33 @@ export async function saveMoment(
   originalTime?: number,
 ): Promise<MomentMutationResponse> {
   const payload: MomentSaveRequest = { moment, originalTime };
-  const data = await requestJson<MomentMutationResponse>(
+  return requestJson<MomentMutationResponse>(
     "/api/moments",
     { method: "POST", body: payload },
     "发布失败",
   );
-  if (data !== null) return data;
-  if (import.meta.env.DEV) {
-    const { mockSaveMoment } = await import("./localMock");
-    return mockSaveMoment(moment, originalTime);
-  }
-  throw new Error("无法保存说说");
 }
 
 export async function deleteMoment(
   time: number,
 ): Promise<MomentMutationResponse> {
-  const data = await requestJson<MomentMutationResponse>(
+  return requestJson<MomentMutationResponse>(
     `/api/moments/${encodeURIComponent(String(time))}`,
     { method: "DELETE" },
     "删除失败",
   );
-  if (data !== null) return data;
-  if (import.meta.env.DEV) {
-    const { mockDeleteMoment } = await import("./localMock");
-    return mockDeleteMoment(time);
-  }
-  throw new Error("无法删除说说");
+}
+
+export async function searchNeteaseMusic(
+  keyword: string,
+  options: { limit?: number; offset?: number; signal?: AbortSignal } = {},
+): Promise<NeteaseSearchResponse> {
+  const params = new URLSearchParams({ q: keyword });
+  if (options.limit !== undefined) params.set("limit", String(options.limit));
+  if (options.offset !== undefined) params.set("offset", String(options.offset));
+  return requestJson<NeteaseSearchResponse>(
+    `/api/music/search?${params.toString()}`,
+    { signal: options.signal },
+    "搜索网易云音乐失败",
+  );
 }

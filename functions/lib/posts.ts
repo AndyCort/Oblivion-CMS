@@ -32,8 +32,6 @@ const json = (data: unknown, status = 200) =>
     },
   });
 
-const mockPosts = new Map<string, BlogPost>();
-
 function normalizeWorkerPost(row: any): BlogPost {
   let title: string;
   let summary: string;
@@ -148,13 +146,7 @@ async function callWorker(
       "BLOG_WORKER_URL 应为 Worker 根地址，不要包含 /api 路径、查询参数或账号密码",
     );
   }
-  if (
-    url.protocol !== "https:" &&
-    !(
-      url.protocol === "http:" &&
-      ["localhost", "127.0.0.1"].includes(url.hostname)
-    )
-  ) {
+  if (url.protocol !== "https:") {
     throw new HttpError(503, "BLOG_WORKER_URL 必须使用 HTTPS");
   }
 
@@ -251,7 +243,7 @@ async function callWorker(
   return data;
 }
 
-async function listPosts(request: Request, env: Env, remote: boolean) {
+async function listPosts(request: Request, env: Env) {
   const url = new URL(request.url);
   const rawPage = Number(url.searchParams.get("page"));
   const page = Number.isFinite(rawPage) ? Math.max(1, Math.floor(rawPage) || 1) : 1;
@@ -261,9 +253,7 @@ async function listPosts(request: Request, env: Env, remote: boolean) {
     : 20;
   const q = (url.searchParams.get("q") || "").toLowerCase();
 
-  const rawList = remote
-    ? (await callWorker(env, "/api/articles")).articles
-    : [...mockPosts.values()];
+  const rawList = (await callWorker(env, "/api/articles")).articles;
   const all = rawList.map(normalizeWorkerPost);
   const rows = filterPosts(all, q, {
     tag: url.searchParams.get("tag") || undefined,
@@ -279,22 +269,16 @@ async function listPosts(request: Request, env: Env, remote: boolean) {
     tags: postTagCounts(all),
     page,
     pageSize,
-    mode: remote ? "worker" : "mock",
-    warning: remote
-      ? undefined
-      : "本地模拟：发布数据仅在内存中，刷新或重启可能丢失。",
   });
 }
 
-async function getPost(env: Env, id: string, remote: boolean) {
-  const row = remote
-    ? await callWorker(env, `/api/articles/${encodeURIComponent(id)}`)
-    : mockPosts.get(id);
+async function getPost(env: Env, id: string) {
+  const row = await callWorker(env, `/api/articles/${encodeURIComponent(id)}`);
   if (!row) throw new HttpError(404, "文章不存在");
   return json(normalizeWorkerPost(row));
 }
 
-async function publishPostAction(request: Request, env: Env, remote: boolean) {
+async function publishPostAction(request: Request, env: Env) {
   let body: any;
   let post: BlogPost;
   try {
@@ -310,14 +294,6 @@ async function publishPostAction(request: Request, env: Env, remote: boolean) {
     (typeof originalId !== "string" || originalId !== post.id)
   ) {
     throw new HttpError(400, "已发布文章的 Slug 不可更改，请新建文章");
-  }
-
-  if (!remote) {
-    const exists = mockPosts.has(post.id);
-    if (originalId && !exists) throw new HttpError(404, "文章不存在");
-    if (!originalId && exists) throw new HttpError(409, "Slug 已存在，请更换链接 ID");
-    mockPosts.set(post.id, post);
-    return json({ success: true, post, mode: "mock" });
   }
 
   let blogDb: D1Database | null = null;
@@ -349,21 +325,16 @@ async function publishPostAction(request: Request, env: Env, remote: boolean) {
     activeIds,
   });
 
-  return json({ success: true, post, mode: "worker" });
+  return json({ success: true, post });
 }
 
-async function deletePostAction(env: Env, id: string, remote: boolean) {
-  if (!remote) {
-    if (!mockPosts.delete(id)) throw new HttpError(404, "文章不存在");
-    return json({ success: true, mode: "mock" });
-  }
-
+async function deletePostAction(env: Env, id: string) {
   const rows: { id: string }[] = (await callWorker(env, "/api/articles")).articles;
   if (!rows.some((p) => p.id === id)) throw new HttpError(404, "文章不存在");
 
   const activeIds = rows.map((p) => p.id).filter((v) => v !== id);
   await callWorker(env, "/api/publish", { articles: [], activeIds });
-  return json({ success: true, mode: "worker" });
+  return json({ success: true });
 }
 
 export async function handlePosts(
@@ -378,11 +349,10 @@ export async function handlePosts(
 
   let stage = "读取博客配置";
   try {
-    const remote = Boolean(env.BLOG_WORKER_URL);
-    if (!remote && !auth.user.isMock) {
+    if (!env.BLOG_WORKER_URL) {
       throw new HttpError(503, "请配置 BLOG_WORKER_URL");
     }
-    if (remote && (action === "publish" || action === "delete") && !env.BLOG_PUBLISH_SECRET) {
+    if ((action === "publish" || action === "delete") && !env.BLOG_PUBLISH_SECRET) {
       throw new HttpError(503, "请配置 BLOG_PUBLISH_SECRET");
     }
 
@@ -396,10 +366,10 @@ export async function handlePosts(
             ? "发布文章"
             : "删除文章";
 
-    if (action === "list") return await listPosts(request, env, remote);
-    if (action === "get") return await getPost(env, id, remote);
-    if (action === "publish") return await publishPostAction(request, env, remote);
-    return await deletePostAction(env, id, remote);
+    if (action === "list") return await listPosts(request, env);
+    if (action === "get") return await getPost(env, id);
+    if (action === "publish") return await publishPostAction(request, env);
+    return await deletePostAction(env, id);
   } catch (err) {
     if (err instanceof HttpError) return json({ error: err.message }, err.status);
     const message = err instanceof Error ? err.message : "";

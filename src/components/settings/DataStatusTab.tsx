@@ -187,7 +187,7 @@ export function DataStatusTab({
         <S.Row>
           <S.RowLabel>
             <strong>
-              数据连接：{isD1 ? "Cloudflare D1 已联机" : "本地离线模拟"}
+              数据连接：{isD1 ? "Cloudflare D1 已联机" : "未连接 Cloudflare D1"}
             </strong>
             <span>当前账号：{userEmail || "已验证会话"}</span>
           </S.RowLabel>

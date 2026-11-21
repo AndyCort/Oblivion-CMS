@@ -1,6 +1,6 @@
 import * as S from "./MomentsWorkspace.styles";
 import { useEffect, useImperativeHandle, useState, type Ref } from "react";
-import { Clock, Hash, MapPin, Music } from "lucide-react";
+import { Clock, Hash, MapPin, Music, Search } from "lucide-react";
 import { useMomentsWorkspace } from "../../hooks/useMomentsWorkspace";
 import {
   resolveEditorFontCss,
@@ -9,6 +9,7 @@ import {
 } from "../../lib/settings/cmsSettings";
 import { parseTagList } from "../../lib/utils";
 import { DeleteConfirmModal } from "../modals/DeleteConfirmModal";
+import { MusicSearchModal } from "../modals/MusicSearchModal";
 import {
   DockButton,
   DockDivider,
@@ -57,6 +58,7 @@ export function MomentsWorkspaceView({
 }: MomentsWorkspaceViewProps) {
   const [view, setView] = useState<EditorViewMode>(settings.defaultView);
   const [tagsInput, setTagsInput] = useState("");
+  const [musicSearchOpen, setMusicSearchOpen] = useState(false);
 
   useEffect(() => {
     setView(settings.defaultView);
@@ -114,7 +116,7 @@ export function MomentsWorkspaceView({
         dirty={moments.isDirty}
         warning={
           moments.serverData && !moments.serverData.isD1
-            ? "离线模拟"
+            ? "未连接 D1"
             : undefined
         }
         onWarningClick={onOpenSettings}
@@ -340,6 +342,14 @@ export function MomentsWorkspaceView({
                 placeholder="音频 URL"
                 style={{ width: "116px" }}
               />
+              <DockButton
+                type="button"
+                onClick={() => setMusicSearchOpen(true)}
+                title="搜索网易云音乐"
+              >
+                <Search size={11} />
+                网易云
+              </DockButton>
             </DockPill>
           </FloatingMetaDock>
 
@@ -364,6 +374,27 @@ export function MomentsWorkspaceView({
         onClose={() => moments.setDeleteTarget(null)}
         onConfirm={() => void moments.handleConfirmDelete()}
         isDeleting={moments.isDeleting}
+      />
+
+      <MusicSearchModal
+        isOpen={musicSearchOpen}
+        currentMusic={moments.currentArticle.music}
+        onClose={() => setMusicSearchOpen(false)}
+        onSelect={(song) => {
+          moments.setMusic({
+            title: song.title,
+            artist: song.artist,
+            url: song.url,
+          });
+          setMusicSearchOpen(false);
+          onToast("success", `已选择音乐：${song.title} - ${song.artist}`);
+        }}
+        onClear={() => {
+          moments.setMusic(undefined);
+          setMusicSearchOpen(false);
+          onToast("info", "已清除当前说说音乐");
+        }}
+        onAuthExpired={onAuthExpired}
       />
     </S.WorkspaceRoot>
   );

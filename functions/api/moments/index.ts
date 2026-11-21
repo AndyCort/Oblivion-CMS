@@ -31,7 +31,6 @@ export const onRequestGet = async (context: {
       {
         moments: data.moments,
         isD1: data.isD1,
-        isMock: !data.isD1,
         total: data.total,
         warning: data.warning,
         user: auth.user,

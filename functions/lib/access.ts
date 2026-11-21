@@ -16,7 +16,6 @@ export interface AccessUser {
   email: string;
   sub: string;
   name?: string;
-  isMock?: boolean;
 }
 
 const jwksCache = new Map<string, ReturnType<typeof createRemoteJWKSet>>();
@@ -52,27 +51,11 @@ function extractToken(request: Request): string | null {
   return null;
 }
 
-/** Strict Cloudflare Access JWT verification; local mock is strictly limited to localhost + DEV_MODE=true. */
+/** Strict Cloudflare Access JWT verification via team JWKS. */
 export async function verifyAccess(
   request: Request,
   env: Record<string, any>,
 ): Promise<{ user?: AccessUser; error?: string; status: number }> {
-  const { hostname } = new URL(request.url);
-  const isLocalHost =
-    hostname === "localhost" || hostname === "127.0.0.1" || hostname === "0.0.0.0";
-
-  if (isLocalHost && env.DEV_MODE === "true") {
-    return {
-      user: {
-        email: "developer@oblivion.local",
-        sub: "dev-user-local",
-        name: "本地开发者",
-        isMock: true,
-      },
-      status: 200,
-    };
-  }
-
   const teamDomain = typeof env.CF_ACCESS_TEAM_DOMAIN === "string" ? env.CF_ACCESS_TEAM_DOMAIN.trim() : "";
   const audience = typeof env.CF_ACCESS_AUD === "string" ? env.CF_ACCESS_AUD.trim() : "";
 
@@ -100,7 +83,6 @@ export async function verifyAccess(
         email: String(payload.email || payload.sub || "access-user"),
         sub: String(payload.sub || "access-user"),
         name: typeof payload.name === "string" ? payload.name : undefined,
-        isMock: false,
       },
     };
   } catch {

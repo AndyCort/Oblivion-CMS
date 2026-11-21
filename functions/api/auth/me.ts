@@ -18,6 +18,6 @@ export const onRequestGet = async (context: {
     authenticated: true,
     user: auth.user,
     d1Bound: Boolean(db),
-    storage: db ? "Cloudflare D1" : "Local Mock Store",
+    storage: db ? "Cloudflare D1" : "Unbound",
   });
 };

@@ -40,10 +40,6 @@ export function LoginPage({
     if (initialError) setErrorMsg(initialError);
   }, [initialError]);
 
-  const isLocalHost =
-    typeof window !== "undefined" &&
-    ["localhost", "127.0.0.1"].includes(window.location.hostname);
-
   const handleLogin = async () => {
     setIsLoading(true);
     setErrorMsg(null);
@@ -117,22 +113,18 @@ export function LoginPage({
             disabled={isLoading}
           >
             <Cloud size={15} />
-            <span>
-              {isLocalHost ? "进入本地模拟模式" : "通过 Cloudflare Access 登录"}
-            </span>
+            <span>通过 Cloudflare Access 登录</span>
             <ArrowRight size={14} />
           </S.PrimaryBtn>
 
-          {!isLocalHost && (
-            <S.SecondaryBtn
-              type="button"
-              onClick={() => void handleRetry()}
-              disabled={isLoading}
-            >
-              <RotateCcw size={13} />
-              <span>重新检测会话</span>
-            </S.SecondaryBtn>
-          )}
+          <S.SecondaryBtn
+            type="button"
+            onClick={() => void handleRetry()}
+            disabled={isLoading}
+          >
+            <RotateCcw size={13} />
+            <span>重新检测会话</span>
+          </S.SecondaryBtn>
         </S.Actions>
       </S.Card>
 

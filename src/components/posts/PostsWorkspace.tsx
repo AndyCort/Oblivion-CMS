@@ -131,7 +131,6 @@ export default function PostsWorkspace({
         modeLabel={posts.editor.originalId ? "博客长文" : "新文章"}
         statusText={`${posts.ready ? posts.status : "恢复草稿中…"} · ${chars} 字`}
         dirty={posts.dirty}
-        warning={posts.result?.warning}
         view={posts.view}
         onChangeView={posts.setView}
         viewDisabled={posts.busy || !posts.ready}

@@ -158,16 +158,15 @@ function isUniqueConstraintError(err: unknown): boolean {
   return /unique|constraint|primary key/i.test(msg);
 }
 
-const mockMoments = new Map<number, Article>();
-let mockUpdatedAt = 0;
-
-function requireMockWriteAllowed(env: Record<string, any>, warning?: string) {
-  if (env.DEV_MODE !== "true") {
+function requireMomentsDb(env: Record<string, any>): D1Database {
+  const { db, warning } = getMomentsDb(env);
+  if (!db) {
     throw new MomentHttpError(
       503,
       warning || "未检测到 Cloudflare D1 数据库绑定 'DB'，无法写入数据。",
     );
   }
+  return db;
 }
 
 export async function listMoments(env: Record<string, any>): Promise<{
@@ -198,17 +197,6 @@ export async function listMoments(env: Record<string, any>): Promise<{
     };
   }
 
-  if (env.DEV_MODE === "true") {
-    const sorted = [...mockMoments.values()].sort((a, b) => b.time - a.time);
-    return {
-      moments: sorted,
-      isD1: false,
-      total: sorted.length,
-      revision: `mock-${sorted.length}-${mockUpdatedAt}`,
-      warning: warning || "当前处于本地模拟模式，说说仅保存在服务端临时内存中。",
-    };
-  }
-
   return {
     moments: [],
     isD1: false,
@@ -224,117 +212,82 @@ export async function upsertMoment(
   moment: Article,
   originalTime?: number,
 ): Promise<{ moment: Article; total: number }> {
-  const { db, warning } = getMomentsDb(env);
+  const db = requireMomentsDb(env);
   const now = Date.now();
+  await ensureMomentsSchema(db);
+  const { content, mediaJson, tagsJson, location, musicJson } =
+    serializeMoment(moment);
 
-  if (db) {
-    await ensureMomentsSchema(db);
-    const { content, mediaJson, tagsJson, location, musicJson } =
-      serializeMoment(moment);
-
-    try {
-      if (originalTime === undefined) {
-        await db
-          .prepare(
-            `INSERT INTO oblivion_cms_moments
-             (time, content, media, tags, location, music, created_at, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-          )
-          .bind(
-            moment.time,
-            content,
-            mediaJson,
-            tagsJson,
-            location,
-            musicJson,
-            moment.time,
-            now,
-          )
-          .run();
-      } else {
-        const result = await db
-          .prepare(
-            `UPDATE oblivion_cms_moments
-             SET time = ?, content = ?, media = ?, tags = ?, location = ?, music = ?, updated_at = ?
-             WHERE time = ?`,
-          )
-          .bind(
-            moment.time,
-            content,
-            mediaJson,
-            tagsJson,
-            location,
-            musicJson,
-            now,
-            originalTime,
-          )
-          .run();
-        if (result.meta && Number(result.meta.changes) === 0) {
-          throw new MomentHttpError(404, "目标说说不存在，可能已被删除");
-        }
+  try {
+    if (originalTime === undefined) {
+      await db
+        .prepare(
+          `INSERT INTO oblivion_cms_moments
+           (time, content, media, tags, location, music, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        )
+        .bind(
+          moment.time,
+          content,
+          mediaJson,
+          tagsJson,
+          location,
+          musicJson,
+          moment.time,
+          now,
+        )
+        .run();
+    } else {
+      const result = await db
+        .prepare(
+          `UPDATE oblivion_cms_moments
+           SET time = ?, content = ?, media = ?, tags = ?, location = ?, music = ?, updated_at = ?
+           WHERE time = ?`,
+        )
+        .bind(
+          moment.time,
+          content,
+          mediaJson,
+          tagsJson,
+          location,
+          musicJson,
+          now,
+          originalTime,
+        )
+        .run();
+      if (result.meta && Number(result.meta.changes) === 0) {
+        throw new MomentHttpError(404, "目标说说不存在，可能已被删除");
       }
-    } catch (err) {
-      if (err instanceof MomentHttpError) throw err;
-      if (isUniqueConstraintError(err)) {
-        throw new MomentHttpError(409, "相同时间的说说已存在");
-      }
-      throw err;
     }
-
-    const countRow = await db
-      .prepare("SELECT COUNT(*) AS total FROM oblivion_cms_moments")
-      .first<{ total: number }>();
-    return { moment, total: Number(countRow?.total || 0) };
-  }
-
-  requireMockWriteAllowed(env, warning);
-
-  if (originalTime === undefined) {
-    if (mockMoments.has(moment.time)) {
+  } catch (err) {
+    if (err instanceof MomentHttpError) throw err;
+    if (isUniqueConstraintError(err)) {
       throw new MomentHttpError(409, "相同时间的说说已存在");
     }
-    mockMoments.set(moment.time, structuredClone(moment));
-  } else {
-    if (!mockMoments.has(originalTime)) {
-      throw new MomentHttpError(404, "目标说说不存在，可能已被删除");
-    }
-    if (moment.time !== originalTime && mockMoments.has(moment.time)) {
-      throw new MomentHttpError(409, "相同时间的说说已存在");
-    }
-    if (moment.time !== originalTime) {
-      mockMoments.delete(originalTime);
-    }
-    mockMoments.set(moment.time, structuredClone(moment));
+    throw err;
   }
-  mockUpdatedAt = now;
-  return { moment, total: mockMoments.size };
+
+  const countRow = await db
+    .prepare("SELECT COUNT(*) AS total FROM oblivion_cms_moments")
+    .first<{ total: number }>();
+  return { moment, total: Number(countRow?.total || 0) };
 }
 
 export async function deleteMoment(
   env: Record<string, any>,
   time: number,
 ): Promise<{ total: number }> {
-  const { db, warning } = getMomentsDb(env);
-
-  if (db) {
-    await ensureMomentsSchema(db);
-    const result = await db
-      .prepare("DELETE FROM oblivion_cms_moments WHERE time = ?")
-      .bind(time)
-      .run();
-    if (result.meta && Number(result.meta.changes) === 0) {
-      throw new MomentHttpError(404, "目标说说不存在，可能已被删除");
-    }
-    const countRow = await db
-      .prepare("SELECT COUNT(*) AS total FROM oblivion_cms_moments")
-      .first<{ total: number }>();
-    return { total: Number(countRow?.total || 0) };
-  }
-
-  requireMockWriteAllowed(env, warning);
-  if (!mockMoments.delete(time)) {
+  const db = requireMomentsDb(env);
+  await ensureMomentsSchema(db);
+  const result = await db
+    .prepare("DELETE FROM oblivion_cms_moments WHERE time = ?")
+    .bind(time)
+    .run();
+  if (result.meta && Number(result.meta.changes) === 0) {
     throw new MomentHttpError(404, "目标说说不存在，可能已被删除");
   }
-  mockUpdatedAt = Date.now();
-  return { total: mockMoments.size };
+  const countRow = await db
+    .prepare("SELECT COUNT(*) AS total FROM oblivion_cms_moments")
+    .first<{ total: number }>();
+  return { total: Number(countRow?.total || 0) };
 }

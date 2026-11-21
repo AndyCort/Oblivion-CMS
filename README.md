@@ -41,6 +41,7 @@ Oblivion-CMS/
 │   ├── api/
 │   │   ├── auth/me.ts & logout.ts      # 鉴权状态检查与退出登录
 │   │   ├── moments/index.ts & [time].ts # GET/POST /api/moments, DELETE /api/moments/:time
+│   │   ├── music/search.ts             # GET /api/music/search 网易云音乐搜索代理
 │   │   ├── posts/index.ts, [id].ts, publish.ts # 博客长文列表/详情/发布/删除
 │   │   └── public/moments.ts           # 公开只读 /api/public/moments (支持 ?format=wrapped)
 │   └── lib/
@@ -58,7 +59,7 @@ Oblivion-CMS/
 │   │   └── workspace/                  # 共享工作台原语 (顶栏/Dock/弹窗/侧栏样式)
 │   ├── hooks/                          # useDraftQueue / useMomentsWorkspace / usePostsWorkspace
 │   ├── lib/
-│   │   ├── api/                        # client.ts / posts.ts 及 dev-only localMock.ts
+│   │   ├── api/                        # client.ts / posts.ts 后端接口客户端
 │   │   ├── settings/cmsSettings.ts     # 偏好设置与语义主题应用
 │   │   ├── storage/draftStore.ts       # IndexedDB 草稿存储 (moment: / post:)
 │   │   ├── postsList.ts                # 博客筛选与标签统计
@@ -72,11 +73,12 @@ Oblivion-CMS/
 
 ---
 
-## 本地开发与校验
+## 校验与构建
+
+> 运行时认证与读写完全依赖 Cloudflare Pages + Cloudflare Access + D1（已移除本地模拟模式）。
 
 ```bash
 npm install
-npm run dev       # 启动 Vite 本地开发 (自动启用仅限 localhost dev 的内存模拟数据)
 npm run check     # 前端 + Functions 类型检查
 npm run build     # 生产打包至 dist/
 ```
@@ -97,7 +99,7 @@ npm run build     # 生产打包至 dist/
 | `CF_ACCESS_AUD` | Cloudflare Access Application AUD 标识（生产必填） |
 | `BLOG_WORKER_URL` | `oblivion-content` Worker 根地址（不要带 `/api`） |
 | `BLOG_PUBLISH_SECRET` | 与 Worker 的 `PUBLISH_SECRET` 一致（设为 Secret） |
-| `DEV_MODE` | 仅本地开发设为 `true`，生产环境留空或 `false` |
+| `NETEASE_API_URL` | （可选）自建 `NeteaseCloudMusicApi` 根地址；留空时默认直连网易云官方搜索接口 |
 
 ### Worker 协议说明
 

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { Article, ArticleDraft } from "../types/article";
+import type { Article, ArticleDraft, ArticleMusic } from "../types/article";
 import {
   deleteMoment,
   fetchMoments,
@@ -172,6 +172,22 @@ export function useMomentsWorkspace({
         const hasAny =
           merged.title.trim() || merged.artist.trim() || merged.url.trim();
         return { ...prev, music: hasAny ? merged : undefined };
+      });
+    },
+    [updateArticle],
+  );
+
+  const setMusic = useCallback(
+    (music: ArticleMusic | undefined) => {
+      updateArticle((prev) => {
+        if (!music) return { ...prev, music: undefined };
+        const normalized: ArticleMusic = {
+          title: music.title.trim(),
+          artist: music.artist.trim(),
+          url: music.url.trim(),
+        };
+        const hasAny = normalized.title || normalized.artist || normalized.url;
+        return { ...prev, music: hasAny ? normalized : undefined };
       });
     },
     [updateArticle],
@@ -466,6 +482,7 @@ export function useMomentsWorkspace({
     saveDraftImmediately,
     updateArticle,
     updateMusicField,
+    setMusic,
     handleSelectArticle,
     handleNewArticle,
     handleCloneArticle,

@@ -95,7 +95,7 @@ export function LeftRail({
             type="button"
             onClick={onOpenSettings}
             aria-label="存储状态"
-            title={isD1 ? "Cloudflare D1 已联机" : "未绑定 D1 (离线模拟模式)"}
+            title={isD1 ? "Cloudflare D1 已联机" : "未绑定 Cloudflare D1"}
           >
             <S.StatusDot $connected={isD1} />
           </S.IconBtn>

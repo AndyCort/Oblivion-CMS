@@ -275,10 +275,7 @@ export function usePostsWorkspace({
       currentRef.current = next;
       setEditor(next);
       setRevision((v) => v + 1);
-      const msg =
-        response.mode === "worker"
-          ? "发布成功，Worker 已执行缓存清理流程。"
-          : "已发布到本地临时内存（未上线）。";
+      const msg = "发布成功，Worker 已执行缓存清理流程。";
       setNotice(msg);
       onToast?.("success", msg);
       draftQueue.cancel();
